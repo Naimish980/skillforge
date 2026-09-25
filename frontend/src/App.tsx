@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -1057,7 +1057,7 @@ function AuthModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
 
     setError("");
@@ -1099,10 +1099,12 @@ function AuthModal({
     try {
       setLoading(true);
 
+      const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+
       const endpoint =
         mode === "login"
-          ? "http://localhost:5000/api/auth/login"
-          : "http://localhost:5000/api/auth/register";
+          ? `${API_BASE_URL}/api/auth/login`
+          : `${API_BASE_URL}/api/auth/register`;
 
       const requestBody =
         mode === "login"
@@ -1376,7 +1378,7 @@ function Modal({
   children,
   onClose,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   onClose: () => void;
 }) {
   return (
