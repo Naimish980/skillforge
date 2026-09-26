@@ -1,33 +1,22 @@
-import express from "express";
+﻿import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { pool } from "./db";
 import authRoutes from "./routes/auth";
 import paymentRoutes from "./routes/payment";
+import progressRoutes from "./routes/progress";
 
 dotenv.config();
 
 const app = express();
 
-// -----------------------------
-// Middleware
-// -----------------------------
 app.use(cors());
 app.use(express.json());
 
-// -----------------------------
-// Authentication routes
-// -----------------------------
 app.use("/api/auth", authRoutes);
-
-// -----------------------------
-// Payment routes
-// -----------------------------
 app.use("/api/payment", paymentRoutes);
+app.use("/api/progress", progressRoutes);
 
-// -----------------------------
-// Health check
-// -----------------------------
 app.get("/api/health", async (_req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -48,9 +37,6 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-// -----------------------------
-// Start server
-// -----------------------------
 const PORT = Number(process.env.PORT || 5000);
 
 app.listen(PORT, () => {
