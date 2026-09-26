@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -75,7 +75,7 @@ const securityModules: CourseModule[] = [
         id: "lecture-1",
         title: "Introduction to me & the Course",
         duration: "23:39",
-        videoUrl: "/videos/lecture-1.mp4",
+        videoUrl: "https://www.youtube.com/embed/GTlmZPjacWs?rel=0&modestbranding=1",
         questions: [
           {
             question: "According to the lecture, what happens to the attack surface as IoT devices increase?",
@@ -1643,6 +1643,244 @@ function CourseDetails({
 
 /* ================= COURSE PLAYER ================= */
 
+const R2_LECTURE_1_URL = "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/cyber-security/Module%201%20%E2%80%94%20Introduction/lecture-1.mp4";
+
+function SkillForgeVideoPlayer({
+  src,
+  title,
+}: {
+  src: string;
+  title: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [showSpeed, setShowSpeed] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const showControls = () => {
+    setControlsVisible(true);
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    if (playing) {
+      hideTimerRef.current = window.setTimeout(() => setControlsVisible(false), 2200);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(document.fullscreenElement === playerRef.current);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  const togglePlay = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      await video.play();
+      setPlaying(true);
+    } else {
+      video.pause();
+      setPlaying(false);
+    }
+    showControls();
+  };
+
+  const seekBy = (seconds: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+    showControls();
+  };
+
+  const toggleFullscreen = async () => {
+    const container = playerRef.current;
+    if (!container) return;
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await container.requestFullscreen();
+    }
+  };
+
+  const formatTime = (value: number) => {
+    if (!Number.isFinite(value)) return "00:00";
+    const total = Math.floor(value);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return hours > 0
+      ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+      : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  };
+
+  return (
+    <div
+      ref={playerRef}
+      className="group relative aspect-video overflow-hidden bg-black select-none"
+      onMouseMove={showControls}
+      onMouseEnter={showControls}
+      onContextMenu={(event) => event.preventDefault()}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) void togglePlay();
+      }}
+    >
+      <video
+        ref={videoRef}
+        className="h-full w-full object-contain bg-black"
+        src={src}
+        playsInline
+        preload="metadata"
+        controls={false}
+        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onPlay={() => { setPlaying(true); showControls(); }}
+        onPause={() => { setPlaying(false); setControlsVisible(true); }}
+        onEnded={() => { setPlaying(false); setControlsVisible(true); }}
+        onVolumeChange={(event) => {
+          setVolume(event.currentTarget.volume);
+          setMuted(event.currentTarget.muted);
+        }}
+        onClick={() => void togglePlay()}
+        onDoubleClick={() => void toggleFullscreen()}
+      />
+
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80" />
+
+      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4 transition-opacity duration-300 ${controlsVisible ? "opacity-100" : "opacity-0"}`}>
+        <div className="rounded-xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur-md">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-400">SkillForge</p>
+          <p className="mt-0.5 max-w-[70vw] truncate text-sm font-semibold text-white">{title}</p>
+        </div>
+        <div className="rounded-full border border-lime-400/20 bg-black/45 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-lime-300 backdrop-blur-md">
+          Lecture 1
+        </div>
+      </div>
+
+      {!playing && (
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label="Play video"
+          className="absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-lime-300/50 bg-lime-400 text-black shadow-[0_0_45px_rgba(163,230,53,0.25)] transition hover:scale-105 hover:bg-lime-300 sm:h-24 sm:w-24"
+        >
+          <Play size={34} fill="currentColor" className="ml-1" />
+        </button>
+      )}
+
+      <div className={`absolute inset-x-0 bottom-0 z-20 px-3 pb-3 transition-opacity duration-300 sm:px-5 sm:pb-5 ${controlsVisible ? "opacity-100" : "opacity-0"}`}>
+        <input
+          aria-label="Video progress"
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={(event) => {
+            const value = Number(event.target.value);
+            if (videoRef.current) videoRef.current.currentTime = value;
+            setCurrentTime(value);
+            showControls();
+          }}
+          className="mb-3 h-1.5 w-full cursor-pointer accent-lime-400"
+        />
+
+        <div className="flex items-center gap-2 text-white sm:gap-3">
+          <button type="button" onClick={() => seekBy(-10)} className="rounded-lg p-2 transition hover:bg-white/10" title="Back 10 seconds">
+            <span className="text-xs font-black">↶10</span>
+          </button>
+          <button type="button" onClick={togglePlay} className="flex h-9 w-9 items-center justify-center rounded-full bg-lime-400 text-black transition hover:bg-lime-300" aria-label={playing ? "Pause" : "Play"}>
+            {playing ? <span className="text-sm font-black">Ⅱ</span> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+          </button>
+          <button type="button" onClick={() => seekBy(10)} className="rounded-lg p-2 transition hover:bg-white/10" title="Forward 10 seconds">
+            <span className="text-xs font-black">10↷</span>
+          </button>
+
+          <span className="hidden text-xs font-semibold tabular-nums text-gray-300 sm:block">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                const nextMuted = !muted;
+                if (videoRef.current) videoRef.current.muted = nextMuted;
+                setMuted(nextMuted);
+                showControls();
+              }}
+              className="rounded-lg p-2 transition hover:bg-white/10"
+              title={muted ? "Unmute" : "Mute"}
+            >
+              <span className="text-sm">{muted || volume === 0 ? "🔇" : "🔊"}</span>
+            </button>
+            <input
+              aria-label="Volume"
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={muted ? 0 : volume}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                if (videoRef.current) {
+                  videoRef.current.volume = value;
+                  videoRef.current.muted = value === 0;
+                }
+                setVolume(value);
+                setMuted(value === 0);
+                showControls();
+              }}
+              className="hidden w-20 cursor-pointer accent-lime-400 sm:block"
+            />
+
+            <div className="relative">
+              <button type="button" onClick={() => setShowSpeed((value) => !value)} className="rounded-lg px-2 py-2 text-xs font-bold transition hover:bg-white/10" title="Playback speed">
+                {speed}x
+              </button>
+              {showSpeed && (
+                <div className="absolute bottom-11 right-0 w-28 overflow-hidden rounded-xl border border-white/10 bg-[#0b0f0b]/95 p-1 shadow-2xl backdrop-blur-xl">
+                  {[0.75, 1, 1.25, 1.5, 1.75, 2].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        if (videoRef.current) videoRef.current.playbackRate = value;
+                        setSpeed(value);
+                        setShowSpeed(false);
+                        showControls();
+                      }}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition ${speed === value ? "bg-lime-400 text-black" : "text-gray-300 hover:bg-white/10 hover:text-white"}`}
+                    >
+                      {value}x
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button type="button" onClick={toggleFullscreen} className="rounded-lg p-2 text-lg transition hover:bg-white/10" title="Fullscreen">
+              {isFullscreen ? "⛶" : "⛶"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CoursePlayer({
   course,
   onBack,
@@ -1716,21 +1954,10 @@ function CoursePlayer({
         </div>
 
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#070907] shadow-2xl">
-          <div className="aspect-video bg-black">
-            <video
-              className="h-full w-full object-contain"
-              src={lecture.videoUrl}
-              title={lecture.title}
-              controls
-              controlsList="nodownload"
-              disablePictureInPicture
-              playsInline
-              preload="metadata"
-              onContextMenu={(event) => event.preventDefault()}
-            >
-              Your browser does not support HTML5 video.
-            </video>
-          </div>
+          <SkillForgeVideoPlayer
+            src={lecture.id === "lecture-1" ? R2_LECTURE_1_URL : lecture.videoUrl}
+            title={lecture.title}
+          />
           <div className="flex flex-col gap-4 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-bold">Finish the lecture before attempting the quiz.</p>
