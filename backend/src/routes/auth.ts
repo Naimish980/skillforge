@@ -278,10 +278,8 @@ router.post(
       );
 
       /*
-       * We intentionally return the same response even if
-       * the email does not exist.
-       *
-       * This prevents account/email enumeration.
+       * Keep the same response for existing and
+       * non-existing emails to prevent account enumeration.
        */
       if (userResult.rows.length === 0) {
         return res.status(200).json({
@@ -293,7 +291,7 @@ router.post(
 
       const user = userResult.rows[0];
 
-      // Delete old unused tokens for this user
+      // Delete old unused reset tokens
       await pool.query(
         `
         DELETE FROM password_reset_tokens
@@ -312,7 +310,7 @@ router.post(
         .update(rawToken)
         .digest("hex");
 
-      // Token valid for 30 minutes
+      // Token expires after 30 minutes
       const expiresAt = new Date(
         Date.now() + 30 * 60 * 1000,
       );
@@ -337,9 +335,12 @@ router.post(
       const resetLink =
         `${FRONTEND_URL}/reset-password?token=${rawToken}`;
 
-      // Send email
+      // =================================================
+      // SEND RESET EMAIL
+      // =================================================
+
       try {
-        await resend.emails.send({
+        const { data, error } = await resend.emails.send({
           from: RESEND_FROM_EMAIL,
           to: [user.email],
           subject: "Reset your SkillForge password",
@@ -348,7 +349,10 @@ router.post(
             <html>
               <head>
                 <meta charset="UTF-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <meta
+                  name="viewport"
+                  content="width=device-width, initial-scale=1.0"
+                />
                 <title>Reset your SkillForge password</title>
               </head>
 
@@ -492,13 +496,42 @@ router.post(
             </html>
           `,
         });
+
+        // IMPORTANT:
+        // Resend returns either data or error.
+        if (error) {
+          console.error(
+            "❌ Resend email error:",
+            error,
+          );
+
+          // Remove token if email was rejected
+          await pool.query(
+            `
+            DELETE FROM password_reset_tokens
+            WHERE token_hash = $1
+            `,
+            [tokenHash],
+          );
+
+          return res.status(500).json({
+            success: false,
+            message:
+              "Unable to send password reset email. Please try again later.",
+          });
+        }
+
+        console.log(
+          "✅ Password reset email sent successfully:",
+          data,
+        );
       } catch (emailError) {
         console.error(
-          "Password reset email error:",
+          "❌ Password reset email exception:",
           emailError,
         );
 
-        // Remove token if email could not be sent
+        // Remove token if email sending failed
         await pool.query(
           `
           DELETE FROM password_reset_tokens
@@ -520,7 +553,10 @@ router.post(
           "If an account exists with this email, a password reset link has been sent.",
       });
     } catch (error) {
-      console.error("Forgot password error:", error);
+      console.error(
+        "❌ Forgot password error:",
+        error,
+      );
 
       return res.status(500).json({
         success: false,
@@ -581,6 +617,7 @@ router.post(
         [tokenHash],
       );
 
+      // Token doesn't exist
       if (tokenResult.rows.length === 0) {
         return res.status(400).json({
           success: false,
@@ -641,7 +678,7 @@ router.post(
         [resetToken.id],
       );
 
-      // Delete any other unused reset tokens
+      // Delete other unused reset tokens
       await pool.query(
         `
         DELETE FROM password_reset_tokens
@@ -661,7 +698,10 @@ router.post(
           "Password reset successfully. You can now login with your new password.",
       });
     } catch (error) {
-      console.error("Reset password error:", error);
+      console.error(
+        "❌ Reset password error:",
+        error,
+      );
 
       return res.status(500).json({
         success: false,
