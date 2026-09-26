@@ -769,7 +769,15 @@ function App() {
         user={user}
         enrolledCourseIds={enrolledCourseIds}
         darkMode={darkMode}
-        onBack={() => window.history.back()}
+        onToggleTheme={() => setDarkMode((prev) => !prev)}
+        onBack={() => {
+          setDashboardOpen(false);
+          setSelectedCourse(null);
+          setLearningCourse(null);
+          const cleanUrl = `${window.location.pathname}${window.location.search}`;
+          window.history.replaceState(null, "", cleanUrl);
+          window.scrollTo({ top: 0, behavior: "auto" });
+        }}
         onCourse={openCourse}
         onLearn={openLearning}
         onLogout={handleLogout}
@@ -1054,6 +1062,7 @@ function DashboardPage({
   user,
   enrolledCourseIds,
   darkMode,
+  onToggleTheme,
   onBack,
   onCourse,
   onLearn,
@@ -1062,6 +1071,7 @@ function DashboardPage({
   user: User | null;
   enrolledCourseIds: string[];
   darkMode: boolean;
+  onToggleTheme: () => void;
   onBack: () => void;
   onCourse: (course: Course) => void;
   onLearn: (course: Course) => void;
@@ -1077,10 +1087,8 @@ function DashboardPage({
   useEffect(() => {
     const loadProgress = async () => {
       const token = localStorage.getItem("skillforge_token");
-
       if (!token || enrolledCourses.length === 0) {
         setProgressByCourse({});
-        setLoadingProgress(false);
         return;
       }
 
@@ -1100,13 +1108,11 @@ function DashboardPage({
             );
 
             if (!response.ok) return;
-
             const data = await response.json();
             const progress = Array.isArray(data.progress) ? data.progress : [];
             const completed = progress.filter(
               (item: { passed?: boolean }) => item.passed === true,
             ).length;
-
             next[course.id] = Math.min(
               100,
               Math.round((completed / Math.max(course.lessons, 1)) * 100),
@@ -1137,51 +1143,33 @@ function DashboardPage({
     (course) => (progressByCourse[course.id] ?? 0) >= 100,
   ).length;
 
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support"
-  >("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support">("dashboard");
 
   return (
-    <div
-      className={`min-h-screen transition-colors duration-300 ${
-        darkMode
-          ? "bg-[#070b14] text-slate-100"
-          : "bg-[#f7faf8] text-[#0b1736]"
-      }`}
-    >
-      <header
-        className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors ${
-          darkMode
-            ? "border-[#263449] bg-[#0d1422]/95"
-            : "border-slate-200 bg-white/95"
-        }`}
-      >
+    <>
+      <div className={`dashboard-shell min-h-screen transition-colors duration-300 ${darkMode ? "dashboard-dark bg-[#070b14] text-slate-100" : "bg-[#f7faf8] text-[#0b1736]"}`}>
+      <header className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors ${darkMode ? "border-[#263449] bg-[#0d1422]/95" : "border-slate-200 bg-white/95"}`}>
         <div className="mx-auto flex h-[76px] max-w-[1380px] items-center justify-between px-5 lg:px-8">
           <button
-            onClick={onBack}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onBack();
+            }}
             className="flex items-center gap-3"
             type="button"
+            title="Back to Home"
           >
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                darkMode
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-emerald-50 text-emerald-600"
-              }`}
-            >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
               <BookOpen size={21} />
             </div>
-
             <div className="text-left">
               <div className="text-xl font-black">
-                Skill<span className="text-emerald-500">Forge</span>
+                Skill<span className="text-emerald-600">Forge</span>
               </div>
-              <div
-                className={`text-[8px] font-semibold uppercase tracking-[0.24em] ${
-                  darkMode ? "text-slate-500" : "text-slate-400"
-                }`}
-              >
-                Student Dashboard
+              <div className={`flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.24em] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                <ArrowLeft size={11} />
+                Back to Home · Student Dashboard
               </div>
             </div>
           </button>
@@ -1189,39 +1177,25 @@ function DashboardPage({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                document.documentElement.classList.toggle("dark", !darkMode);
-                localStorage.setItem(
-                  "skillforge-theme",
-                  !darkMode ? "dark" : "light",
-                );
-                window.dispatchEvent(new CustomEvent("skillforge-theme-toggle"));
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onToggleTheme();
               }}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
-                darkMode
-                  ? "border-slate-700 bg-slate-900 text-slate-200 hover:border-emerald-500 hover:text-emerald-400"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
-              }`}
+              onMouseDown={(event) => event.stopPropagation()}
+              className={`relative z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition ${darkMode ? "border-slate-700 bg-slate-900 text-slate-100 hover:border-emerald-400" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600"}`}
               aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
               title={darkMode ? "Light Mode" : "Dark Mode"}
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-
-            <div
-              className={`hidden rounded-full border px-4 py-2 text-sm font-semibold sm:block ${
-                darkMode
-                  ? "border-[#263449] bg-[#111827] text-slate-300"
-                  : "border-slate-200 bg-white text-slate-700"
-              }`}
-            >
-              Hi, <span className="text-emerald-500">{user?.name ?? "Student"}</span>
+            <div className={`hidden rounded-full border px-4 py-2 text-sm font-semibold sm:block ${darkMode ? "border-slate-700 bg-slate-900 text-slate-200" : "border-slate-200 bg-white text-slate-700"}`}>
+              Hi, <span className="text-emerald-600">{user?.name ?? "Student"}</span>
             </div>
-
             <button
               type="button"
               onClick={onLogout}
-              className="flex items-center gap-2 rounded-xl border border-red-400/30 px-3 py-2 text-sm font-semibold text-red-500 transition hover:bg-red-500/10"
+              className="flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
             >
               <LogOut size={15} />
               <span className="hidden sm:inline">Logout</span>
@@ -1232,348 +1206,192 @@ function DashboardPage({
 
       <div className="mx-auto grid max-w-[1380px] gap-6 px-5 py-7 lg:grid-cols-[230px_1fr] lg:px-8">
         <aside className="hidden lg:block">
-          <div
-            className={`sticky top-24 rounded-3xl border p-3 shadow-sm transition-colors ${
-              darkMode
-                ? "border-[#263449] bg-[#0d1422] shadow-black/20"
-                : "border-slate-200 bg-white"
-            }`}
-          >
-            <p
-              className={`px-3 pb-3 pt-2 text-[10px] font-black uppercase tracking-[0.2em] ${
-                darkMode ? "text-slate-500" : "text-slate-400"
-              }`}
-            >
+          <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="px-3 pb-3 pt-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
               Learning
             </p>
-
-            <DashboardNav
-              icon={<LayoutDashboard size={17} />}
-              label="Dashboard"
-              active={activeTab === "dashboard"}
-              darkMode={darkMode}
-              onClick={() => setActiveTab("dashboard")}
-            />
-            <DashboardNav
-              icon={<BookOpen size={17} />}
-              label="My Courses"
-              active={activeTab === "courses"}
-              darkMode={darkMode}
-              onClick={() => setActiveTab("courses")}
-            />
-            <DashboardNav
-              icon={<BarChart3 size={17} />}
-              label="My Progress"
-              active={activeTab === "progress"}
-              darkMode={darkMode}
-              onClick={() => setActiveTab("progress")}
-            />
-            <DashboardNav
-              icon={<Award size={17} />}
-              label="Certificates"
-              active={activeTab === "certificates"}
-              darkMode={darkMode}
-              onClick={() => setActiveTab("certificates")}
-            />
-            <DashboardNav
-              icon={<ReceiptText size={17} />}
-              label="Purchase History"
-              active={activeTab === "purchases"}
-              darkMode={darkMode}
-              onClick={() => setActiveTab("purchases")}
-            />
-            <DashboardNav
-              icon={<Headphones size={17} />}
-              label="Support"
-              active={activeTab === "support"}
-              darkMode={darkMode}
-              onClick={() => setActiveTab("support")}
-            />
+            <DashboardNav darkMode={darkMode} icon={<LayoutDashboard size={17} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+            <DashboardNav darkMode={darkMode} icon={<BookOpen size={17} />} label="My Courses" active={activeTab === "courses"} onClick={() => setActiveTab("courses")} />
+            <DashboardNav darkMode={darkMode} icon={<BarChart3 size={17} />} label="My Progress" active={activeTab === "progress"} onClick={() => setActiveTab("progress")} />
+            <DashboardNav darkMode={darkMode} icon={<Award size={17} />} label="Certificates" active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} />
+            <DashboardNav darkMode={darkMode} icon={<ReceiptText size={17} />} label="Purchase History" active={activeTab === "purchases"} onClick={() => setActiveTab("purchases")} />
+            <DashboardNav darkMode={darkMode} icon={<Headphones size={17} />} label="Support" active={activeTab === "support"} onClick={() => setActiveTab("support")} />
           </div>
         </aside>
 
         <main>
           {activeTab === "dashboard" ? (
             <>
-              <section
-                className={`rounded-3xl border p-6 shadow-sm transition-colors sm:p-8 ${
-                  darkMode
-                    ? "border-emerald-900/50 bg-gradient-to-br from-[#0d2a23] via-[#111827] to-[#10243a]"
-                    : "border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50"
-                }`}
+          <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">
+                  Student Dashboard
+                </p>
+                <h1 className="mt-2 text-3xl font-black sm:text-4xl">
+                  Welcome back, {user?.name?.split(" ")[0] ?? "Student"}! 👋
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  Continue your courses, track your progress and complete your next learning milestone.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                    <Flame size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Learning Streak</p>
+                    <p className="text-lg font-black text-[#0b1736]">Keep going!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <DashboardStat icon={<BookOpen />} value={String(enrolledCourses.length)} label="Enrolled Courses" />
+            <DashboardStat icon={<BarChart3 />} value={`${totalProgress}%`} label="Overall Progress" />
+            <DashboardStat icon={<CheckCircle2 />} value={String(completedCourses)} label="Completed Courses" />
+            <DashboardStat icon={<Award />} value={String(completedCourses)} label="Certificates" />
+          </section>
+
+          <section className="mt-7">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">
+                  Your Learning
+                </p>
+                <h2 className="mt-1 text-2xl font-black">My Courses</h2>
+              </div>
+              <button
+                type="button"
+                onClick={onBack}
+                className="hidden text-sm font-bold text-emerald-600 sm:block"
               >
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-500">
-                      Student Dashboard
-                    </p>
-                    <h1 className="mt-2 text-3xl font-black sm:text-4xl">
-                      Welcome back, {user?.name?.split(" ")[0] ?? "Student"}! 👋
-                    </h1>
-                    <p
-                      className={`mt-2 max-w-2xl text-sm leading-6 ${
-                        darkMode ? "text-slate-400" : "text-slate-500"
-                      }`}
-                    >
-                      Continue your courses, track your progress and complete your next learning milestone.
-                    </p>
-                  </div>
+                Browse Courses →
+              </button>
+            </div>
 
-                  <div
-                    className={`rounded-2xl border p-4 shadow-sm ${
-                      darkMode
-                        ? "border-[#263449] bg-[#111827]/80"
-                        : "border-white bg-white/80"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
-                        <Flame size={20} />
-                      </div>
-                      <div>
-                        <p
-                          className={`text-xs ${
-                            darkMode ? "text-slate-500" : "text-slate-400"
-                          }`}
-                        >
-                          Learning Streak
-                        </p>
-                        <p className="text-lg font-black">Keep going!</p>
-                      </div>
-                    </div>
-                  </div>
+            {enrolledCourses.length === 0 ? (
+              <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <GraduationCap size={28} />
                 </div>
-              </section>
-
-              <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <DashboardStat icon={<BookOpen />} value={String(enrolledCourses.length)} label="Enrolled Courses" darkMode={darkMode} />
-                <DashboardStat icon={<BarChart3 />} value={`${totalProgress}%`} label="Overall Progress" darkMode={darkMode} />
-                <DashboardStat icon={<CheckCircle2 />} value={String(completedCourses)} label="Completed Courses" darkMode={darkMode} />
-                <DashboardStat icon={<Award />} value={String(completedCourses)} label="Certificates" darkMode={darkMode} />
-              </section>
-
-              <section className="mt-7">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-500">
-                      Your Learning
-                    </p>
-                    <h2 className="mt-1 text-2xl font-black">My Courses</h2>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={onBack}
-                    className="hidden text-sm font-bold text-emerald-500 sm:block"
-                  >
-                    Browse Courses →
-                  </button>
-                </div>
-
-                {enrolledCourses.length === 0 ? (
-                  <div
-                    className={`mt-5 rounded-3xl border border-dashed p-10 text-center ${
-                      darkMode
-                        ? "border-[#334155] bg-[#111827]"
-                        : "border-slate-300 bg-white"
-                    }`}
-                  >
+                <h3 className="mt-4 text-xl font-black">No courses yet</h3>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  Purchase a course to start learning and your enrolled course will appear here.
+                </p>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="mt-5 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+                >
+                  Explore Courses
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-5 md:grid-cols-2">
+                {enrolledCourses.map((course) => {
+                  const progress = progressByCourse[course.id] ?? 0;
+                  return (
                     <div
-                      className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${
-                        darkMode
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : "bg-emerald-50 text-emerald-600"
-                      }`}
+                      key={course.id}
+                      className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
                     >
-                      <GraduationCap size={28} />
-                    </div>
-                    <h3 className="mt-4 text-xl font-black">No courses yet</h3>
-                    <p
-                      className={`mx-auto mt-2 max-w-md text-sm leading-6 ${
-                        darkMode ? "text-slate-400" : "text-slate-500"
-                      }`}
-                    >
-                      Purchase a course to start learning and your enrolled course will appear here.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onBack}
-                      className="mt-5 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-700"
-                    >
-                      Explore Courses
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-5 grid gap-5 md:grid-cols-2">
-                    {enrolledCourses.map((course) => {
-                      const progress = progressByCourse[course.id] ?? 0;
-
-                      return (
-                        <div
-                          key={course.id}
-                          className={`rounded-3xl border p-5 shadow-sm transition-colors ${
-                            darkMode
-                              ? "border-[#263449] bg-[#111827]"
-                              : "border-slate-200 bg-white"
-                          }`}
-                        >
-                          <div className="flex gap-4">
-                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-3xl">
-                              {course.emoji}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">
-                                {course.category}
-                              </p>
-                              <h3 className="mt-1 truncate text-lg font-black">{course.title}</h3>
-                              <p
-                                className={`mt-1 text-xs ${
-                                  darkMode ? "text-slate-400" : "text-slate-500"
-                                }`}
-                              >
-                                {course.lessons} lessons · {course.duration}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-5">
-                            <div className="flex items-center justify-between text-xs">
-                              <span
-                                className={`font-semibold ${
-                                  darkMode ? "text-slate-400" : "text-slate-500"
-                                }`}
-                              >
-                                Course Progress
-                              </span>
-                              <span className="font-black text-emerald-500">
-                                {loadingProgress ? "…" : `${progress}%`}
-                              </span>
-                            </div>
-
-                            <div
-                              className={`mt-2 h-2 overflow-hidden rounded-full ${
-                                darkMode ? "bg-[#263449]" : "bg-slate-100"
-                              }`}
-                            >
-                              <div
-                                className="h-full rounded-full bg-emerald-500 transition-all"
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-5 flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onLearn(course)}
-                              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700"
-                            >
-                              <PlayCircle size={16} />
-                              Continue Learning
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => onCourse(course)}
-                              className={`rounded-xl border px-4 py-3 text-sm font-bold transition ${
-                                darkMode
-                                  ? "border-[#334155] text-slate-300 hover:border-emerald-500 hover:text-emerald-400"
-                                  : "border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-600"
-                              }`}
-                              title="View course"
-                            >
-                              <ChevronRight size={18} />
-                            </button>
-                          </div>
+                      <div className="flex gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-3xl">
+                          {course.emoji}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">
+                            {course.category}
+                          </p>
+                          <h3 className="mt-1 truncate text-lg font-black">{course.title}</h3>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {course.lessons} lessons · {course.duration}
+                          </p>
+                        </div>
+                      </div>
 
-              <section className="mt-7 grid gap-5 lg:grid-cols-2">
-                <div
-                  className={`rounded-3xl border p-6 shadow-sm transition-colors ${
-                    darkMode
-                      ? "border-[#263449] bg-[#111827]"
-                      : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                        darkMode
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : "bg-emerald-50 text-emerald-600"
-                      }`}
-                    >
-                      <TrendingUp size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-500">
-                        Progress
-                      </p>
-                      <h3 className="mt-1 text-lg font-black">Learning Overview</h3>
-                    </div>
-                  </div>
+                      <div className="mt-5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-500">Course Progress</span>
+                          <span className="font-black text-emerald-600">
+                            {loadingProgress ? "…" : `${progress}%`}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="mt-5 space-y-4">
-                    <ProgressLine label="Courses enrolled" value={`${enrolledCourses.length}`} darkMode={darkMode} />
-                    <ProgressLine label="Overall completion" value={`${totalProgress}%`} darkMode={darkMode} />
-                    <ProgressLine label="Certificates earned" value={`${completedCourses}`} darkMode={darkMode} />
-                  </div>
+                      <div className="mt-5 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onLearn(course)}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+                        >
+                          <PlayCircle size={16} />
+                          Continue Learning
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCourse(course)}
+                          className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:border-emerald-300 hover:text-emerald-600"
+                          title="View course"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="mt-7 grid gap-5 lg:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <TrendingUp size={20} />
                 </div>
-
-                <div
-                  className={`rounded-3xl border p-6 shadow-sm transition-colors ${
-                    darkMode
-                      ? "border-[#263449] bg-[#111827]"
-                      : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                        darkMode
-                          ? "bg-amber-500/10 text-amber-400"
-                          : "bg-amber-50 text-amber-600"
-                      }`}
-                    >
-                      <Headphones size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-500">
-                        Support
-                      </p>
-                      <h3 className="mt-1 text-lg font-black">Need help?</h3>
-                    </div>
-                  </div>
-
-                  <p
-                    className={`mt-4 text-sm leading-6 ${
-                      darkMode ? "text-slate-400" : "text-slate-500"
-                    }`}
-                  >
-                    For course, account or payment support, contact the SkillForge support team.
-                  </p>
-
-                  <div
-                    className={`mt-4 rounded-2xl p-4 text-sm ${
-                      darkMode ? "bg-[#172033]" : "bg-slate-50"
-                    }`}
-                  >
-                    <p className="font-bold">Naimish Singh</p>
-                    <p className={darkMode ? "mt-1 text-slate-400" : "mt-1 text-slate-500"}>
-                      snera980@gmail.com
-                    </p>
-                    <p className={darkMode ? "text-slate-400" : "text-slate-500"}>
-                      +91 8960513302
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Progress</p>
+                  <h3 className="mt-1 text-lg font-black">Learning Overview</h3>
                 </div>
-              </section>
+              </div>
+              <div className="mt-5 space-y-4">
+                <ProgressLine label="Courses enrolled" value={`${enrolledCourses.length}`} />
+                <ProgressLine label="Overall completion" value={`${totalProgress}%`} />
+                <ProgressLine label="Certificates earned" value={`${completedCourses}`} />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <Headphones size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600">Support</p>
+                  <h3 className="mt-1 text-lg font-black">Need help?</h3>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-500">
+                For course, account or payment support, contact the SkillForge support team.
+              </p>
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm">
+                <p className="font-bold text-slate-800">Naimish Singh</p>
+                <p className="mt-1 text-slate-500">snera980@gmail.com</p>
+                <p className="text-slate-500">+91 8960513302</p>
+              </div>
+            </div>
+          </section>
             </>
           ) : (
             <DashboardTabContent
@@ -1583,7 +1401,6 @@ function DashboardPage({
               totalProgress={totalProgress}
               completedCourses={completedCourses}
               loadingProgress={loadingProgress}
-              darkMode={darkMode}
               onBack={onBack}
               onLearn={onLearn}
               setActiveTab={setActiveTab}
@@ -1591,7 +1408,8 @@ function DashboardPage({
           )}
         </main>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1602,7 +1420,6 @@ function DashboardTabContent({
   totalProgress,
   completedCourses,
   loadingProgress,
-  darkMode,
   onBack,
   onLearn,
   setActiveTab,
@@ -1613,12 +1430,9 @@ function DashboardTabContent({
   totalProgress: number;
   completedCourses: number;
   loadingProgress: boolean;
-  darkMode: boolean;
   onBack: () => void;
   onLearn: (course: Course) => void;
-  setActiveTab: (
-    tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support",
-  ) => void;
+  setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
 }) {
   const heading: Record<typeof activeTab, string> = {
     courses: "My Courses",
@@ -1628,223 +1442,52 @@ function DashboardTabContent({
     support: "Support",
   };
 
-  const panel = darkMode
-    ? "border-[#263449] bg-[#111827]"
-    : "border-slate-200 bg-white";
-
-  const muted = darkMode ? "text-slate-400" : "text-slate-500";
-
   return (
-    <section className={`rounded-3xl border p-6 shadow-sm sm:p-8 ${panel}`}>
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-500">
-            Student Area
-          </p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">Student Area</p>
           <h1 className="mt-2 text-3xl font-black">{heading[activeTab]}</h1>
-          <p className={`mt-2 text-sm ${muted}`}>
-            This section is connected to your SkillForge account.
-          </p>
+          <p className="mt-2 text-sm text-slate-500">This section is connected to your SkillForge account.</p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("dashboard")}
-          className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
-            darkMode
-              ? "border-[#334155] text-slate-300 hover:border-emerald-500 hover:text-emerald-400"
-              : "border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
-          }`}
-        >
-          ← Dashboard
-        </button>
+        <button type="button" onClick={() => setActiveTab("dashboard")} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-emerald-300 hover:text-emerald-700">← Dashboard</button>
       </div>
 
       {activeTab === "courses" && (
         <div className="mt-7 grid gap-5 md:grid-cols-2">
           {enrolledCourses.length === 0 ? (
-            <div className={`md:col-span-2 rounded-2xl border border-dashed p-10 text-center ${darkMode ? "border-[#334155]" : "border-slate-300"}`}>
-              <GraduationCap className="mx-auto text-emerald-500" size={32} />
+            <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+              <GraduationCap className="mx-auto text-emerald-600" size={32} />
               <h3 className="mt-3 font-black">No courses yet</h3>
-              <p className={`mt-2 text-sm ${muted}`}>
-                Purchase a course and it will appear here automatically.
-              </p>
-              <button
-                type="button"
-                onClick={onBack}
-                className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white"
-              >
-                Explore Courses
-              </button>
+              <p className="mt-2 text-sm text-slate-500">Purchase a course and it will appear here automatically.</p>
+              <button type="button" onClick={onBack} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white">Explore Courses</button>
             </div>
-          ) : (
-            enrolledCourses.map((course) => (
-              <div key={course.id} className={`rounded-2xl border p-5 ${darkMode ? "border-[#263449] bg-[#172033]" : "border-slate-200 bg-white"}`}>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-2xl">
-                    {course.emoji}
-                  </div>
-                  <div>
-                    <h3 className="font-black">{course.title}</h3>
-                    <p className={`text-xs ${muted}`}>
-                      {course.lessons} lessons · {course.duration}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => onLearn(course)}
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700"
-                >
-                  <PlayCircle size={16} />
-                  Continue Learning
-                </button>
-              </div>
-            ))
-          )}
+          ) : enrolledCourses.map(course => (
+            <div key={course.id} className="rounded-2xl border border-slate-200 p-5">
+              <div className="flex items-center gap-3"><div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-2xl">{course.emoji}</div><div><h3 className="font-black">{course.title}</h3><p className="text-xs text-slate-500">{course.lessons} lessons · {course.duration}</p></div></div>
+              <button type="button" onClick={() => onLearn(course)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700"><PlayCircle size={16}/> Continue Learning</button>
+            </div>
+          ))}
         </div>
       )}
 
       {activeTab === "progress" && (
         <div className="mt-7">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <DashboardStat icon={<BookOpen />} value={String(enrolledCourses.length)} label="Courses" darkMode={darkMode} />
-            <DashboardStat icon={<BarChart3 />} value={`${totalProgress}%`} label="Overall Progress" darkMode={darkMode} />
-            <DashboardStat icon={<CheckCircle2 />} value={String(completedCourses)} label="Completed" darkMode={darkMode} />
-          </div>
-
-          <div className="mt-6 space-y-4">
-            {enrolledCourses.length === 0 ? (
-              <p className={`rounded-2xl p-8 text-center text-sm ${darkMode ? "bg-[#172033] text-slate-400" : "bg-slate-50 text-slate-500"}`}>
-                Enroll in a course to see your progress.
-              </p>
-            ) : (
-              enrolledCourses.map((course) => {
-                const progress = progressByCourse[course.id] ?? 0;
-
-                return (
-                  <div key={course.id} className={`rounded-2xl border p-5 ${darkMode ? "border-[#263449] bg-[#172033]" : "border-slate-200 bg-white"}`}>
-                    <div className="flex justify-between gap-4">
-                      <h3 className="font-black">{course.title}</h3>
-                      <span className="font-black text-emerald-500">
-                        {loadingProgress ? "…" : `${progress}%`}
-                      </span>
-                    </div>
-
-                    <div className={`mt-3 h-2 overflow-hidden rounded-full ${darkMode ? "bg-[#263449]" : "bg-slate-100"}`}>
-                      <div
-                        className="h-full rounded-full bg-emerald-500"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+          <div className="grid gap-4 sm:grid-cols-3"><DashboardStat icon={<BookOpen/>} value={String(enrolledCourses.length)} label="Courses"/><DashboardStat icon={<BarChart3/>} value={`${totalProgress}%`} label="Overall Progress"/><DashboardStat icon={<CheckCircle2/>} value={String(completedCourses)} label="Completed"/></div>
+          <div className="mt-6 space-y-4">{enrolledCourses.length === 0 ? <p className="rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">Enroll in a course to see your progress.</p> : enrolledCourses.map(course => { const progress = progressByCourse[course.id] ?? 0; return <div key={course.id} className="rounded-2xl border border-slate-200 p-5"><div className="flex justify-between gap-4"><h3 className="font-black">{course.title}</h3><span className="font-black text-emerald-600">{loadingProgress ? "…" : `${progress}%`}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{width: `${progress}%`}}/></div></div>; })}</div>
         </div>
       )}
 
       {activeTab === "certificates" && (
-        <div className="mt-7">
-          {completedCourses === 0 ? (
-            <div className={`rounded-2xl border border-dashed p-10 text-center ${darkMode ? "border-[#334155]" : "border-slate-300"}`}>
-              <Award className="mx-auto text-emerald-500" size={32} />
-              <h3 className="mt-3 font-black">No certificates yet</h3>
-              <p className={`mt-2 text-sm ${muted}`}>
-                Complete a course to unlock its SkillForge certificate.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-5 md:grid-cols-2">
-              {enrolledCourses
-                .filter((course) => (progressByCourse[course.id] ?? 0) >= 100)
-                .map((course) => (
-                  <div
-                    key={course.id}
-                    className={`rounded-2xl border p-5 ${
-                      darkMode
-                        ? "border-emerald-900/50 bg-emerald-500/10"
-                        : "border-emerald-100 bg-emerald-50"
-                    }`}
-                  >
-                    <Award className="text-emerald-500" />
-                    <h3 className="mt-3 font-black">{course.title}</h3>
-                    <p className={`mt-1 text-sm ${muted}`}>
-                      Course completed successfully.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => alert("Certificate generator will be connected here.")}
-                      className={`mt-4 rounded-xl px-4 py-2 text-sm font-bold ${
-                        darkMode
-                          ? "bg-[#172033] text-emerald-400"
-                          : "bg-white text-emerald-700"
-                      }`}
-                    >
-                      View Certificate
-                    </button>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
+        <div className="mt-7">{completedCourses === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center"><Award className="mx-auto text-emerald-600" size={32}/><h3 className="mt-3 font-black">No certificates yet</h3><p className="mt-2 text-sm text-slate-500">Complete a course to unlock its SkillForge certificate.</p></div> : <div className="grid gap-5 md:grid-cols-2">{enrolledCourses.filter(c => (progressByCourse[c.id] ?? 0) >= 100).map(course => <div key={course.id} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><Award className="text-emerald-600"/><h3 className="mt-3 font-black">{course.title}</h3><p className="mt-1 text-sm text-slate-500">Course completed successfully.</p><button type="button" onClick={() => alert("Certificate generator will be connected here.")} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-emerald-700">View Certificate</button></div>)}</div>}</div>
       )}
 
       {activeTab === "purchases" && (
-        <div className={`mt-7 overflow-hidden rounded-2xl border ${darkMode ? "border-[#263449]" : "border-slate-200"}`}>
-          {enrolledCourses.length === 0 ? (
-            <p className={`p-8 text-center text-sm ${muted}`}>No purchases yet.</p>
-          ) : (
-            enrolledCourses.map((course) => (
-              <div
-                key={course.id}
-                className={`flex items-center justify-between gap-4 border-b p-5 last:border-0 ${
-                  darkMode ? "border-[#263449]" : "border-slate-100"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{course.emoji}</span>
-                  <div>
-                    <p className="font-bold">{course.title}</p>
-                    <p className={`text-xs ${muted}`}>Lifetime access</p>
-                  </div>
-                </div>
-
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-700"}`}>
-                  Purchased
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+        <div className="mt-7 overflow-hidden rounded-2xl border border-slate-200">{enrolledCourses.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">No purchases yet.</p> : enrolledCourses.map(course => <div key={course.id} className="flex items-center justify-between gap-4 border-b border-slate-100 p-5 last:border-0"><div className="flex items-center gap-3"><span className="text-2xl">{course.emoji}</span><div><p className="font-bold">{course.title}</p><p className="text-xs text-slate-500">Lifetime access</p></div></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Purchased</span></div>)}</div>
       )}
 
       {activeTab === "support" && (
-        <div className="mt-7 grid gap-5 md:grid-cols-2">
-          <a
-            href="mailto:snera980@gmail.com"
-            className={`rounded-2xl border p-6 transition hover:border-emerald-400 ${
-              darkMode ? "border-[#263449]" : "border-slate-200"
-            }`}
-          >
-            <Mail className="text-emerald-500" />
-            <h3 className="mt-3 font-black">Email Support</h3>
-            <p className={`mt-1 text-sm ${muted}`}>snera980@gmail.com</p>
-          </a>
-
-          <a
-            href="tel:+918960513302"
-            className={`rounded-2xl border p-6 transition hover:border-emerald-400 ${
-              darkMode ? "border-[#263449]" : "border-slate-200"
-            }`}
-          >
-            <Phone className="text-emerald-500" />
-            <h3 className="mt-3 font-black">Call Support</h3>
-            <p className={`mt-1 text-sm ${muted}`}>+91 8960513302</p>
-          </a>
-        </div>
+        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href="mailto:snera980@gmail.com" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">snera980@gmail.com</p></a><a href="tel:+918960513302" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">+91 8960513302</p></a></div>
       )}
     </section>
   );
@@ -1854,14 +1497,14 @@ function DashboardNav({
   icon,
   label,
   active = false,
-  darkMode = false,
   onClick,
+  darkMode = false,
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
-  darkMode?: boolean;
   onClick: () => void;
+  darkMode?: boolean;
 }) {
   return (
     <button
@@ -1887,70 +1530,31 @@ function DashboardStat({
   icon,
   value,
   label,
-  darkMode = false,
 }: {
   icon: ReactNode;
   value: string;
   label: string;
-  darkMode?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-2xl border p-4 shadow-sm transition-colors ${
-        darkMode
-          ? "border-[#263449] bg-[#111827]"
-          : "border-slate-200 bg-white"
-      }`}
-    >
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-3">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-            darkMode
-              ? "bg-emerald-500/10 text-emerald-400"
-              : "bg-emerald-50 text-emerald-600"
-          }`}
-        >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
           {icon}
         </div>
-
         <div className="min-w-0">
-          <p className="text-xl font-black">{value}</p>
-          <p
-            className={`truncate text-[10px] font-medium ${
-              darkMode ? "text-slate-400" : "text-slate-500"
-            }`}
-          >
-            {label}
-          </p>
+          <p className="text-xl font-black text-[#0b1736]">{value}</p>
+          <p className="truncate text-[10px] font-medium text-slate-500">{label}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function ProgressLine({
-  label,
-  value,
-  darkMode = false,
-}: {
-  label: string;
-  value: string;
-  darkMode?: boolean;
-}) {
+function ProgressLine({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className={`flex items-center justify-between rounded-xl px-4 py-3 ${
-        darkMode ? "bg-[#172033]" : "bg-slate-50"
-      }`}
-    >
-      <span
-        className={`text-sm font-semibold ${
-          darkMode ? "text-slate-300" : "text-slate-600"
-        }`}
-      >
-        {label}
-      </span>
-      <span className="text-sm font-black text-emerald-500">{value}</span>
+    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+      <span className="text-sm font-semibold text-slate-600">{label}</span>
+      <span className="text-sm font-black text-emerald-600">{value}</span>
     </div>
   );
 }

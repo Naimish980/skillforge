@@ -1572,3 +1572,175 @@ html.dark .skillforge-light #categories .group .text-gray-500 {
     background: #111827 !important;
   }
 }
+
+/* =========================================================
+   STUDENT DASHBOARD — SCOPED DARK THEME FIX V2
+   This block is intentionally scoped to .dashboard-shell so
+   homepage/course pages are not affected.
+   ========================================================= */
+
+.dashboard-shell {
+  min-height: 100vh;
+}
+
+.dashboard-shell.dashboard-dark {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+.dashboard-shell.dashboard-dark header {
+  background: rgba(13, 20, 34, 0.96) !important;
+  border-color: #263449 !important;
+}
+
+.dashboard-shell.dashboard-dark aside > div {
+  background: #0d1422 !important;
+  border-color: #263449 !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-white,
+.dashboard-shell.dashboard-dark [class*="bg-white/"] {
+  background-color: #111827 !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-slate-50 {
+  background-color: #172033 !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-slate-100 {
+  background-color: #1f2937 !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-slate-200 {
+  background-color: #263449 !important;
+}
+
+.dashboard-shell.dashboard-dark .border-slate-100,
+.dashboard-shell.dashboard-dark .border-slate-200,
+.dashboard-shell.dashboard-dark .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+.dashboard-shell.dashboard-dark .text-\[\#0b1736\],
+.dashboard-shell.dashboard-dark .text-slate-900,
+.dashboard-shell.dashboard-dark .text-slate-800 {
+  color: #f8fafc !important;
+}
+
+.dashboard-shell.dashboard-dark .text-slate-700,
+.dashboard-shell.dashboard-dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dashboard-shell.dashboard-dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.dashboard-shell.dashboard-dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+.dashboard-shell.dashboard-dark .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+.dashboard-shell.dashboard-dark .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+/* Dashboard hero */
+.dashboard-shell.dashboard-dark main > section:first-child,
+.dashboard-shell.dashboard-dark .bg-gradient-to-br {
+  background-image: linear-gradient(135deg, #0d1422 0%, #111a2a 55%, #0a1715 100%) !important;
+  background-color: #0d1422 !important;
+  border-color: #14532d !important;
+}
+
+/* Dashboard stat / course / lower cards */
+.dashboard-shell.dashboard-dark .rounded-2xl.border,
+.dashboard-shell.dashboard-dark .rounded-3xl.border {
+  border-color: #263449 !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-emerald-50 {
+  background-color: #06352a !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-emerald-100 {
+  background-color: #064e3b !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-amber-50 {
+  background-color: #2a1d08 !important;
+}
+
+/* Green CTA buttons must stay green with white text */
+.dashboard-shell.dashboard-dark .bg-emerald-500,
+.dashboard-shell.dashboard-dark .bg-emerald-600 {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+.dashboard-shell.dashboard-dark .bg-emerald-500:hover,
+.dashboard-shell.dashboard-dark .bg-emerald-600:hover {
+  background-color: #047857 !important;
+}
+
+/* Course icon boxes */
+.dashboard-shell.dashboard-dark .bg-slate-900 {
+  background-color: #111827 !important;
+}
+
+/* Secondary course action */
+.dashboard-shell.dashboard-dark button.border-slate-200,
+.dashboard-shell.dashboard-dark button.border-slate-300 {
+  background-color: #111827 !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+/* Theme/profile buttons */
+.dashboard-shell.dashboard-dark header .bg-slate-900 {
+  background-color: #111827 !important;
+}
+
+/* Logout */
+.dashboard-shell.dashboard-dark header .border-red-200 {
+  border-color: #7f1d1d !important;
+  color: #f87171 !important;
+}
+
+/* Sidebar */
+.dashboard-shell.dashboard-dark aside .text-slate-400 {
+  color: #64748b !important;
+}
+
+.dashboard-shell.dashboard-dark aside .text-emerald-400 {
+  color: #34d399 !important;
+}
+
+/* Progress lines */
+.dashboard-shell.dashboard-dark .h-2.bg-slate-100,
+.dashboard-shell.dashboard-dark [class*="bg-slate-100"] {
+  background-color: #263449 !important;
+}
+
+/* Inputs / dialogs if dashboard tabs use them later */
+.dashboard-shell.dashboard-dark input,
+.dashboard-shell.dashboard-dark textarea,
+.dashboard-shell.dashboard-dark select {
+  background-color: #111827 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+.dashboard-shell.dashboard-dark input::placeholder,
+.dashboard-shell.dashboard-dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+@media (max-width: 767px) {
+  .dashboard-shell.dashboard-dark {
+    background: #070b14 !important;
+  }
+}
