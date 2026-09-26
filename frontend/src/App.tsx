@@ -31,6 +31,8 @@ import {
   UserCircle,
   UserPlus,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 type User = {
@@ -350,6 +352,15 @@ function App() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [homeLearningProgress, setHomeLearningProgress] = useState(0);
+
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("skillforge-theme") === "dark";
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("skillforge-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
 
@@ -798,7 +809,41 @@ function App() {
   }
 
   return (
-    <div className="skillforge-light min-h-screen bg-[#f8fbfa] text-[#0b1736]">
+    <>
+      <style>{`
+        html.dark body { background:#0b1120 !important; color:#e5e7eb !important; }
+        html.dark { background:#0b1120 !important; color:#e5e7eb !important; }
+        html.dark .bg-white,
+        html.dark .bg-white\\/95,
+        html.dark .bg-white\\/90,
+        html.dark .bg-white\\/80 { background-color:#111827 !important; }
+        html.dark .bg-slate-50 { background-color:#172033 !important; }
+        html.dark .bg-slate-100 { background-color:#1f2937 !important; }
+        html.dark .text-\\[\\#0b1736\\],
+        html.dark .text-slate-900 { color:#f8fafc !important; }
+        html.dark .text-slate-800 { color:#e5e7eb !important; }
+        html.dark .text-slate-700,
+        html.dark .text-slate-600 { color:#cbd5e1 !important; }
+        html.dark .text-slate-500 { color:#94a3b8 !important; }
+        html.dark .text-slate-400 { color:#64748b !important; }
+        html.dark .border-slate-200,
+        html.dark .border-slate-100 { border-color:#334155 !important; }
+        html.dark .border-slate-200\\/80 { border-color:rgba(51,65,85,.8) !important; }
+        html.dark .border-emerald-100 { border-color:rgba(16,185,129,.25) !important; }
+        html.dark .bg-gradient-to-br.from-white { background-image:linear-gradient(to bottom right,#0f172a,#101b2e,#0f2a22) !important; }
+        html.dark .bg-gradient-to-br.from-emerald-50 { background-image:linear-gradient(to bottom right,#0d2a23,#111827,#10243a) !important; }
+        html.dark .bg-emerald-50 { background-color:rgba(16,185,129,.12) !important; }
+        html.dark .bg-sky-50 { background-color:rgba(14,165,233,.10) !important; }
+        html.dark .bg-amber-50 { background-color:rgba(245,158,11,.10) !important; }
+        html.dark .bg-red-50 { background-color:rgba(239,68,68,.10) !important; }
+        html.dark header { background-color:rgba(15,23,42,.94) !important; border-color:#334155 !important; }
+        html.dark input,
+        html.dark textarea,
+        html.dark select { color:#f8fafc !important; background-color:#172033 !important; border-color:#334155 !important; }
+        html.dark .shadow-sm,
+        html.dark .shadow-2xl { box-shadow:0 10px 35px rgba(0,0,0,.28) !important; }
+      `}</style>
+      <div className="skillforge-light min-h-screen bg-[#f8fbfa] text-[#0b1736]">
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-[1380px] items-center gap-6 px-5 lg:px-8">
           <button onClick={() => scrollToSection("home")} className="flex shrink-0 items-center gap-3">
@@ -825,8 +870,14 @@ function App() {
             <button onClick={() => setSearchOpen(true)} className="flex h-10 w-[220px] items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 text-left text-xs text-slate-400 hover:border-emerald-300">
               <Search size={17} /> Search for courses, skills...
             </button>
-            <button className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600" aria-label="Theme">
-              ☼
+            <button
+              type="button"
+              onClick={() => setDarkMode((prev) => !prev)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={darkMode ? "Light Mode" : "Dark Mode"}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             {user ? (
               <>
@@ -990,7 +1041,8 @@ function App() {
       {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
       {introOpen && <Modal onClose={() => setIntroOpen(false)}><div className="w-full max-w-2xl text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50"><Play className="fill-emerald-600 text-emerald-600" size={28}/></div><h2 className="mt-6 text-3xl font-black text-[#0b1736]">Welcome to SkillForge</h2><p className="mx-auto mt-4 max-w-lg text-slate-500">Practical IT and technology learning with structured lessons, hands-on projects, quizzes and certificates.</p><button onClick={()=>{setIntroOpen(false);scrollToSection("courses")}} className="mt-7 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></Modal>}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1078,6 +1130,8 @@ function DashboardPage({
     (course) => (progressByCourse[course.id] ?? 0) >= 100,
   ).length;
 
+  const [activeTab, setActiveTab] = useState<"dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support">("dashboard");
+
   return (
     <div className="min-h-screen bg-[#f7faf8] text-[#0b1736]">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
@@ -1122,16 +1176,18 @@ function DashboardPage({
             <p className="px-3 pb-3 pt-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
               Learning
             </p>
-            <DashboardNav icon={<LayoutDashboard size={17} />} label="Dashboard" active />
-            <DashboardNav icon={<BookOpen size={17} />} label="My Courses" />
-            <DashboardNav icon={<BarChart3 size={17} />} label="My Progress" />
-            <DashboardNav icon={<Award size={17} />} label="Certificates" />
-            <DashboardNav icon={<ReceiptText size={17} />} label="Purchase History" />
-            <DashboardNav icon={<Headphones size={17} />} label="Support" />
+            <DashboardNav icon={<LayoutDashboard size={17} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+            <DashboardNav icon={<BookOpen size={17} />} label="My Courses" active={activeTab === "courses"} onClick={() => setActiveTab("courses")} />
+            <DashboardNav icon={<BarChart3 size={17} />} label="My Progress" active={activeTab === "progress"} onClick={() => setActiveTab("progress")} />
+            <DashboardNav icon={<Award size={17} />} label="Certificates" active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} />
+            <DashboardNav icon={<ReceiptText size={17} />} label="Purchase History" active={activeTab === "purchases"} onClick={() => setActiveTab("purchases")} />
+            <DashboardNav icon={<Headphones size={17} />} label="Support" active={activeTab === "support"} onClick={() => setActiveTab("support")} />
           </div>
         </aside>
 
         <main>
+          {activeTab === "dashboard" ? (
+            <>
           <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-6 shadow-sm sm:p-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -1302,9 +1358,103 @@ function DashboardPage({
               </div>
             </div>
           </section>
+            </>
+          ) : (
+            <DashboardTabContent
+              activeTab={activeTab}
+              enrolledCourses={enrolledCourses}
+              progressByCourse={progressByCourse}
+              totalProgress={totalProgress}
+              completedCourses={completedCourses}
+              loadingProgress={loadingProgress}
+              onBack={onBack}
+              onLearn={onLearn}
+              setActiveTab={setActiveTab}
+            />
+          )}
         </main>
       </div>
     </div>
+  );
+}
+
+function DashboardTabContent({
+  activeTab,
+  enrolledCourses,
+  progressByCourse,
+  totalProgress,
+  completedCourses,
+  loadingProgress,
+  onBack,
+  onLearn,
+  setActiveTab,
+}: {
+  activeTab: "courses" | "progress" | "certificates" | "purchases" | "support";
+  enrolledCourses: Course[];
+  progressByCourse: Record<string, number>;
+  totalProgress: number;
+  completedCourses: number;
+  loadingProgress: boolean;
+  onBack: () => void;
+  onLearn: (course: Course) => void;
+  setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
+}) {
+  const heading: Record<typeof activeTab, string> = {
+    courses: "My Courses",
+    progress: "My Progress",
+    certificates: "Certificates",
+    purchases: "Purchase History",
+    support: "Support",
+  };
+
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">Student Area</p>
+          <h1 className="mt-2 text-3xl font-black">{heading[activeTab]}</h1>
+          <p className="mt-2 text-sm text-slate-500">This section is connected to your SkillForge account.</p>
+        </div>
+        <button type="button" onClick={() => setActiveTab("dashboard")} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-emerald-300 hover:text-emerald-700">← Dashboard</button>
+      </div>
+
+      {activeTab === "courses" && (
+        <div className="mt-7 grid gap-5 md:grid-cols-2">
+          {enrolledCourses.length === 0 ? (
+            <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+              <GraduationCap className="mx-auto text-emerald-600" size={32} />
+              <h3 className="mt-3 font-black">No courses yet</h3>
+              <p className="mt-2 text-sm text-slate-500">Purchase a course and it will appear here automatically.</p>
+              <button type="button" onClick={onBack} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white">Explore Courses</button>
+            </div>
+          ) : enrolledCourses.map(course => (
+            <div key={course.id} className="rounded-2xl border border-slate-200 p-5">
+              <div className="flex items-center gap-3"><div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-2xl">{course.emoji}</div><div><h3 className="font-black">{course.title}</h3><p className="text-xs text-slate-500">{course.lessons} lessons · {course.duration}</p></div></div>
+              <button type="button" onClick={() => onLearn(course)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700"><PlayCircle size={16}/> Continue Learning</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === "progress" && (
+        <div className="mt-7">
+          <div className="grid gap-4 sm:grid-cols-3"><DashboardStat icon={<BookOpen/>} value={String(enrolledCourses.length)} label="Courses"/><DashboardStat icon={<BarChart3/>} value={`${totalProgress}%`} label="Overall Progress"/><DashboardStat icon={<CheckCircle2/>} value={String(completedCourses)} label="Completed"/></div>
+          <div className="mt-6 space-y-4">{enrolledCourses.length === 0 ? <p className="rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">Enroll in a course to see your progress.</p> : enrolledCourses.map(course => { const progress = progressByCourse[course.id] ?? 0; return <div key={course.id} className="rounded-2xl border border-slate-200 p-5"><div className="flex justify-between gap-4"><h3 className="font-black">{course.title}</h3><span className="font-black text-emerald-600">{loadingProgress ? "…" : `${progress}%`}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{width: `${progress}%`}}/></div></div>; })}</div>
+        </div>
+      )}
+
+      {activeTab === "certificates" && (
+        <div className="mt-7">{completedCourses === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center"><Award className="mx-auto text-emerald-600" size={32}/><h3 className="mt-3 font-black">No certificates yet</h3><p className="mt-2 text-sm text-slate-500">Complete a course to unlock its SkillForge certificate.</p></div> : <div className="grid gap-5 md:grid-cols-2">{enrolledCourses.filter(c => (progressByCourse[c.id] ?? 0) >= 100).map(course => <div key={course.id} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><Award className="text-emerald-600"/><h3 className="mt-3 font-black">{course.title}</h3><p className="mt-1 text-sm text-slate-500">Course completed successfully.</p><button type="button" onClick={() => alert("Certificate generator will be connected here.")} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-emerald-700">View Certificate</button></div>)}</div>}</div>
+      )}
+
+      {activeTab === "purchases" && (
+        <div className="mt-7 overflow-hidden rounded-2xl border border-slate-200">{enrolledCourses.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">No purchases yet.</p> : enrolledCourses.map(course => <div key={course.id} className="flex items-center justify-between gap-4 border-b border-slate-100 p-5 last:border-0"><div className="flex items-center gap-3"><span className="text-2xl">{course.emoji}</span><div><p className="font-bold">{course.title}</p><p className="text-xs text-slate-500">Lifetime access</p></div></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Purchased</span></div>)}</div>
+      )}
+
+      {activeTab === "support" && (
+        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href="mailto:snera980@gmail.com" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">snera980@gmail.com</p></a><a href="tel:+918960513302" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">+91 8960513302</p></a></div>
+      )}
+    </section>
   );
 }
 
@@ -1312,14 +1462,17 @@ function DashboardNav({
   icon,
   label,
   active = false,
+  onClick,
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
         active
           ? "bg-emerald-50 text-emerald-700"

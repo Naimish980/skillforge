@@ -1,71 +1,116 @@
 @import "tailwindcss";
 
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0b1736;background:#f8fbfa;font-synthesis:none;text-rendering:optimizeLegibility}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;min-width:320px;min-height:100vh;background:#f8fbfa;color:#0b1736}
-button,input,select{font:inherit}button{cursor:pointer}
-::selection{background:#bbf7d0;color:#064e3b}
-.skillforge-light{min-height:100vh;background:#f8fbfa;color:#0b1736}
-.skillforge-light h1,.skillforge-light h2,.skillforge-light h3,.skillforge-light h4{letter-spacing:-.025em}
-.skillforge-light .font-black{font-weight:800!important}
-@media(max-width:767px){.skillforge-light h1{font-size:3rem!important}.skillforge-light #home{background:#f8fbfa!important}}
-@import "tailwindcss";
+/* =========================================================
+   TAILWIND V4 DARK MODE
+   React <html class="dark"> ko Tailwind dark: classes ke
+   saath connect karta hai.
+========================================================= */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================
+   ROOT
+========================================================= */
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #0f172a;
-  background: #f7faf8;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  color: #0b1736;
+  background: #f8fbfa;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
+  --sf-bg: #f8fbfa;
+  --sf-surface: #ffffff;
+  --sf-surface-soft: #f7faf8;
+
+  --sf-text: #0b1736;
+  --sf-text-secondary: #64748b;
+  --sf-border: #e2e8f0;
+
+  --sf-green: #059669;
+  --sf-green-light: #ecfdf5;
 }
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #f8fbfa;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f7faf8;
-  color: #0f172a;
+
+  background: #f8fbfa;
+  color: #0b1736;
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
-button, input, select { font: inherit; }
-button { cursor: pointer; }
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: #bbf7d0;
+  color: #064e3b;
+}
 
 /* =========================================================
-   SkillForge real EdTech theme
-   This stylesheet intentionally overrides the old dark-theme
-   utility classes used by the current App.tsx.
-   ========================================================= */
+   SKILLFORGE LIGHT THEME
+========================================================= */
+
 .skillforge-light {
   min-height: 100vh;
-  background: #f7faf8 !important;
-  color: #0f172a !important;
+  background: #f8fbfa !important;
+  color: #0b1736 !important;
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
 
-.skillforge-light header {
-  color: #0f172a;
+.skillforge-light h1,
+.skillforge-light h2,
+.skillforge-light h3,
+.skillforge-light h4 {
+  letter-spacing: -0.025em;
 }
 
-.skillforge-light .text-white,
-.skillforge-light [class*="text-white"] {
-  color: #0f172a !important;
+.skillforge-light .font-black {
+  font-weight: 800 !important;
 }
 
-.skillforge-light .text-gray-300,
-.skillforge-light .text-gray-400,
-.skillforge-light .text-gray-500,
-.skillforge-light .text-gray-600 {
-  color: #64748b !important;
-}
+/* =========================================================
+   OLD DARK SURFACES -> LIGHT
+========================================================= */
 
-.skillforge-light .text-gray-300:hover,
-.skillforge-light .text-gray-400:hover,
-.skillforge-light .text-gray-500:hover {
-  color: #059669 !important;
-}
-
-/* Old dark surfaces -> premium white surfaces */
 .skillforge-light [class*="bg-[#030603]"],
 .skillforge-light [class*="bg-[#040604]"],
 .skillforge-light [class*="bg-[#050805]"],
@@ -86,7 +131,10 @@ button { cursor: pointer; }
   background: #ecfdf5 !important;
 }
 
-/* Borders */
+/* =========================================================
+   LIGHT BORDERS
+========================================================= */
+
 .skillforge-light [class*="border-white/10"],
 .skillforge-light [class*="border-white/5"] {
   border-color: #dbe5df !important;
@@ -98,7 +146,10 @@ button { cursor: pointer; }
   border-color: #b7ead3 !important;
 }
 
-/* Green palette */
+/* =========================================================
+   LIGHT GREEN PALETTE
+========================================================= */
+
 .skillforge-light .text-lime-400,
 .skillforge-light .text-lime-300 {
   color: #059669 !important;
@@ -117,32 +168,56 @@ button { cursor: pointer; }
   color: #047857 !important;
 }
 
-.skillforge-light .accent-lime-400 { accent-color: #059669 !important; }
+.skillforge-light .accent-lime-400 {
+  accent-color: #059669 !important;
+}
 
-/* Navbar */
+/* =========================================================
+   NAVBAR
+========================================================= */
+
 .skillforge-light > header,
 .skillforge-light header.sticky,
 .skillforge-light header.border-b {
-  background: rgba(255,255,255,.94) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 10px rgba(15,23,42,.04);
+  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.04);
 }
 
-.skillforge-light header button { color: #334155; }
-.skillforge-light header button:hover { color: #047857; }
+.skillforge-light header button {
+  color: #334155;
+}
+
+.skillforge-light header button:hover {
+  color: #047857;
+}
 
 .skillforge-light header .bg-lime-400\/10,
 .skillforge-light header [class*="bg-lime-400/10"] {
   background: #ecfdf5 !important;
 }
 
-.skillforge-light header .text-lime-400 { color: #059669 !important; }
+.skillforge-light header .text-lime-400 {
+  color: #059669 !important;
+}
 
-/* Hero */
+/* =========================================================
+   HERO
+========================================================= */
+
 .skillforge-light section#home {
   background:
-    radial-gradient(circle at 58% 25%, rgba(167,243,208,.38), transparent 30%),
-    linear-gradient(135deg, #ffffff 0%, #f8fbf9 52%, #f0fdf7 100%) !important;
+    radial-gradient(
+      circle at 58% 25%,
+      rgba(167, 243, 208, 0.38),
+      transparent 30%
+    ),
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #f8fbf9 52%,
+      #f0fdf7 100%
+    ) !important;
 }
 
 .skillforge-light section#home h2,
@@ -160,14 +235,19 @@ button { cursor: pointer; }
 
 .skillforge-light section#home .bg-lime-400\/10,
 .skillforge-light section#home [class*="bg-lime-400/10"] {
-  background: rgba(16,185,129,.08) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
 }
 
-/* Hero dashboard card */
+/* =========================================================
+   HERO DASHBOARD CARD
+========================================================= */
+
 .skillforge-light section#home .rounded-3xl.border {
-  background: rgba(255,255,255,.96) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
   border-color: #b7ead3 !important;
-  box-shadow: 0 25px 70px rgba(15,118,110,.10) !important;
+
+  box-shadow:
+    0 25px 70px rgba(15, 118, 110, 0.1) !important;
 }
 
 .skillforge-light section#home .rounded-2xl.border {
@@ -175,7 +255,10 @@ button { cursor: pointer; }
   border-color: #dce7e1 !important;
 }
 
-/* Categories */
+/* =========================================================
+   CATEGORIES
+========================================================= */
+
 .skillforge-light section#categories {
   background: #ffffff !important;
   border-color: #e2e8f0 !important;
@@ -189,12 +272,17 @@ button { cursor: pointer; }
 .skillforge-light section#categories .group {
   background: #ffffff !important;
   border: 1px solid #dfe9e4 !important;
-  box-shadow: 0 8px 28px rgba(15,23,42,.045);
+
+  box-shadow:
+    0 8px 28px rgba(15, 23, 42, 0.045);
 }
 
 .skillforge-light section#categories .group:hover {
   border-color: #86efac !important;
-  box-shadow: 0 16px 38px rgba(16,185,129,.10);
+
+  box-shadow:
+    0 16px 38px rgba(16, 185, 129, 0.1);
+
   transform: translateY(-3px);
 }
 
@@ -203,7 +291,10 @@ button { cursor: pointer; }
   background: #dcfce7 !important;
 }
 
-/* Courses */
+/* =========================================================
+   COURSES
+========================================================= */
+
 .skillforge-light section#courses {
   background: #f7faf8 !important;
 }
@@ -213,13 +304,12 @@ button { cursor: pointer; }
   color: #0f172a !important;
 }
 
-/* Existing Course component cards */
 .skillforge-light section#courses > div:last-child > div > div,
 .skillforge-light section#courses .group {
-  box-shadow: 0 12px 32px rgba(15,23,42,.055);
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.055);
 }
 
-/* Make old dark course card surfaces white, but leave video/player alone */
 .skillforge-light section#courses [class*="bg-[#"] {
   background: #ffffff !important;
 }
@@ -228,13 +318,15 @@ button { cursor: pointer; }
   background: #eef7f2 !important;
 }
 
-/* Course cards have their own dark lower section in App.tsx */
 .skillforge-light section#courses .rounded-3xl,
 .skillforge-light section#courses .rounded-2xl {
   border-color: #dbe7e1 !important;
 }
 
-/* About / CTA */
+/* =========================================================
+   ABOUT
+========================================================= */
+
 .skillforge-light section#about {
   background: #ffffff !important;
   border-color: #e2e8f0 !important;
@@ -249,17 +341,28 @@ button { cursor: pointer; }
 .skillforge-light section#about .rounded-xl {
   background: #ffffff !important;
   border-color: #dfe9e4 !important;
-  box-shadow: 0 8px 28px rgba(15,23,42,.04);
+
+  box-shadow:
+    0 8px 28px rgba(15, 23, 42, 0.04);
 }
 
-.skillforge-light section#about .text-gray-500 { color: #64748b !important; }
+.skillforge-light section#about .text-gray-500 {
+  color: #64748b !important;
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
 
 .skillforge-light footer {
   background: #ffffff !important;
   border-color: #e2e8f0 !important;
 }
 
-/* Course details */
+/* =========================================================
+   COURSE DETAILS
+========================================================= */
+
 .skillforge-light main section {
   border-color: #e2e8f0 !important;
 }
@@ -277,7 +380,9 @@ button { cursor: pointer; }
 .skillforge-light main .rounded-3xl.border {
   background: #ffffff !important;
   border-color: #b7ead3 !important;
-  box-shadow: 0 20px 55px rgba(15,23,42,.07) !important;
+
+  box-shadow:
+    0 20px 55px rgba(15, 23, 42, 0.07) !important;
 }
 
 .skillforge-light main .rounded-xl.border {
@@ -296,35 +401,1174 @@ button { cursor: pointer; }
   color: #0f172a;
 }
 
-/* Auth/search modal surfaces */
-.skillforge-light ~ * { color: #0f172a; }
+/* =========================================================
+   SEARCH / AUTH MODALS
+========================================================= */
 
-/* Improve typography */
+.skillforge-light ~ * {
+  color: #0f172a;
+}
+
+/* =========================================================
+   TYPOGRAPHY
+========================================================= */
+
 .skillforge-light h1,
 .skillforge-light h2,
 .skillforge-light h3,
 .skillforge-light h4 {
-  letter-spacing: -.025em;
+  letter-spacing: -0.025em;
 }
 
-.skillforge-light .font-black { font-weight: 800 !important; }
+.skillforge-light .font-black {
+  font-weight: 800 !important;
+}
 
-/* Subtle global card motion */
+/* =========================================================
+   TRANSITIONS
+========================================================= */
+
 .skillforge-light .transition {
   transition-duration: 180ms;
 }
 
-/* Mobile */
-@media (max-width: 767px) {
-  .skillforge-light section#home h2 { font-size: 2.7rem; line-height: 1.04; }
-  .skillforge-light section#home { background: #f7faf8 !important; }
-  .skillforge-light section#categories .grid { gap: 12px; }
+/* =========================================================
+   NEW STOREFRONT OVERRIDES
+========================================================= */
+
+.skillforge-light #home .bg-emerald-600,
+.skillforge-light #projects .bg-emerald-600,
+.skillforge-light #pricing .bg-emerald-600 {
+  color: #ffffff !important;
 }
-/* New SkillForge storefront overrides */
-.skillforge-light #home .bg-emerald-600,.skillforge-light #projects .bg-emerald-600,.skillforge-light #pricing .bg-emerald-600{color:#fff!important}
-.skillforge-light #home .text-white{color:#fff!important}
-.skillforge-light #home .bg-white{background:#fff!important}
-.skillforge-light #home .border-slate-200{border-color:#e2e8f0!important}
-.skillforge-light #categories .bg-white,.skillforge-light #courses .bg-white,.skillforge-light #projects .bg-white,.skillforge-light #pricing .bg-white{background:#fff!important}
-.skillforge-light #courses .text-white{color:#fff!important}
-.skillforge-light #courses .bg-emerald-500{background:#10b981!important}
+
+.skillforge-light #home .text-white {
+  color: #ffffff !important;
+}
+
+.skillforge-light #home .bg-white {
+  background: #ffffff !important;
+}
+
+.skillforge-light #home .border-slate-200 {
+  border-color: #e2e8f0 !important;
+}
+
+.skillforge-light #categories .bg-white,
+.skillforge-light #courses .bg-white,
+.skillforge-light #projects .bg-white,
+.skillforge-light #pricing .bg-white {
+  background: #ffffff !important;
+}
+
+.skillforge-light #courses .text-white {
+  color: #ffffff !important;
+}
+
+.skillforge-light #courses .bg-emerald-500 {
+  background: #10b981 !important;
+}
+
+/* =========================================================
+   =========================================================
+   DARK MODE
+   =========================================================
+   ========================================================= */
+
+/* ---------- Root ---------- */
+
+html.dark {
+  color-scheme: dark;
+
+  --sf-bg: #070b14;
+  --sf-surface: #0d1422;
+  --sf-surface-soft: #111a2a;
+
+  --sf-text: #f8fafc;
+  --sf-text-secondary: #94a3b8;
+  --sf-border: #263449;
+
+  --sf-green: #34d399;
+  --sf-green-light: #062b22;
+
+  background: #070b14 !important;
+}
+
+html.dark body {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+/* ---------- Main application ---------- */
+
+html.dark .skillforge-light {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+/* ---------- White backgrounds ---------- */
+
+html.dark .skillforge-light .bg-white {
+  background-color: #0d1422 !important;
+}
+
+html.dark .skillforge-light .bg-white\/95 {
+  background-color: rgba(13, 20, 34, 0.95) !important;
+}
+
+html.dark .skillforge-light .bg-white\/90 {
+  background-color: rgba(13, 20, 34, 0.90) !important;
+}
+
+html.dark .skillforge-light .bg-white\/80 {
+  background-color: rgba(13, 20, 34, 0.80) !important;
+}
+
+/* ---------- Slate backgrounds ---------- */
+
+html.dark .skillforge-light .bg-slate-50 {
+  background-color: #111a2a !important;
+}
+
+html.dark .skillforge-light .bg-slate-100 {
+  background-color: #172235 !important;
+}
+
+html.dark .skillforge-light .bg-slate-200 {
+  background-color: #263449 !important;
+}
+
+html.dark .skillforge-light .bg-slate-300 {
+  background-color: #334155 !important;
+}
+
+/* ---------- Custom light backgrounds ---------- */
+
+html.dark .skillforge-light .bg-\[\#f8fbfa\] {
+  background-color: #070b14 !important;
+}
+
+html.dark .skillforge-light .bg-\[\#f7faf8\] {
+  background-color: #070b14 !important;
+}
+
+html.dark .skillforge-light .bg-\[\#f9fafb\] {
+  background-color: #070b14 !important;
+}
+
+html.dark .skillforge-light .bg-\[\#effbf6\] {
+  background-color: #0a1715 !important;
+}
+
+/* ---------- Gradient backgrounds ---------- */
+
+html.dark .skillforge-light .bg-gradient-to-br {
+  background-image:
+    linear-gradient(
+      135deg,
+      #070b14 0%,
+      #0d1422 50%,
+      #0a1715 100%
+    ) !important;
+}
+
+html.dark .skillforge-light .bg-gradient-to-r {
+  background-image:
+    linear-gradient(
+      90deg,
+      #070b14 0%,
+      #0d1422 100%
+    ) !important;
+}
+
+/* ---------- Text ---------- */
+
+html.dark .skillforge-light .text-\[\#0b1736\] {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light .text-slate-900 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .skillforge-light .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .skillforge-light .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .skillforge-light .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .skillforge-light .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* ---------- Borders ---------- */
+
+html.dark .skillforge-light .border-slate-100 {
+  border-color: #1e293b !important;
+}
+
+html.dark .skillforge-light .border-slate-200 {
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+/* ---------- Header ---------- */
+
+html.dark .skillforge-light header {
+  background-color: rgba(7, 11, 20, 0.96) !important;
+  border-color: #263449 !important;
+
+  box-shadow:
+    0 1px 15px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .skillforge-light header button {
+  color: #cbd5e1 !important;
+}
+
+html.dark .skillforge-light header button:hover {
+  color: #6ee7b7 !important;
+}
+
+/* ---------- Hero ---------- */
+
+html.dark .skillforge-light section#home {
+  background:
+    radial-gradient(
+      circle at 58% 25%,
+      rgba(6, 78, 59, 0.28),
+      transparent 30%
+    ),
+    linear-gradient(
+      135deg,
+      #070b14 0%,
+      #0d1422 52%,
+      #0a1715 100%
+    ) !important;
+}
+
+html.dark .skillforge-light section#home h1,
+html.dark .skillforge-light section#home h2,
+html.dark .skillforge-light section#home h3,
+html.dark .skillforge-light section#home h4 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light section#home p {
+  color: #94a3b8 !important;
+}
+
+/* Hero cards */
+
+html.dark .skillforge-light section#home .rounded-3xl.border {
+  background: #0d1422 !important;
+  border-color: #14532d !important;
+
+  box-shadow:
+    0 25px 70px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark .skillforge-light section#home .rounded-2xl.border {
+  background: #111a2a !important;
+  border-color: #263449 !important;
+}
+
+/* ---------- Categories ---------- */
+
+html.dark .skillforge-light section#categories {
+  background: #0b111d !important;
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light section#categories h2,
+html.dark .skillforge-light section#categories h3 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light section#categories .group {
+  background: #0d1422 !important;
+  border-color: #263449 !important;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .skillforge-light section#categories .group:hover {
+  border-color: #059669 !important;
+
+  box-shadow:
+    0 16px 38px rgba(5, 150, 105, 0.16) !important;
+}
+
+/* ---------- Courses ---------- */
+
+html.dark .skillforge-light section#courses {
+  background: #070b14 !important;
+}
+
+html.dark .skillforge-light section#courses h2,
+html.dark .skillforge-light section#courses h3 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light section#courses .group {
+  background: #0d1422 !important;
+  border-color: #263449 !important;
+
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Course cards */
+
+html.dark .skillforge-light section#courses [class*="bg-\[\#"] {
+  background: #0d1422 !important;
+}
+
+html.dark .skillforge-light section#courses .rounded-3xl,
+html.dark .skillforge-light section#courses .rounded-2xl {
+  border-color: #263449 !important;
+}
+
+/* ---------- About ---------- */
+
+html.dark .skillforge-light section#about {
+  background: #0b111d !important;
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light section#about h2,
+html.dark .skillforge-light section#about h3 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light section#about .rounded-2xl,
+html.dark .skillforge-light section#about .rounded-xl {
+  background: #0d1422 !important;
+  border-color: #263449 !important;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .skillforge-light section#about .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* ---------- Footer ---------- */
+
+html.dark .skillforge-light footer {
+  background: #080d17 !important;
+  border-color: #263449 !important;
+}
+
+/* ---------- Course details ---------- */
+
+html.dark .skillforge-light main section {
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light main .rounded-3xl.border {
+  background: #0d1422 !important;
+  border-color: #14532d !important;
+
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark .skillforge-light main .rounded-xl.border {
+  background: #111a2a !important;
+  border-color: #263449 !important;
+}
+
+/* ---------- Select ---------- */
+
+html.dark .skillforge-light select {
+  background: #111a2a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+html.dark .skillforge-light select option {
+  background: #111a2a;
+  color: #f8fafc;
+}
+
+/* ---------- Inputs ---------- */
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #111a2a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* ---------- Green ---------- */
+
+html.dark .skillforge-light .bg-emerald-50 {
+  background-color: #062b22 !important;
+}
+
+html.dark .skillforge-light .bg-emerald-100 {
+  background-color: #064e3b !important;
+}
+
+html.dark .skillforge-light .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+html.dark .skillforge-light .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+html.dark .skillforge-light .border-emerald-200 {
+  border-color: #065f46 !important;
+}
+
+/* ---------- Modals ---------- */
+
+html.dark .skillforge-light [role="dialog"] {
+  background: #0d1422 !important;
+  color: #f8fafc !important;
+}
+
+/* ---------- Shadows ---------- */
+
+html.dark .skillforge-light .shadow-sm,
+html.dark .skillforge-light .shadow-md,
+html.dark .skillforge-light .shadow-lg,
+html.dark .skillforge-light .shadow-xl,
+html.dark .skillforge-light .shadow-2xl {
+  --tw-shadow-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* ---------- Scrollbar ---------- */
+
+html.dark::-webkit-scrollbar-track {
+  background: #070b14;
+}
+
+html.dark::-webkit-scrollbar-thumb {
+  background: #263449;
+}
+
+html.dark::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+html.dark {
+  scrollbar-color: #263449 #070b14;
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 767px) {
+  .skillforge-light h1 {
+    font-size: 3rem !important;
+  }
+
+  .skillforge-light #home {
+    background: #f8fbfa !important;
+  }
+
+  html.dark .skillforge-light #home {
+    background: #070b14 !important;
+  }
+
+  .skillforge-light section#home h2 {
+    font-size: 2.7rem;
+    line-height: 1.04;
+  }
+
+  .skillforge-light section#categories .grid {
+    gap: 12px;
+  }
+}
+/* =========================================================
+   SKILLFORGE DARK MODE — FINAL CARD / BUTTON FIX
+========================================================= */
+
+/* White cards */
+html.dark .skillforge-light .bg-white,
+html.dark .skillforge-light [class*="bg-white"] {
+  background-color: #111827 !important;
+}
+
+/* Very light slate cards */
+html.dark .skillforge-light .bg-slate-50 {
+  background-color: #111827 !important;
+}
+
+html.dark .skillforge-light .bg-slate-100 {
+  background-color: #172033 !important;
+}
+
+/* =========================================================
+   HERO — CONTINUE LEARNING CARD
+========================================================= */
+
+html.dark .skillforge-light #home .rounded-2xl {
+  background-color: #111827 !important;
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light #home .rounded-xl {
+  background-color: #172033 !important;
+  border-color: #263449 !important;
+}
+
+/* Course title inside learning card */
+html.dark .skillforge-light #home .rounded-2xl h3,
+html.dark .skillforge-light #home .rounded-2xl h4 {
+  color: #f8fafc !important;
+}
+
+/* Secondary text */
+html.dark .skillforge-light #home .rounded-2xl p {
+  color: #94a3b8 !important;
+}
+
+/* Progress background */
+html.dark .skillforge-light #home [class*="bg-slate-200"] {
+  background-color: #263449 !important;
+}
+
+/* Progress bar */
+html.dark .skillforge-light #home [class*="bg-emerald-"] {
+  color: #ffffff;
+}
+
+/* =========================================================
+   WATCH INTRO BUTTON
+========================================================= */
+
+html.dark .skillforge-light #home button.bg-white {
+  background-color: #111827 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .skillforge-light #home button.bg-white:hover {
+  background-color: #172033 !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   COURSE MINI CARD
+========================================================= */
+
+html.dark .skillforge-light #home .bg-white {
+  background-color: #111827 !important;
+}
+
+html.dark .skillforge-light #home .bg-white h3,
+html.dark .skillforge-light #home .bg-white h4 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light #home .bg-white p {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================
+   ALL CARDS
+========================================================= */
+
+html.dark .skillforge-light .rounded-xl.border,
+html.dark .skillforge-light .rounded-2xl.border,
+html.dark .skillforge-light .rounded-3xl.border {
+  background-color: #111827 !important;
+  border-color: #263449 !important;
+}
+
+/* =========================================================
+   CARD HOVER
+========================================================= */
+
+html.dark .skillforge-light .group:hover {
+  border-color: #047857 !important;
+}
+
+/* =========================================================
+   WHITE TEXT EXCEPTIONS
+========================================================= */
+
+/* Green CTA buttons should KEEP white text */
+html.dark .skillforge-light .bg-emerald-600,
+html.dark .skillforge-light .bg-emerald-500,
+html.dark .skillforge-light .bg-green-600 {
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   ICON BOXES
+========================================================= */
+
+html.dark .skillforge-light .bg-emerald-50 {
+  background-color: #06352a !important;
+}
+
+html.dark .skillforge-light .bg-green-50 {
+  background-color: #06352a !important;
+}
+
+/* =========================================================
+   DARK THEME INPUTS
+========================================================= */
+
+html.dark .skillforge-light input,
+html.dark .skillforge-light textarea,
+html.dark .skillforge-light select {
+  background-color: #111827 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+html.dark .skillforge-light input::placeholder,
+html.dark .skillforge-light textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* =========================================================
+   DARK THEME SHADOWS
+========================================================= */
+
+html.dark .skillforge-light .shadow-sm,
+html.dark .skillforge-light .shadow-md,
+html.dark .skillforge-light .shadow-lg,
+html.dark .skillforge-light .shadow-xl,
+html.dark .skillforge-light .shadow-2xl {
+  box-shadow:
+    0 15px 40px rgba(0, 0, 0, 0.30) !important;
+}
+
+/* =========================================================
+   DARK THEME — SEARCH BAR
+========================================================= */
+
+html.dark .skillforge-light header input {
+  background-color: #111827 !important;
+  border-color: #263449 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light header input::placeholder {
+  color: #64748b !important;
+}
+
+/* =========================================================
+   DARK THEME — DASHBOARD BUTTON
+========================================================= */
+
+html.dark .skillforge-light header .bg-emerald-50 {
+  background-color: #062b22 !important;
+}
+
+html.dark .skillforge-light header .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+/* =========================================================
+   DARK THEME — PROFILE BUTTON
+========================================================= */
+
+html.dark .skillforge-light header .border-slate-200 {
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light header .bg-white {
+  background-color: #0d1422 !important;
+}
+
+/* =========================================================
+   DARK THEME — SMOOTH TRANSITION
+========================================================= */
+
+html.dark .skillforge-light,
+html.dark .skillforge-light * {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+/* =========================================================
+   DARK MODE — CATEGORIES CARDS FIX
+========================================================= */
+
+html.dark .skillforge-light #categories {
+  background: #0b111d !important;
+}
+
+html.dark .skillforge-light #categories .group {
+  background: #111827 !important;
+  border: 1px solid #263449 !important;
+  color: #f8fafc !important;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Category title */
+html.dark .skillforge-light #categories .group h3,
+html.dark .skillforge-light #categories .group h4 {
+  color: #f8fafc !important;
+}
+
+/* Category description/count */
+html.dark .skillforge-light #categories .group p,
+html.dark .skillforge-light #categories .group span {
+  color: #94a3b8 !important;
+}
+
+/* Category icon container */
+html.dark .skillforge-light #categories .group .bg-lime-400\/10 {
+  background: #06352a !important;
+}
+
+html.dark .skillforge-light #categories .group [class*="bg-lime-400/10"] {
+  background: #06352a !important;
+}
+
+/* Category icon */
+html.dark .skillforge-light #categories .group .text-lime-400,
+html.dark .skillforge-light #categories .group .text-lime-300 {
+  color: #34d399 !important;
+}
+
+/* Hover */
+html.dark .skillforge-light #categories .group:hover {
+  background: #142033 !important;
+  border-color: #059669 !important;
+
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 16px 40px rgba(5, 150, 105, 0.14) !important;
+}
+
+/* View All */
+html.dark .skillforge-light #categories a,
+html.dark .skillforge-light #categories button {
+  color: #34d399 !important;
+}
+/* =========================================================
+   SKILLFORGE DARK MODE
+   PROJECTS + RESOURCES + PRICING
+========================================================= */
+
+/* =========================================================
+   PROJECTS SECTION
+========================================================= */
+
+html.dark .skillforge-light #projects {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light #projects h2,
+html.dark .skillforge-light #projects h3,
+html.dark .skillforge-light #projects h4 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light #projects p {
+  color: #94a3b8 !important;
+}
+
+/* Main project card */
+
+html.dark .skillforge-light #projects .rounded-3xl {
+  background: #0d1422 !important;
+  border-color: #14532d !important;
+
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Project tags */
+
+html.dark .skillforge-light #projects .rounded-full {
+  background: #172033 !important;
+  color: #cbd5e1 !important;
+  border-color: #263449 !important;
+}
+
+html.dark .skillforge-light #projects .rounded-full:hover {
+  background: #06352a !important;
+  color: #6ee7b7 !important;
+  border-color: #059669 !important;
+}
+
+/* =========================================================
+   RESOURCES SECTION
+========================================================= */
+
+html.dark .skillforge-light #resources {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+/* Resources card */
+
+html.dark .skillforge-light #resources .rounded-3xl,
+html.dark .skillforge-light #resources .rounded-2xl {
+  background: #0d1422 !important;
+  border-color: #263449 !important;
+
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.30) !important;
+}
+
+/* Resources heading */
+
+html.dark .skillforge-light #resources h2,
+html.dark .skillforge-light #resources h3,
+html.dark .skillforge-light #resources h4 {
+  color: #f8fafc !important;
+}
+
+/* Resources description */
+
+html.dark .skillforge-light #resources p {
+  color: #94a3b8 !important;
+}
+
+/* Resources links */
+
+html.dark .skillforge-light #resources a,
+html.dark .skillforge-light #resources button {
+  color: #34d399 !important;
+}
+
+html.dark .skillforge-light #resources a:hover,
+html.dark .skillforge-light #resources button:hover {
+  color: #6ee7b7 !important;
+}
+
+/* =========================================================
+   PRICING SECTION
+========================================================= */
+
+html.dark .skillforge-light #pricing {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+/* Pricing main card */
+
+html.dark .skillforge-light #pricing .rounded-3xl,
+html.dark .skillforge-light #pricing .rounded-2xl {
+  background: #0d1422 !important;
+  border-color: #263449 !important;
+
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.30) !important;
+}
+
+/* Pricing heading */
+
+html.dark .skillforge-light #pricing h2,
+html.dark .skillforge-light #pricing h3,
+html.dark .skillforge-light #pricing h4 {
+  color: #f8fafc !important;
+}
+
+/* Pricing text */
+
+html.dark .skillforge-light #pricing p {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================
+   PRICING WHITE INNER CARDS
+========================================================= */
+
+html.dark .skillforge-light #pricing .bg-white {
+  background: #111827 !important;
+}
+
+html.dark .skillforge-light #pricing .bg-slate-50 {
+  background: #172033 !important;
+}
+
+html.dark .skillforge-light #pricing .bg-slate-100 {
+  background: #1e293b !important;
+}
+
+/* =========================================================
+   PRICING BUTTONS
+========================================================= */
+
+/* Main green button stays green */
+
+html.dark .skillforge-light #pricing .bg-emerald-600,
+html.dark .skillforge-light #pricing .bg-emerald-500 {
+  background: #059669 !important;
+  color: #ffffff !important;
+}
+
+html.dark .skillforge-light #pricing .bg-emerald-600:hover,
+html.dark .skillforge-light #pricing .bg-emerald-500:hover {
+  background: #047857 !important;
+}
+
+/* Secondary pricing buttons */
+
+html.dark .skillforge-light #pricing button.bg-white {
+  background: #111827 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+}
+
+html.dark .skillforge-light #pricing button.bg-white:hover {
+  background: #172033 !important;
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   "LIFETIME ACCESS" BADGE
+========================================================= */
+
+html.dark .skillforge-light #pricing .bg-slate-900 {
+  background: #111827 !important;
+  color: #6ee7b7 !important;
+}
+
+/* =========================================================
+   PRICING GREEN HIGHLIGHTS
+========================================================= */
+
+html.dark .skillforge-light #pricing .bg-emerald-50 {
+  background: #062b22 !important;
+}
+
+html.dark .skillforge-light #pricing .bg-emerald-100 {
+  background: #064e3b !important;
+}
+
+html.dark .skillforge-light #pricing .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+html.dark .skillforge-light #pricing .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+/* =========================================================
+   GENERAL WHITE CARDS INSIDE THESE SECTIONS
+========================================================= */
+
+html.dark .skillforge-light #projects .bg-white,
+html.dark .skillforge-light #resources .bg-white,
+html.dark .skillforge-light #pricing .bg-white {
+  background: #111827 !important;
+}
+
+/* =========================================================
+   GENERAL BORDERS
+========================================================= */
+
+html.dark .skillforge-light #projects [class*="border"],
+html.dark .skillforge-light #resources [class*="border"],
+html.dark .skillforge-light #pricing [class*="border"] {
+  border-color: #263449 !important;
+}
+
+/* Keep green borders green */
+
+html.dark .skillforge-light #projects .border-emerald-500,
+html.dark .skillforge-light #resources .border-emerald-500,
+html.dark .skillforge-light #pricing .border-emerald-500 {
+  border-color: #059669 !important;
+}
+
+/* =========================================================
+   SECTION SPACING / BACKGROUND CONSISTENCY
+========================================================= */
+
+html.dark .skillforge-light #projects,
+html.dark .skillforge-light #resources,
+html.dark .skillforge-light #pricing {
+  border-color: #1e293b !important;
+}
+/* =========================================================
+   SKILLFORGE DARK MODE
+   EXPLORE CATEGORIES — FINAL FIX
+========================================================= */
+
+/* Categories section */
+html.dark .skillforge-light #categories {
+  background: #070b14 !important;
+  color: #f8fafc !important;
+}
+
+/* Section heading */
+html.dark .skillforge-light #categories h2,
+html.dark .skillforge-light #categories h3 {
+  color: #f8fafc !important;
+}
+
+/* Section description */
+html.dark .skillforge-light #categories p {
+  color: #94a3b8 !important;
+}
+
+/* View All */
+html.dark .skillforge-light #categories a,
+html.dark .skillforge-light #categories button {
+  color: #34d399 !important;
+}
+
+/* =========================================================
+   CATEGORY CARDS
+========================================================= */
+
+/* White category cards -> dark */
+html.dark .skillforge-light #categories .group,
+html.dark .skillforge-light #categories [class*="bg-white"],
+html.dark .skillforge-light #categories [class*="bg-slate-50"] {
+  background: #111827 !important;
+  background-color: #111827 !important;
+
+  border-color: #263449 !important;
+
+  color: #f8fafc !important;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* =========================================================
+   CATEGORY CARD TEXT
+========================================================= */
+
+html.dark .skillforge-light #categories .group h3,
+html.dark .skillforge-light #categories .group h4,
+html.dark .skillforge-light #categories .group strong {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-light #categories .group p,
+html.dark .skillforge-light #categories .group span {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================
+   CATEGORY ICON BOX
+========================================================= */
+
+html.dark .skillforge-light #categories .group [class*="bg-lime-400/10"],
+html.dark .skillforge-light #categories .group [class*="bg-emerald-50"],
+html.dark .skillforge-light #categories .group [class*="bg-green-50"] {
+  background: #06352a !important;
+  background-color: #06352a !important;
+}
+
+/* Icon */
+html.dark .skillforge-light #categories .group svg {
+  color: #34d399 !important;
+}
+
+/* =========================================================
+   HOVER
+========================================================= */
+
+html.dark .skillforge-light #categories .group:hover {
+  background: #142033 !important;
+  background-color: #142033 !important;
+
+  border-color: #059669 !important;
+
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 18px 40px rgba(5, 150, 105, 0.14) !important;
+}
+
+/* Hover text */
+html.dark .skillforge-light #categories .group:hover h3,
+html.dark .skillforge-light #categories .group:hover h4 {
+  color: #ffffff !important;
+}
+
+html.dark .skillforge-light #categories .group:hover p,
+html.dark .skillforge-light #categories .group:hover span {
+  color: #cbd5e1 !important;
+}
+
+/* =========================================================
+   FORCE REMOVE OLD LIGHT THEME
+========================================================= */
+
+html.dark .skillforge-light #categories .bg-white {
+  background: #111827 !important;
+}
+
+html.dark .skillforge-light #categories .bg-white\/95 {
+  background: #111827 !important;
+}
+
+html.dark .skillforge-light #categories .bg-white\/90 {
+  background: #111827 !important;
+}
+
+html.dark .skillforge-light #categories .bg-slate-50 {
+  background: #111827 !important;
+}
+
+html.dark .skillforge-light #categories .bg-slate-100 {
+  background: #172033 !important;
+}
+
+/* =========================================================
+   CATEGORY CARD BORDER
+========================================================= */
+
+html.dark .skillforge-light #categories .group.border,
+html.dark .skillforge-light #categories [class*="border-slate"] {
+  border-color: #263449 !important;
+}
+
+/* =========================================================
+   CATEGORY COUNT
+========================================================= */
+
+html.dark .skillforge-light #categories .group .text-slate-500,
+html.dark .skillforge-light #categories .group .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 767px) {
+  html.dark .skillforge-light #categories .group {
+    background: #111827 !important;
+  }
+}
