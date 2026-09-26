@@ -5,19 +5,30 @@ import {
   BookOpen,
   CheckCircle,
   ChevronRight,
+  Headphones,
   Cloud,
   LogIn,
   LogOut,
   KeyRound,
+  Mail,
   Menu,
   Network,
   Play,
   Search,
   Shield,
+  Phone,
+  UserCircle,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+};
 
 type Course = {
   id: string;
@@ -179,11 +190,24 @@ function App() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
 
-  const [user, setUser] = useState<string | null>(() => {
-    return localStorage.getItem("skillforge_user");
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem("skillforge_user");
+
+    if (!storedUser) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(storedUser) as User;
+    } catch {
+      // Remove old string-only login data from previous frontend versions.
+      localStorage.removeItem("skillforge_user");
+      return null;
+    }
   });
 
   const scrollToSection = (id: string) => {
@@ -209,12 +233,14 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("skillforge_user");
+    localStorage.removeItem("skillforge_token");
     setUser(null);
+    setProfileOpen(false);
   };
 
-  const handleAuth = (name: string) => {
-    localStorage.setItem("skillforge_user", name);
-    setUser(name);
+  const handleAuth = (loggedInUser: User) => {
+    localStorage.setItem("skillforge_user", JSON.stringify(loggedInUser));
+    setUser(loggedInUser);
     setAuthMode(null);
   };
 
@@ -327,10 +353,14 @@ function App() {
 
             {user ? (
               <>
-                <div className="rounded-xl border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-sm">
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  className="flex items-center gap-2 rounded-xl border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-sm transition hover:border-lime-400/40 hover:bg-lime-400/10"
+                >
+                  <UserCircle size={18} className="text-lime-400" />
                   Hi,{" "}
-                  <span className="font-bold text-lime-400">{user}</span>
-                </div>
+                  <span className="font-bold text-lime-400">{user.name}</span>
+                </button>
 
                 <button
                   onClick={handleLogout}
@@ -412,12 +442,25 @@ function App() {
               </button>
 
               {user ? (
-                <button
-                  onClick={handleLogout}
-                  className="rounded-xl border border-white/10 py-3"
-                >
-                  Logout
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setProfileOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-lime-400/20 bg-lime-400/5 py-3 text-lime-300"
+                  >
+                    <UserCircle size={18} />
+                    My Profile
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-xl border border-white/10 py-3"
+                  >
+                    Logout
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -880,6 +923,14 @@ function App() {
         />
       )}
 
+      {profileOpen && user && (
+        <ProfileModal
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onLogout={handleLogout}
+        />
+      )}
+
       {/* ================= INTRO MODAL ================= */}
 
       {introOpen && (
@@ -1054,7 +1105,7 @@ function AuthModal({
   mode: "login" | "signup" | "forgot";
   onClose: () => void;
   onModeChange: (mode: "login" | "signup" | "forgot") => void;
-  onSuccess: (name: string) => void;
+  onSuccess: (user: User) => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -1193,9 +1244,13 @@ function AuthModal({
 
       if (mode === "login") {
         localStorage.setItem("skillforge_token", data.token);
-        localStorage.setItem("skillforge_user", data.user.name);
 
-        onSuccess(data.user.name);
+        onSuccess({
+          id: Number(data.user.id),
+          name: data.user.name,
+          email: data.user.email,
+          phone: data.user.phone,
+        });
 
         return;
       }
@@ -1468,6 +1523,110 @@ function AuthModal({
     </Modal>
   );
 }
+/* ================= PROFILE ================= */
+
+function ProfileModal({
+  user,
+  onClose,
+  onLogout,
+}: {
+  user: User;
+  onClose: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <Modal onClose={onClose}>
+      <div className="w-full max-w-lg">
+        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-lime-400/10">
+            <UserCircle className="text-lime-400" size={32} />
+          </div>
+
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
+            My Profile
+          </p>
+
+          <h2 className="mt-2 text-3xl font-black">{user.name}</h2>
+          <p className="mt-2 text-sm text-gray-500">Your SkillForge account details</p>
+        </div>
+
+        <div className="mt-8 space-y-3">
+          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+              <UserCircle size={21} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-600">Full Name</p>
+              <p className="mt-1 truncate font-semibold text-white">{user.name}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+              <Mail size={21} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-600">Email Address</p>
+              <p className="mt-1 truncate font-semibold text-white">{user.email}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+              <Phone size={21} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-600">Mobile Number</p>
+              <p className="mt-1 font-semibold text-white">+91 {user.phone}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-7 rounded-2xl border border-lime-400/20 bg-lime-400/[0.04] p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+              <Headphones size={20} />
+            </div>
+
+            <div>
+              <p className="font-bold text-white">Need Help?</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Contact SkillForge support for help with your account or learning.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2 text-sm">
+            <a
+              href="mailto:snera980@gmail.com"
+              className="flex items-center gap-3 text-gray-300 transition hover:text-lime-400"
+            >
+              <Mail size={16} className="text-lime-400" />
+              snera980@gmail.com
+            </a>
+
+            <a
+              href="tel:+918960513302"
+              className="flex items-center gap-3 text-gray-300 transition hover:text-lime-400"
+            >
+              <Phone size={16} className="text-lime-400" />
+              +91 8960513302
+            </a>
+          </div>
+        </div>
+
+        <button
+          onClick={onLogout}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-red-400/20 py-3.5 font-semibold text-red-300 transition hover:bg-red-400/5"
+        >
+          <LogOut size={17} />
+          Logout
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 /* ================= RESET PASSWORD ================= */
 
 function ResetPasswordPage({ token }: { token: string | null }) {
