@@ -91,7 +91,10 @@ router.post(
           });
         }
 
-        amount = 79900;
+        amount =
+              normalizedCourseId === "networking"
+              ? 100
+              : 79900;
         receipt = `course_${normalizedCourseId}_${Date.now()}`;
       }
 
