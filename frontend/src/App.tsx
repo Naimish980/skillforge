@@ -75,7 +75,7 @@ const securityModules: CourseModule[] = [
         id: "lecture-1",
         title: "Introduction to me & the Course",
         duration: "23:39",
-        videoUrl: "https://www.youtube.com/embed/GTlmZPjacWs?rel=0&playsinline=1&disablekb=1",
+        videoUrl: "/videos/lecture-1.mp4",
         questions: [
           {
             question: "According to the lecture, what happens to the attack surface as IoT devices increase?",
@@ -693,7 +693,6 @@ function App() {
     return (
       <CoursePlayer
         course={learningCourse}
-        userId={user?.id ?? 0}
         onBack={() => {
           window.history.back();
         }}
@@ -1474,28 +1473,6 @@ function CourseDetails({
 
   const comboSelected = Boolean(comboCourseId);
 
-  const totalCourseLessons = course.id === "security" ? 57 : course.lessons;
-  const completedCourseLessons = (() => {
-    if (!user || course.id !== "security") return 0;
-
-    const prefix = `skillforge_lecture_progress_${course.id}_${user.id}_`;
-    let count = 0;
-
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index);
-      if (key?.startsWith(prefix) && key.endsWith("_complete") && localStorage.getItem(key) === "true") {
-        count += 1;
-      }
-    }
-
-    return Math.min(count, totalCourseLessons);
-  })();
-
-  const progressPercent = totalCourseLessons > 0
-    ? Math.round((completedCourseLessons / totalCourseLessons) * 100)
-    : 0;
-
-
   return (
     <div className="min-h-screen bg-[#030603] text-white">
       <header className="border-b border-white/10 bg-[#030603]/95">
@@ -1556,20 +1533,13 @@ function CourseDetails({
                 {enrolled ? (
                   <>
                     <div className="mt-5 flex items-end justify-between">
-                      <span className="text-4xl font-black">{progressPercent}%</span>
+                      <span className="text-4xl font-black">0%</span>
                       <span className="text-sm text-lime-400">Enrolled</span>
                     </div>
 
-                    <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/5">
-                      <div
-                        className="h-full rounded-full bg-lime-400 transition-all duration-700"
-                        style={{ width: `${progressPercent}%` }}
-                      />
+                    <div className="mt-5 h-2 rounded-full bg-white/5">
+                      <div className="h-full w-0 rounded-full bg-lime-400" />
                     </div>
-
-                    <p className="mt-2 text-xs text-gray-600">
-                      {completedCourseLessons} of {totalCourseLessons} lessons completed
-                    </p>
 
                     <button
                       onClick={onStart}
@@ -1675,16 +1645,14 @@ function CourseDetails({
 
 function CoursePlayer({
   course,
-  userId,
   onBack,
 }: {
   course: Course;
-  userId: number;
   onBack: () => void;
 }) {
   const modules = course.id === "security" ? securityModules : [];
   const lecture = modules[0]?.lectures[0];
-  const progressKey = `skillforge_lecture_progress_${course.id}_${userId}_${lecture?.id ?? ""}`;
+  const progressKey = `skillforge_lecture_progress_${course.id}_${lecture?.id ?? ""}`;
   const [videoMarkedComplete, setVideoMarkedComplete] = useState(() =>
     localStorage.getItem(`${progressKey}_video`) === "true",
   );
@@ -1749,13 +1717,19 @@ function CoursePlayer({
 
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#070907] shadow-2xl">
           <div className="aspect-video bg-black">
-            <iframe
-              className="h-full w-full"
+            <video
+              className="h-full w-full object-contain"
               src={lecture.videoUrl}
               title={lecture.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
+              controls
+              controlsList="nodownload"
+              disablePictureInPicture
+              playsInline
+              preload="metadata"
+              onContextMenu={(event) => event.preventDefault()}
+            >
+              Your browser does not support HTML5 video.
+            </video>
           </div>
           <div className="flex flex-col gap-4 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
