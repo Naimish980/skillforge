@@ -253,20 +253,8 @@ function App() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
-  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>(() => {
-    const stored = localStorage.getItem("skillforge_enrollments");
-
-    if (!stored) {
-      return [];
-    }
-
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-    } catch {
-      return [];
-    }
-  });
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
@@ -311,6 +299,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("skillforge_user");
     localStorage.removeItem("skillforge_token");
+    setEnrolledCourseIds([]);
     setUser(null);
   };
 
@@ -319,6 +308,71 @@ function App() {
     setUser(loggedInUser);
     setAuthMode(null);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadEnrollments = async () => {
+      const token = localStorage.getItem("skillforge_token");
+
+      if (!user || !token) {
+        setEnrolledCourseIds([]);
+        setEnrollmentsLoading(false);
+        return;
+      }
+
+      try {
+        setEnrollmentsLoading(true);
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/payment/enrollments`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        const data = await response.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok || !data.success) {
+          setEnrolledCourseIds([]);
+          return;
+        }
+
+        const ids = Array.isArray(data.enrolledCourseIds)
+          ? data.enrolledCourseIds.filter(
+              (id: unknown): id is string => typeof id === "string",
+            )
+          : [];
+
+        setEnrolledCourseIds(ids);
+        localStorage.setItem(
+          `skillforge_enrollments_${user.id}`,
+          JSON.stringify(ids),
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Enrollment loading error:", error);
+          setEnrolledCourseIds([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setEnrollmentsLoading(false);
+        }
+      }
+    };
+
+    loadEnrollments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const handlePurchase = async (courseIds: string[]) => {
     const token = localStorage.getItem("skillforge_token");
@@ -431,7 +485,7 @@ function App() {
               setEnrolledCourseIds((current) => {
                 const merged = [...new Set([...current, ...verifiedIds])];
                 localStorage.setItem(
-                  "skillforge_enrollments",
+                  `skillforge_enrollments_${user.id}`,
                   JSON.stringify(merged),
                 );
                 return merged;
