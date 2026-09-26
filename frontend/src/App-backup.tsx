@@ -1,21 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  CheckCircle2,
+  CheckCircle,
   ChevronRight,
   CreditCard,
-  LayoutDashboard,
-  GraduationCap,
-  Award,
-  BarChart3,
-  ReceiptText,
-  Headphones,
-  Flame,
-  Clock3,
-  PlayCircle,
-  TrendingUp,
   Lock,
   Cloud,
   LogIn,
@@ -30,6 +20,7 @@ import {
   Phone,
   UserCircle,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 
@@ -84,7 +75,7 @@ const securityModules: CourseModule[] = [
         id: "lecture-1",
         title: "Introduction to me & the Course",
         duration: "23:39",
-        videoUrl: "https://www.youtube.com/embed/GTlmZPjacWs?rel=0&modestbranding=1",
+        videoUrl: "https://www.youtube.com/embed/GTlmZPjacWs?rel=0&playsinline=1&disablekb=1",
         questions: [
           {
             question: "According to the lecture, what happens to the attack surface as IoT devices increase?",
@@ -337,6 +328,29 @@ async function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
+const categories = [
+  {
+    title: "Cloud",
+    text: "AWS and cloud technologies",
+    icon: <Cloud size={23} />,
+  },
+  {
+    title: "Networking",
+    text: "Networks and infrastructure",
+    icon: <Network size={23} />,
+  },
+  {
+    title: "Cyber Security",
+    text: "Security concepts and tools",
+    icon: <Shield size={23} />,
+  },
+  {
+    title: "IT & Tech",
+    text: "IT support and administration",
+    icon: <BookOpen size={23} />,
+  },
+];
+
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
@@ -348,8 +362,6 @@ function App() {
   const [introOpen, setIntroOpen] = useState(false);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [dashboardOpen, setDashboardOpen] = useState(false);
-  const [homeLearningProgress, setHomeLearningProgress] = useState(0);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
 
@@ -426,56 +438,6 @@ function App() {
     loadEnrollments();
   }, [user]);
 
-  // Load real progress for the user's first enrolled course so the
-  // homepage "Your Learning" card is never hard-coded to AWS/68%.
-  useEffect(() => {
-    const loadHomeLearningProgress = async () => {
-      const token = localStorage.getItem("skillforge_token");
-      const firstCourse = courses.find((course) =>
-        enrolledCourseIds.includes(course.id),
-      );
-
-      if (!token || !firstCourse) {
-        setHomeLearningProgress(0);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/progress/${encodeURIComponent(firstCourse.id)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          setHomeLearningProgress(0);
-          return;
-        }
-
-        const data = await response.json();
-        const progress = Array.isArray(data.progress) ? data.progress : [];
-        const completed = progress.filter(
-          (item: { passed?: boolean }) => item.passed === true,
-        ).length;
-
-        setHomeLearningProgress(
-          Math.min(
-            100,
-            Math.round((completed / Math.max(firstCourse.lessons, 1)) * 100),
-          ),
-        );
-      } catch (error) {
-        console.error("Homepage progress loading error:", error);
-        setHomeLearningProgress(0);
-      }
-    };
-
-    void loadHomeLearningProgress();
-  }, [enrolledCourseIds]);
-
   const scrollToSection = (id: string) => {
     setMenuOpen(false);
 
@@ -507,21 +469,6 @@ function App() {
     localStorage.setItem("skillforge_user", JSON.stringify(loggedInUser));
     setUser(loggedInUser);
     setAuthMode(null);
-  };
-
-  const openDashboard = () => {
-    setMenuOpen(false);
-
-    if (!user) {
-      setAuthMode("login");
-      return;
-    }
-
-    setSelectedCourse(null);
-    setLearningCourse(null);
-    setDashboardOpen(true);
-    window.history.pushState({ dashboard: true }, "", "#dashboard");
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handlePurchase = async (courseIds: string[]) => {
@@ -683,7 +630,6 @@ function App() {
       "",
       `#learn=${encodeURIComponent(course.id)}`,
     );
-    setDashboardOpen(false);
     setSelectedCourse(null);
     setLearningCourse(course);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -691,7 +637,6 @@ function App() {
 
   const openCourse = (course: Course) => {
     window.history.pushState({ courseId: course.id }, "", `#course=${course.id}`);
-    setDashboardOpen(false);
     setSelectedCourse(course);
     window.scrollTo({
       top: 0,
@@ -701,13 +646,6 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (window.location.hash === "#dashboard") {
-        setSelectedCourse(null);
-        setLearningCourse(null);
-        setDashboardOpen(true);
-        return;
-      }
-
       const learnMatch = window.location.hash.match(/^#learn=(.+)$/);
       if (learnMatch) {
         const learnCourse = courses.find(
@@ -724,7 +662,6 @@ function App() {
         : undefined;
 
       setLearningCourse(null);
-      setDashboardOpen(false);
       setSelectedCourse(course ?? null);
     };
 
@@ -752,23 +689,11 @@ function App() {
     return <ResetPasswordPage token={resetToken} />;
   }
 
-  if (dashboardOpen) {
-    return (
-      <DashboardPage
-        user={user}
-        enrolledCourseIds={enrolledCourseIds}
-        onBack={() => window.history.back()}
-        onCourse={openCourse}
-        onLearn={openLearning}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
   if (learningCourse) {
     return (
       <CoursePlayer
         course={learningCourse}
+        userId={user?.id ?? 0}
         onBack={() => {
           window.history.back();
         }}
@@ -798,569 +723,724 @@ function App() {
   }
 
   return (
-    <div className="skillforge-light min-h-screen bg-[#f8fbfa] text-[#0b1736]">
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-[1380px] items-center gap-6 px-5 lg:px-8">
-          <button onClick={() => scrollToSection("home")} className="flex shrink-0 items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-50 text-emerald-600">
-              <BookOpen size={23} />
+    <div className="min-h-screen bg-[#030603] text-white">
+      {/* ================= NAVBAR ================= */}
+
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#030603]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
+          {/* LOGO */}
+
+          <button
+            onClick={() => scrollToSection("home")}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-lime-400 bg-lime-400/10">
+              <BookOpen className="text-lime-400" size={24} />
             </div>
+
             <div className="text-left">
-              <div className="text-[22px] font-black tracking-tight text-[#0b1736]">Skill<span className="text-emerald-600">Forge</span></div>
-              <div className="text-[8px] font-semibold uppercase tracking-[0.28em] text-slate-400">LEARN • PRACTICE • GROW</div>
+              <h1 className="text-2xl font-black">
+                Skill<span className="text-lime-400">Forge</span>
+              </h1>
+
+              <p className="text-[9px] uppercase tracking-[0.3em] text-gray-500">
+                Learn • Practice • Grow
+              </p>
             </div>
           </button>
 
-          <nav className="hidden flex-1 items-center justify-center gap-7 lg:flex">
-            <button onClick={() => scrollToSection("home")} className="relative py-7 text-sm font-bold text-emerald-600 after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:w-8 after:-translate-x-1/2 after:bg-emerald-500">Home</button>
-            <button onClick={() => scrollToSection("courses")} className="py-7 text-sm font-medium text-slate-600 hover:text-emerald-600">Courses</button>
-            <button onClick={() => scrollToSection("categories")} className="py-7 text-sm font-medium text-slate-600 hover:text-emerald-600">Categories</button>
-            <button onClick={() => scrollToSection("projects")} className="py-7 text-sm font-medium text-slate-600 hover:text-emerald-600">Projects</button>
-            <button onClick={() => scrollToSection("resources")} className="py-7 text-sm font-medium text-slate-600 hover:text-emerald-600">Resources</button>
-            <button onClick={() => scrollToSection("pricing")} className="py-7 text-sm font-medium text-slate-600 hover:text-emerald-600">Pricing</button>
-            <button onClick={() => scrollToSection("about")} className="py-7 text-sm font-medium text-slate-600 hover:text-emerald-600">About</button>
+          {/* DESKTOP NAV */}
+
+          <nav className="hidden items-center gap-8 md:flex">
+            <button
+              onClick={() => scrollToSection("home")}
+              className="font-medium text-lime-400 transition hover:text-lime-300"
+            >
+              Home
+            </button>
+
+            <button
+              onClick={() => scrollToSection("courses")}
+              className="text-gray-400 transition hover:text-lime-400"
+            >
+              Courses
+            </button>
+
+            <button
+              onClick={() => scrollToSection("categories")}
+              className="text-gray-400 transition hover:text-lime-400"
+            >
+              Categories
+            </button>
+
+            <button
+              onClick={() => scrollToSection("about")}
+              className="text-gray-400 transition hover:text-lime-400"
+            >
+              About
+            </button>
           </nav>
 
-          <div className="hidden items-center gap-2 md:flex">
-            <button onClick={() => setSearchOpen(true)} className="flex h-10 w-[220px] items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 text-left text-xs text-slate-400 hover:border-emerald-300">
-              <Search size={17} /> Search for courses, skills...
+          {/* DESKTOP ACTIONS */}
+
+          <div className="hidden items-center gap-3 md:flex">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="rounded-xl p-3 text-gray-400 transition hover:bg-white/5 hover:text-lime-400"
+              aria-label="Search"
+            >
+              <Search size={20} />
             </button>
-            <button className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600" aria-label="Theme">
-              ☼
-            </button>
+
             {user ? (
               <>
-                <button onClick={openDashboard} className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">Dashboard</button>
                 <div className="group relative">
-                  <button className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:border-emerald-300">
-                    <UserCircle size={17} className="text-emerald-600" /> Hi, <span className="font-bold text-emerald-700">{user.name}</span>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-xl border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-sm transition hover:border-lime-400/40 hover:bg-lime-400/10"
+                  >
+                    <UserCircle size={18} className="text-lime-400" />
+                    Hi,{" "}
+                    <span className="font-bold text-lime-400">{user.name}</span>
                   </button>
-                  <div className="pointer-events-none invisible absolute right-0 top-full z-[70] w-80 pt-3 opacity-0 transition-all group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-                      <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><UserCircle size={23}/></div><div className="min-w-0"><p className="font-bold text-slate-900">{user.name}</p><p className="truncate text-xs text-slate-500">{user.email}</p></div></div>
-                      <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600"><div className="flex gap-2"><Mail size={15} className="text-emerald-600"/>{user.email}</div><div className="flex gap-2"><Phone size={15} className="text-emerald-600"/>+91 {user.phone}</div></div>
-                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">snera980@gmail.com</p><p className="text-slate-500">+91 8960513302</p></div>
-                      <button onClick={handleLogout} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"><LogOut size={15}/> Logout</button>
+
+                  <div className="pointer-events-none invisible absolute right-0 top-full z-[70] w-80 translate-y-2 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                    <div className="rounded-2xl border border-white/10 bg-[#080a08]/95 p-5 shadow-2xl backdrop-blur-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+                          <UserCircle size={23} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-white">{user.name}</p>
+                          <p className="truncate text-xs text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2 border-t border-white/10 pt-4 text-sm">
+                        <div className="flex items-center gap-3 text-gray-300">
+                          <Mail size={15} className="text-lime-400" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-gray-300">
+                          <Phone size={15} className="text-lime-400" />
+                          <span>+91 {user.phone}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-lime-400/10 bg-lime-400/[0.04] p-3">
+                        <p className="text-xs font-semibold text-lime-400">Need Help?</p>
+                        <p className="mt-1 text-xs text-gray-500">snera980@gmail.com</p>
+                        <p className="mt-1 text-xs text-gray-500">+91 8960513302</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-400/20 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-400/5"
+                      >
+                        <LogOut size={15} />
+                        Logout
+                      </button>
                     </div>
                   </div>
                 </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-sm transition hover:border-red-400/40 hover:text-red-400"
+                >
+                  <LogOut size={16} />
+                  Logout
+                </button>
               </>
             ) : (
               <>
-                <button onClick={openLogin} className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-emerald-300">Log in</button>
-                <button onClick={openSignup} className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700">Sign up</button>
+                <button
+                  onClick={openLogin}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-sm transition hover:border-lime-400/40"
+                >
+                  <LogIn size={16} />
+                  Login
+                </button>
+
+                <button
+                  onClick={openSignup}
+                  className="rounded-xl bg-lime-400 px-5 py-2.5 text-sm font-bold text-black transition hover:bg-lime-300"
+                >
+                  Get Started
+                </button>
               </>
             )}
           </div>
 
-          <button onClick={() => setMenuOpen(!menuOpen)} className="ml-auto rounded-xl p-2 text-slate-600 lg:hidden">{menuOpen ? <X size={25}/> : <Menu size={25}/>}</button>
-        </div>
-        {menuOpen && <div className="border-t border-slate-200 bg-white p-5 lg:hidden"><div className="flex flex-col gap-4 text-sm font-semibold text-slate-700"><button onClick={() => scrollToSection("home")} className="text-left text-emerald-600">Home</button><button onClick={() => scrollToSection("courses")} className="text-left">Courses</button><button onClick={() => scrollToSection("categories")} className="text-left">Categories</button><button onClick={() => scrollToSection("projects")} className="text-left">Projects</button><button onClick={() => scrollToSection("resources")} className="text-left">Resources</button><button onClick={() => scrollToSection("pricing")} className="text-left">Pricing</button><button onClick={() => scrollToSection("about")} className="text-left">About</button>{user ? <button onClick={openDashboard} className="text-left text-emerald-600">Dashboard</button> : <><button onClick={openLogin} className="text-left">Log in</button><button onClick={openSignup} className="rounded-xl bg-emerald-600 py-3 text-white">Sign up</button></>}</div></div>}
-      </header>
+          {/* MOBILE BUTTON */}
 
-      <main>
-        <section id="home" className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-white via-[#f8fffc] to-[#effbf6]">
-          <div className="pointer-events-none absolute -left-32 top-0 h-[520px] w-[520px] rounded-full bg-emerald-100/50 blur-3xl" />
-          <div className="pointer-events-none absolute right-[24%] top-12 h-[430px] w-[430px] rounded-full bg-emerald-100/60 blur-3xl" />
-          <div className="mx-auto grid max-w-[1380px] items-center gap-8 px-5 py-10 lg:grid-cols-[1.05fr_1fr_0.95fr] lg:px-8 lg:py-12">
-            <div className="relative z-10 lg:pb-5">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700"><span>✨</span> Learn skills that matter</div>
-              <h1 className="max-w-xl text-[48px] font-black leading-[1.03] tracking-[-0.045em] text-[#0b1736] sm:text-[60px]">Build Real <span className="text-emerald-600">Skills</span> for a Better Future.</h1>
-              <p className="mt-6 max-w-xl text-[17px] leading-7 text-slate-500">Learn practical IT and technology skills through structured courses, hands-on projects and real-world practice.</p>
-              <div className="mt-7 flex flex-wrap gap-3"><button onClick={() => scrollToSection("courses")} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/15 hover:bg-emerald-700">Explore Courses <ArrowRight size={17}/></button><button onClick={() => setIntroOpen(true)} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 hover:border-emerald-300"><Play size={16} className="fill-emerald-500 text-emerald-500"/> Watch Intro</button></div>
-            </div>
-
-            <div className="relative hidden min-h-[390px] items-end justify-center lg:flex">
-              <div className="absolute bottom-5 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-100/70 blur-3xl" />
-              <img src="/hero-student.png" alt="SkillForge student learning" className="relative z-10 h-[390px] w-auto object-contain drop-shadow-[0_25px_30px_rgba(15,23,42,0.12)]" />
-              <div className="absolute left-2 top-24 z-20 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-lg"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><TrendingUp size={18}/></div><div><p className="text-[11px] font-bold text-slate-900">Practical</p><p className="text-[11px] text-slate-500">Learning</p></div></div>
-              <div className="absolute right-0 top-32 z-20 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-lg"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><Shield size={18}/></div><div><p className="text-[11px] font-bold text-slate-900">Industry</p><p className="text-[11px] text-slate-500">Relevant</p></div></div>
-              <div className="absolute right-5 bottom-16 z-20 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-lg"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><GraduationCap size={18}/></div><div><p className="text-[11px] font-bold text-slate-900">Career</p><p className="text-[11px] text-slate-500">Focused</p></div></div>
-            </div>
-
-            <div className="relative z-10 rounded-3xl border border-emerald-100 bg-white p-5 shadow-[0_25px_70px_rgba(15,118,110,0.10)] lg:p-6">
-              <div className="flex items-center justify-between"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600">Your Learning</p><h2 className="mt-1 text-xl font-black text-[#0b1736]">Continue where you left off</h2></div><button onClick={openDashboard} className="hidden text-xs font-bold text-emerald-600 sm:block">View Dashboard →</button></div>
-              {(() => {
-                const currentCourse = courses.find((course) =>
-                  enrolledCourseIds.includes(course.id),
-                );
-
-                if (!currentCourse) {
-                  return (
-                    <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5">
-                      <p className="text-xs text-slate-500">Your Learning</p>
-                      <h3 className="mt-1 text-sm font-black text-[#0b1736]">No course enrolled yet</h3>
-                      <p className="mt-2 text-[11px] leading-5 text-slate-500">Purchase a course and your actual course progress will appear here.</p>
-                      <button onClick={() => scrollToSection("courses")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700">Explore Courses <ArrowRight size={16}/></button>
-                    </div>
-                  );
-                }
-
-                const completedLessons = Math.round(
-                  (homeLearningProgress / 100) * currentCourse.lessons,
-                );
-
-                return (
-                  <>
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-xs text-slate-500">Current Course</p>
-                          <h3 className="mt-1 truncate text-sm font-black text-[#0b1736]">{currentCourse.title}</h3>
-                          <p className="mt-1 text-[10px] text-slate-400">{currentCourse.category} · {currentCourse.level}</p>
-                        </div>
-                        <span className="shrink-0 text-lg font-black text-emerald-600">{homeLearningProgress}%</span>
-                      </div>
-                      <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
-                        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${homeLearningProgress}%` }} />
-                      </div>
-                      <p className="mt-2 text-[11px] text-slate-500">{completedLessons} of {currentCourse.lessons} lessons completed</p>
-                      <button onClick={() => openLearning(currentCourse)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700">Continue Learning <ArrowRight size={16}/></button>
-                    </div>
-                    <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#0b1736]">{currentCourse.title}</p>
-                          <p className="mt-1 text-[10px] text-slate-400">{homeLearningProgress === 0 ? "Not Started" : homeLearningProgress >= 100 ? "Completed" : "In Progress"}</p>
-                        </div>
-                        <span className="text-[10px] font-bold text-emerald-600">{homeLearningProgress}%</span>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-          <div className="mx-auto grid max-w-[1300px] grid-cols-2 gap-3 px-5 pb-10 sm:grid-cols-4 lg:px-8"><Metric icon={<GraduationCap/>} value="10+" label="Courses"/><Metric icon={<Shield/>} value="100%" label="Practical Learning"/><Metric icon={<Clock3/>} value="24/7" label="Access"/><Metric icon={<Award/>} value="Certificate" label="On Completion"/></div>
-        </section>
-
-        <section id="categories" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 py-12 lg:px-8">
-          <div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black text-[#0b1736]">Explore Categories</h2><p className="mt-1 text-sm text-slate-500">Choose a learning path and build practical technical skills.</p></div><button onClick={() => {setSelectedCategory("All"); scrollToSection("courses")}} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-              {[
-                { t: "Cloud Computing", c: "Cloud", i: <Cloud /> },
-                { t: "Cyber Security", c: "Cyber Security", i: <Shield /> },
-                { t: "Networking", c: "Networking", i: <Network /> },
-                { t: "Linux", c: "IT & Tech", i: <span className="text-xl">🐧</span> },
-                { t: "IT Support", c: "IT & Tech", i: <BookOpen /> },
-                { t: "DevOps", c: "Cloud", i: <TrendingUp /> },
-              ].map((item) => {
-                const count = courses.filter(
-                  (course) => course.category === item.c,
-                ).length;
-
-                return (
-                  <button
-                    key={item.t}
-                    onClick={() => {
-                      setSelectedCategory(item.c);
-                      scrollToSection("courses");
-                    }}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
-                  >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                      {item.i}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[#0b1736]">{item.t}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {count} {count === 1 ? "Course" : "Courses"}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-        </section>
-
-        <section id="courses" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
-          <div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Popular Courses</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Start Learning Today</h2><p className="mt-2 text-sm text-slate-500">Beginner-friendly courses focused on practical skills.</p></div><button onClick={() => setSelectedCategory("All")} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
-          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredCourses.slice(0,8).map((course,index)=><Course key={course.id} course={course} onClick={() => openCourse(course)} badge={index===0?"Bestseller":index===1?"Most Popular":index===2?"Beginner Friendly":index===3?"New":undefined}/>)}</div>
-        </section>
-
-        <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
-
-        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Individual courses are ₹799 and the 2-course combo is ₹1,499 with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
-
-        <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
-
-        <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
-      </main>
-
-      {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
-      {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
-      {introOpen && <Modal onClose={() => setIntroOpen(false)}><div className="w-full max-w-2xl text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50"><Play className="fill-emerald-600 text-emerald-600" size={28}/></div><h2 className="mt-6 text-3xl font-black text-[#0b1736]">Welcome to SkillForge</h2><p className="mx-auto mt-4 max-w-lg text-slate-500">Practical IT and technology learning with structured lessons, hands-on projects, quizzes and certificates.</p><button onClick={()=>{setIntroOpen(false);scrollToSection("courses")}} className="mt-7 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></Modal>}
-    </div>
-  );
-}
-
-
-/* ================= STUDENT DASHBOARD ================= */
-
-function DashboardPage({
-  user,
-  enrolledCourseIds,
-  onBack,
-  onCourse,
-  onLearn,
-  onLogout,
-}: {
-  user: User | null;
-  enrolledCourseIds: string[];
-  onBack: () => void;
-  onCourse: (course: Course) => void;
-  onLearn: (course: Course) => void;
-  onLogout: () => void;
-}) {
-  const enrolledCourses = courses.filter((course) =>
-    enrolledCourseIds.includes(course.id),
-  );
-
-  const [progressByCourse, setProgressByCourse] = useState<Record<string, number>>({});
-  const [loadingProgress, setLoadingProgress] = useState(false);
-
-  useEffect(() => {
-    const loadProgress = async () => {
-      const token = localStorage.getItem("skillforge_token");
-      if (!token || enrolledCourses.length === 0) {
-        setProgressByCourse({});
-        return;
-      }
-
-      setLoadingProgress(true);
-      const next: Record<string, number> = {};
-
-      await Promise.all(
-        enrolledCourses.map(async (course) => {
-          try {
-            const response = await fetch(
-              `${API_BASE_URL}/api/progress/${encodeURIComponent(course.id)}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              },
-            );
-
-            if (!response.ok) return;
-            const data = await response.json();
-            const progress = Array.isArray(data.progress) ? data.progress : [];
-            const completed = progress.filter(
-              (item: { passed?: boolean }) => item.passed === true,
-            ).length;
-            next[course.id] = Math.min(
-              100,
-              Math.round((completed / Math.max(course.lessons, 1)) * 100),
-            );
-          } catch (error) {
-            console.error(`Progress loading error for ${course.id}:`, error);
-          }
-        }),
-      );
-
-      setProgressByCourse(next);
-      setLoadingProgress(false);
-    };
-
-    void loadProgress();
-  }, [enrolledCourseIds]);
-
-  const totalProgress = enrolledCourses.length
-    ? Math.round(
-        enrolledCourses.reduce(
-          (sum, course) => sum + (progressByCourse[course.id] ?? 0),
-          0,
-        ) / enrolledCourses.length,
-      )
-    : 0;
-
-  const completedCourses = enrolledCourses.filter(
-    (course) => (progressByCourse[course.id] ?? 0) >= 100,
-  ).length;
-
-  return (
-    <div className="min-h-screen bg-[#f7faf8] text-[#0b1736]">
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-[1380px] items-center justify-between px-5 lg:px-8">
           <button
-            onClick={onBack}
-            className="flex items-center gap-3"
-            type="button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="rounded-lg p-2 text-gray-300 md:hidden"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <BookOpen size={21} />
-            </div>
-            <div className="text-left">
-              <div className="text-xl font-black">
-                Skill<span className="text-emerald-600">Forge</span>
-              </div>
-              <div className="text-[8px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-                Student Dashboard
-              </div>
-            </div>
+            {menuOpen ? <X size={25} /> : <Menu size={25} />}
           </button>
-
-          <div className="flex items-center gap-2">
-            <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 sm:block">
-              Hi, <span className="text-emerald-600">{user?.name ?? "Student"}</span>
-            </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-            >
-              <LogOut size={15} />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
         </div>
+
+        {/* MOBILE MENU */}
+
+        {menuOpen && (
+          <div className="border-t border-white/10 bg-[#050805] p-6 md:hidden">
+            <div className="flex flex-col gap-5">
+              <button
+                onClick={() => scrollToSection("home")}
+                className="text-left text-lime-400"
+              >
+                Home
+              </button>
+
+              <button
+                onClick={() => scrollToSection("courses")}
+                className="text-left text-gray-300"
+              >
+                Courses
+              </button>
+
+              <button
+                onClick={() => scrollToSection("categories")}
+                className="text-left text-gray-300"
+              >
+                Categories
+              </button>
+
+              <button
+                onClick={() => scrollToSection("about")}
+                className="text-left text-gray-300"
+              >
+                About
+              </button>
+
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 text-left text-gray-300"
+              >
+                <Search size={18} />
+                Search Courses
+              </button>
+
+              {user ? (
+                <>
+                  <div className="rounded-xl border border-lime-400/20 bg-lime-400/5 p-4">
+                    <div className="flex items-center gap-3">
+                      <UserCircle size={20} className="text-lime-400" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-lime-300">{user.name}</p>
+                        <p className="truncate text-xs text-gray-500">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1 text-xs text-gray-500">
+                      <p>+91 {user.phone}</p>
+                      <p>Support: snera980@gmail.com</p>
+                      <p>Support: +91 8960513302</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-xl border border-white/10 py-3"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={openLogin}
+                    className="rounded-xl border border-white/10 py-3"
+                  >
+                    Login
+                  </button>
+
+                  <button
+                    onClick={openSignup}
+                    className="rounded-xl bg-lime-400 py-3 font-bold text-black"
+                  >
+                    Get Started
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
-      <div className="mx-auto grid max-w-[1380px] gap-6 px-5 py-7 lg:grid-cols-[230px_1fr] lg:px-8">
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-            <p className="px-3 pb-3 pt-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              Learning
-            </p>
-            <DashboardNav icon={<LayoutDashboard size={17} />} label="Dashboard" active />
-            <DashboardNav icon={<BookOpen size={17} />} label="My Courses" />
-            <DashboardNav icon={<BarChart3 size={17} />} label="My Progress" />
-            <DashboardNav icon={<Award size={17} />} label="Certificates" />
-            <DashboardNav icon={<ReceiptText size={17} />} label="Purchase History" />
-            <DashboardNav icon={<Headphones size={17} />} label="Support" />
-          </div>
-        </aside>
+      {/* ================= HERO ================= */}
 
-        <main>
-          <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">
-                  Student Dashboard
-                </p>
-                <h1 className="mt-2 text-3xl font-black sm:text-4xl">
-                  Welcome back, {user?.name?.split(" ")[0] ?? "Student"}! 👋
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  Continue your courses, track your progress and complete your next learning milestone.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
-                    <Flame size={20} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400">Learning Streak</p>
-                    <p className="text-lg font-black text-[#0b1736]">Keep going!</p>
-                  </div>
-                </div>
-              </div>
+      <section id="home" className="relative overflow-hidden">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-lime-400/10 blur-[150px]" />
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-16 px-6 py-24 lg:grid-cols-2">
+          {/* HERO LEFT */}
+
+          <div>
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/5 px-4 py-2">
+              <span className="h-2 w-2 rounded-full bg-lime-400" />
+
+              <span className="text-xs text-lime-300">
+                Learn skills that matter
+              </span>
             </div>
-          </section>
 
-          <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <DashboardStat icon={<BookOpen />} value={String(enrolledCourses.length)} label="Enrolled Courses" />
-            <DashboardStat icon={<BarChart3 />} value={`${totalProgress}%`} label="Overall Progress" />
-            <DashboardStat icon={<CheckCircle2 />} value={String(completedCourses)} label="Completed Courses" />
-            <DashboardStat icon={<Award />} value={String(completedCourses)} label="Certificates" />
-          </section>
+            <h2 className="text-5xl font-black leading-tight sm:text-6xl">
+              Build Real
+              <br />
+              <span className="text-lime-400">Skills</span> for a
+              <br />
+              Better Future.
+            </h2>
 
-          <section className="mt-7">
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">
-                  Your Learning
-                </p>
-                <h2 className="mt-1 text-2xl font-black">My Courses</h2>
-              </div>
+            <p className="mt-7 max-w-xl text-lg leading-8 text-gray-400">
+              Learn practical IT and technology skills through structured
+              courses, hands-on projects and real-world practice.
+            </p>
+
+            <div className="mt-9 flex flex-wrap gap-4">
               <button
-                type="button"
-                onClick={onBack}
-                className="hidden text-sm font-bold text-emerald-600 sm:block"
+                onClick={() => scrollToSection("courses")}
+                className="flex items-center gap-2 rounded-xl bg-lime-400 px-7 py-4 font-bold text-black transition hover:bg-lime-300"
               >
-                Browse Courses →
+                Explore Courses
+                <ArrowRight size={18} />
+              </button>
+
+              <button
+                onClick={() => setIntroOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-white/10 px-7 py-4 font-medium transition hover:border-lime-400/40"
+              >
+                <Play
+                  size={17}
+                  className="fill-lime-400 text-lime-400"
+                />
+                Watch Intro
               </button>
             </div>
 
-            {enrolledCourses.length === 0 ? (
-              <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                  <GraduationCap size={28} />
+            <div className="mt-12 grid max-w-xl grid-cols-3 border-t border-white/10 pt-8">
+              <div>
+                <p className="text-2xl font-bold">10+</p>
+                <p className="mt-1 text-sm text-gray-500">Courses</p>
+              </div>
+
+              <div>
+                <p className="text-2xl font-bold">100%</p>
+                <p className="mt-1 text-sm text-gray-500">Practical</p>
+              </div>
+
+              <div>
+                <p className="text-2xl font-bold">24/7</p>
+                <p className="mt-1 text-sm text-gray-500">Access</p>
+              </div>
+            </div>
+          </div>
+
+          {/* HERO RIGHT */}
+
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-lime-400/10 blur-3xl" />
+
+            <div className="relative rounded-3xl border border-lime-400/20 bg-[#070907] p-6 shadow-2xl">
+              <div className="mb-7 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-lime-400">
+                    Your Learning
+                  </p>
+
+                  <h3 className="mt-2 text-2xl font-bold">Dashboard</h3>
                 </div>
-                <h3 className="mt-4 text-xl font-black">No courses yet</h3>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                  Purchase a course to start learning and your enrolled course will appear here.
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-lime-400/10">
+                  <BookOpen size={22} className="text-lime-400" />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Current Course</p>
+
+                    <h4 className="mt-1 font-bold">
+                      AWS Cloud Fundamentals
+                    </h4>
+                  </div>
+
+                  <span className="font-bold text-lime-400">68%</span>
+                </div>
+
+                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/5">
+                  <div className="h-full w-[68%] rounded-full bg-lime-400" />
+                </div>
+
+                <p className="mt-2 text-xs text-gray-600">
+                  15 of 22 lessons completed
                 </p>
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="mt-5 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-700"
-                >
-                  Explore Courses
-                </button>
               </div>
-            ) : (
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                {enrolledCourses.map((course) => {
-                  const progress = progressByCourse[course.id] ?? 0;
-                  return (
-                    <div
-                      key={course.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-3xl">
-                          {course.emoji}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">
-                            {course.category}
-                          </p>
-                          <h3 className="mt-1 truncate text-lg font-black">{course.title}</h3>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {course.lessons} lessons · {course.duration}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="mt-5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-500">Course Progress</span>
-                          <span className="font-black text-emerald-600">
-                            {loadingProgress ? "…" : `${progress}%`}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      </div>
+              <div className="mt-5 space-y-3">
+                <Lesson
+                  title="Introduction to AWS"
+                  time="12 min"
+                  complete
+                />
 
-                      <div className="mt-5 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => onLearn(course)}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700"
-                        >
-                          <PlayCircle size={16} />
-                          Continue Learning
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onCourse(course)}
-                          className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:border-emerald-300 hover:text-emerald-600"
-                          title="View course"
-                        >
-                          <ChevronRight size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                <Lesson
+                  title="Understanding EC2"
+                  time="18 min"
+                />
+
+                <Lesson
+                  title="Amazon S3 Basics"
+                  time="15 min"
+                />
               </div>
+
+              <button
+                onClick={() =>
+                  openCourse(courses.find((c) => c.id === "aws")!)
+                }
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 py-3 font-bold text-black transition hover:bg-lime-300"
+              >
+                Continue Learning
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= CATEGORIES ================= */}
+
+      <section
+        id="categories"
+        className="scroll-mt-20 border-y border-white/10 bg-[#040604]"
+      >
+        <div className="mx-auto max-w-7xl px-6 py-20">
+          <div className="text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
+              Explore Skills
+            </p>
+
+            <h2 className="mt-3 text-4xl font-black">
+              Learn what matters
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-xl text-gray-500">
+              Choose a learning path and build practical technical skills.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {categories.map((category) => (
+              <button
+                key={category.title}
+                onClick={() => {
+                  setSelectedCategory(category.title);
+                  scrollToSection("courses");
+                }}
+                className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-left transition hover:-translate-y-1 hover:border-lime-400/30"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400 transition group-hover:bg-lime-400 group-hover:text-black">
+                  {category.icon}
+                </div>
+
+                <h3 className="mt-5 font-bold">{category.title}</h3>
+
+                <p className="mt-2 text-sm text-gray-500">
+                  {category.text}
+                </p>
+
+                <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-lime-400">
+                  Explore
+                  <ArrowRight size={14} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= COURSES ================= */}
+
+      <section
+        id="courses"
+        className="scroll-mt-20 mx-auto max-w-7xl px-6 py-20"
+      >
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
+              Popular Courses
+            </p>
+
+            <h2 className="mt-3 text-4xl font-black">
+              Start Learning Today
+            </h2>
+
+            <p className="mt-3 text-gray-500">
+              Beginner-friendly courses focused on practical skills.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {selectedCategory !== "All" && (
+              <button
+                onClick={() => setSelectedCategory("All")}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400 hover:border-lime-400/30 hover:text-lime-400"
+              >
+                Clear Filter
+              </button>
             )}
-          </section>
 
-          <section className="mt-7 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <TrendingUp size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Progress</p>
-                  <h3 className="mt-1 text-lg font-black">Learning Overview</h3>
-                </div>
+            <button
+              onClick={() => setSelectedCategory("All")}
+              className="flex items-center gap-2 text-sm font-semibold text-lime-400"
+            >
+              View All
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {selectedCategory !== "All" && (
+          <div className="mt-6 rounded-xl border border-lime-400/20 bg-lime-400/5 px-4 py-3 text-sm">
+            Showing courses in{" "}
+            <span className="font-bold text-lime-400">
+              {selectedCategory}
+            </span>
+          </div>
+        )}
+
+        {filteredCourses.length > 0 ? (
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {filteredCourses.map((course) => (
+              <Course
+                key={course.id}
+                course={course}
+                onClick={() => openCourse(course)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
+            <Search className="mx-auto text-gray-600" size={40} />
+
+            <h3 className="mt-4 text-xl font-bold">
+              No courses found
+            </h3>
+
+            <p className="mt-2 text-gray-500">
+              Try searching for another course.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* ================= ABOUT ================= */}
+
+      <section
+        id="about"
+        className="scroll-mt-20 border-t border-white/10 bg-[#040604]"
+      >
+        <div className="mx-auto max-w-7xl px-6 py-20">
+          <div className="mb-10 text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
+              Why SkillForge
+            </p>
+
+            <h2 className="mt-3 text-4xl font-black">
+              Learn. Practice. Grow.
+            </h2>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-3">
+            <Feature
+              icon={<BookOpen />}
+              title="Structured Learning"
+              text="Follow organized courses and step-by-step learning paths."
+            />
+
+            <Feature
+              icon={<Users />}
+              title="Practical Skills"
+              text="Learn through real-world examples and hands-on practice."
+            />
+
+            <Feature
+              icon={<CheckCircle />}
+              title="Track Progress"
+              text="Complete lessons and continue exactly where you stopped."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ================= CTA ================= */}
+
+      <section className="px-6 py-20">
+        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-lime-400/20 bg-lime-400/[0.04] p-10 text-center sm:p-16">
+          <div className="absolute left-1/2 top-0 h-48 w-96 -translate-x-1/2 rounded-full bg-lime-400/10 blur-[100px]" />
+
+          <div className="relative">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
+              Start Your Journey
+            </p>
+
+            <h2 className="mt-4 text-4xl font-black sm:text-5xl">
+              Forge Your Skills.
+              <br />
+              Build Your Future.
+            </h2>
+
+            <p className="mx-auto mt-5 max-w-xl text-gray-500">
+              Start learning practical technology skills with SkillForge.
+            </p>
+
+            <button
+              onClick={() => scrollToSection("courses")}
+              className="mt-8 rounded-xl bg-lime-400 px-7 py-4 font-bold text-black transition hover:bg-lime-300"
+            >
+              Explore Courses
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= FOOTER ================= */}
+
+      <footer className="border-t border-white/10">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-10 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-xl font-black">
+              Skill<span className="text-lime-400">Forge</span>
+            </h3>
+
+            <p className="mt-1 text-xs uppercase tracking-[0.25em] text-gray-600">
+              Learn • Practice • Grow
+            </p>
+          </div>
+
+          <p className="text-sm text-gray-600">
+            © 2026 SkillForge. All rights reserved.
+          </p>
+        </div>
+      </footer>
+
+      {/* ================= SEARCH MODAL ================= */}
+
+      {searchOpen && (
+        <Modal onClose={() => setSearchOpen(false)}>
+          <div className="w-full max-w-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-lime-400">
+                  SkillForge Search
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black">
+                  Find a course
+                </h2>
               </div>
-              <div className="mt-5 space-y-4">
-                <ProgressLine label="Courses enrolled" value={`${enrolledCourses.length}`} />
-                <ProgressLine label="Overall completion" value={`${totalProgress}%`} />
-                <ProgressLine label="Certificates earned" value={`${completedCourses}`} />
-              </div>
+
+              <button
+                onClick={() => setSearchOpen(false)}
+                className="rounded-lg p-2 text-gray-500 hover:text-white"
+              >
+                <X />
+              </button>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                  <Headphones size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600">Support</p>
-                  <h3 className="mt-1 text-lg font-black">Need help?</h3>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-slate-500">
-                For course, account or payment support, contact the SkillForge support team.
-              </p>
-              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm">
-                <p className="font-bold text-slate-800">Naimish Singh</p>
-                <p className="mt-1 text-slate-500">snera980@gmail.com</p>
-                <p className="text-slate-500">+91 8960513302</p>
-              </div>
+            <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4">
+              <Search className="text-gray-500" size={20} />
+
+              <input
+                autoFocus
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search AWS, Linux, Networking..."
+                className="w-full bg-transparent py-4 text-white outline-none placeholder:text-gray-600"
+              />
             </div>
-          </section>
-        </main>
-      </div>
-    </div>
-  );
-}
 
-function DashboardNav({
-  icon,
-  label,
-  active = false,
-}: {
-  icon: ReactNode;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
-        active
-          ? "bg-emerald-50 text-emerald-700"
-          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
+            <div className="mt-5 max-h-80 space-y-2 overflow-y-auto">
+              {filteredCourses.map((course) => (
+                <button
+                  key={course.id}
+                  onClick={() => {
+                    setSearchOpen(false);
+                    openCourse(course);
+                  }}
+                  className="flex w-full items-center gap-4 rounded-xl border border-white/5 p-4 text-left transition hover:border-lime-400/30 hover:bg-lime-400/5"
+                >
+                  <span className="text-3xl">{course.emoji}</span>
 
-function DashboardStat({
-  icon,
-  value,
-  label,
-}: {
-  icon: ReactNode;
-  value: string;
-  label: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <p className="text-xl font-black text-[#0b1736]">{value}</p>
-          <p className="truncate text-[10px] font-medium text-slate-500">{label}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+                  <div>
+                    <p className="font-bold">{course.title}</p>
 
-function ProgressLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-      <span className="text-sm font-semibold text-slate-600">{label}</span>
-      <span className="text-sm font-black text-emerald-600">{value}</span>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {course.category} • {course.lessons} Lessons
+                    </p>
+                  </div>
+
+                  <ChevronRight className="ml-auto text-gray-600" size={18} />
+                </button>
+              ))}
+
+              {filteredCourses.length === 0 && (
+                <p className="py-8 text-center text-gray-500">
+                  No matching courses.
+                </p>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ================= AUTH MODAL ================= */}
+
+      {authMode && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setAuthMode(null)}
+          onModeChange={setAuthMode}
+          onSuccess={handleAuth}
+        />
+      )}
+
+      {/* ================= INTRO MODAL ================= */}
+
+      {introOpen && (
+        <Modal onClose={() => setIntroOpen(false)}>
+          <div className="w-full max-w-2xl text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-lime-400/10">
+              <Play className="fill-lime-400 text-lime-400" size={28} />
+            </div>
+
+            <h2 className="mt-6 text-3xl font-black">
+              Welcome to SkillForge
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-lg text-gray-500">
+              SkillForge is built for practical IT and technology learning.
+              Courses will include structured lessons, projects and
+              hands-on practice.
+            </p>
+
+            <button
+              onClick={() => {
+                setIntroOpen(false);
+                scrollToSection("courses");
+              }}
+              className="mt-7 rounded-xl bg-lime-400 px-7 py-3 font-bold text-black hover:bg-lime-300"
+            >
+              Explore Courses
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1394,9 +1474,31 @@ function CourseDetails({
 
   const comboSelected = Boolean(comboCourseId);
 
+  const totalCourseLessons = course.id === "security" ? 57 : course.lessons;
+  const completedCourseLessons = (() => {
+    if (!user || course.id !== "security") return 0;
+
+    const prefix = `skillforge_lecture_progress_${course.id}_${user.id}_`;
+    let count = 0;
+
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith(prefix) && key.endsWith("_complete") && localStorage.getItem(key) === "true") {
+        count += 1;
+      }
+    }
+
+    return Math.min(count, totalCourseLessons);
+  })();
+
+  const progressPercent = totalCourseLessons > 0
+    ? Math.round((completedCourseLessons / totalCourseLessons) * 100)
+    : 0;
+
+
   return (
-    <div className="skillforge-light min-h-screen bg-[#f7faf8] text-slate-900">
-      <header className="border-b border-slate-200 bg-white/95">
+    <div className="min-h-screen bg-[#030603] text-white">
+      <header className="border-b border-white/10 bg-[#030603]/95">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
           <button
             onClick={onBack}
@@ -1454,13 +1556,20 @@ function CourseDetails({
                 {enrolled ? (
                   <>
                     <div className="mt-5 flex items-end justify-between">
-                      <span className="text-4xl font-black">0%</span>
+                      <span className="text-4xl font-black">{progressPercent}%</span>
                       <span className="text-sm text-lime-400">Enrolled</span>
                     </div>
 
-                    <div className="mt-5 h-2 rounded-full bg-white/5">
-                      <div className="h-full w-0 rounded-full bg-lime-400" />
+                    <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/5">
+                      <div
+                        className="h-full rounded-full bg-lime-400 transition-all duration-700"
+                        style={{ width: `${progressPercent}%` }}
+                      />
                     </div>
+
+                    <p className="mt-2 text-xs text-gray-600">
+                      {completedCourseLessons} of {totalCourseLessons} lessons completed
+                    </p>
 
                     <button
                       onClick={onStart}
@@ -1564,254 +1673,18 @@ function CourseDetails({
 
 /* ================= COURSE PLAYER ================= */
 
-const R2_LECTURE_1_URL = "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/cyber-security/Module%201%20%E2%80%94%20Introduction/lecture-1.mp4";
-
-function SkillForgeVideoPlayer({
-  src,
-  title,
-}: {
-  src: string;
-  title: string;
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const playerRef = useRef<HTMLDivElement | null>(null);
-  const hideTimerRef = useRef<number | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [showSpeed, setShowSpeed] = useState(false);
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const showControls = () => {
-    setControlsVisible(true);
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(() => setControlsVisible(false), 2200);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onFullscreenChange = () => setIsFullscreen(document.fullscreenElement === playerRef.current);
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
-
-  const togglePlay = async () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      await video.play();
-      setPlaying(true);
-    } else {
-      video.pause();
-      setPlaying(false);
-    }
-    showControls();
-  };
-
-  const seekBy = (seconds: number) => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
-    showControls();
-  };
-
-  const toggleFullscreen = async () => {
-    const container = playerRef.current;
-    if (!container) return;
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else {
-      await container.requestFullscreen();
-    }
-  };
-
-  const formatTime = (value: number) => {
-    if (!Number.isFinite(value)) return "00:00";
-    const total = Math.floor(value);
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-    return hours > 0
-      ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-      : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  };
-
-  return (
-    <div
-      ref={playerRef}
-      className="group relative aspect-video overflow-hidden bg-black select-none"
-      onMouseMove={showControls}
-      onMouseEnter={showControls}
-      onContextMenu={(event) => event.preventDefault()}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) void togglePlay();
-      }}
-    >
-      <video
-        ref={videoRef}
-        className="h-full w-full object-contain bg-black"
-        src={src}
-        playsInline
-        preload="metadata"
-        controls={false}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-        onPlay={() => { setPlaying(true); showControls(); }}
-        onPause={() => { setPlaying(false); setControlsVisible(true); }}
-        onEnded={() => { setPlaying(false); setControlsVisible(true); }}
-        onVolumeChange={(event) => {
-          setVolume(event.currentTarget.volume);
-          setMuted(event.currentTarget.muted);
-        }}
-        onClick={() => void togglePlay()}
-        onDoubleClick={() => void toggleFullscreen()}
-      />
-
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80" />
-
-      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4 transition-opacity duration-300 ${controlsVisible ? "opacity-100" : "opacity-0"}`}>
-        <div className="rounded-xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur-md">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-400">SkillForge</p>
-          <p className="mt-0.5 max-w-[70vw] truncate text-sm font-semibold text-white">{title}</p>
-        </div>
-        <div className="rounded-full border border-lime-400/20 bg-black/45 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-lime-300 backdrop-blur-md">
-          Lecture 1
-        </div>
-      </div>
-
-      {!playing && (
-        <button
-          type="button"
-          onClick={togglePlay}
-          aria-label="Play video"
-          className="absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-lime-300/50 bg-lime-400 text-black shadow-[0_0_45px_rgba(163,230,53,0.25)] transition hover:scale-105 hover:bg-lime-300 sm:h-24 sm:w-24"
-        >
-          <Play size={34} fill="currentColor" className="ml-1" />
-        </button>
-      )}
-
-      <div className={`absolute inset-x-0 bottom-0 z-20 px-3 pb-3 transition-opacity duration-300 sm:px-5 sm:pb-5 ${controlsVisible ? "opacity-100" : "opacity-0"}`}>
-        <input
-          aria-label="Video progress"
-          type="range"
-          min={0}
-          max={duration || 0}
-          step={0.1}
-          value={Math.min(currentTime, duration || 0)}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            if (videoRef.current) videoRef.current.currentTime = value;
-            setCurrentTime(value);
-            showControls();
-          }}
-          className="mb-3 h-1.5 w-full cursor-pointer accent-lime-400"
-        />
-
-        <div className="flex items-center gap-2 text-white sm:gap-3">
-          <button type="button" onClick={() => seekBy(-10)} className="rounded-lg p-2 transition hover:bg-white/10" title="Back 10 seconds">
-            <span className="text-xs font-black">↶10</span>
-          </button>
-          <button type="button" onClick={togglePlay} className="flex h-9 w-9 items-center justify-center rounded-full bg-lime-400 text-black transition hover:bg-lime-300" aria-label={playing ? "Pause" : "Play"}>
-            {playing ? <span className="text-sm font-black">Ⅱ</span> : <Play size={16} fill="currentColor" className="ml-0.5" />}
-          </button>
-          <button type="button" onClick={() => seekBy(10)} className="rounded-lg p-2 transition hover:bg-white/10" title="Forward 10 seconds">
-            <span className="text-xs font-black">10↷</span>
-          </button>
-
-          <span className="hidden text-xs font-semibold tabular-nums text-gray-300 sm:block">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
-
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                const nextMuted = !muted;
-                if (videoRef.current) videoRef.current.muted = nextMuted;
-                setMuted(nextMuted);
-                showControls();
-              }}
-              className="rounded-lg p-2 transition hover:bg-white/10"
-              title={muted ? "Unmute" : "Mute"}
-            >
-              <span className="text-sm">{muted || volume === 0 ? "🔇" : "🔊"}</span>
-            </button>
-            <input
-              aria-label="Volume"
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={muted ? 0 : volume}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                if (videoRef.current) {
-                  videoRef.current.volume = value;
-                  videoRef.current.muted = value === 0;
-                }
-                setVolume(value);
-                setMuted(value === 0);
-                showControls();
-              }}
-              className="hidden w-20 cursor-pointer accent-lime-400 sm:block"
-            />
-
-            <div className="relative">
-              <button type="button" onClick={() => setShowSpeed((value) => !value)} className="rounded-lg px-2 py-2 text-xs font-bold transition hover:bg-white/10" title="Playback speed">
-                {speed}x
-              </button>
-              {showSpeed && (
-                <div className="absolute bottom-11 right-0 w-28 overflow-hidden rounded-xl border border-white/10 bg-[#0b0f0b]/95 p-1 shadow-2xl backdrop-blur-xl">
-                  {[0.75, 1, 1.25, 1.5, 1.75, 2].map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => {
-                        if (videoRef.current) videoRef.current.playbackRate = value;
-                        setSpeed(value);
-                        setShowSpeed(false);
-                        showControls();
-                      }}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition ${speed === value ? "bg-lime-400 text-black" : "text-gray-300 hover:bg-white/10 hover:text-white"}`}
-                    >
-                      {value}x
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button type="button" onClick={toggleFullscreen} className="rounded-lg p-2 text-lg transition hover:bg-white/10" title="Fullscreen">
-              {isFullscreen ? "⛶" : "⛶"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function CoursePlayer({
   course,
+  userId,
   onBack,
 }: {
   course: Course;
+  userId: number;
   onBack: () => void;
 }) {
   const modules = course.id === "security" ? securityModules : [];
   const lecture = modules[0]?.lectures[0];
-  const progressKey = `skillforge_lecture_progress_${course.id}_${lecture?.id ?? ""}`;
+  const progressKey = `skillforge_lecture_progress_${course.id}_${userId}_${lecture?.id ?? ""}`;
   const [videoMarkedComplete, setVideoMarkedComplete] = useState(() =>
     localStorage.getItem(`${progressKey}_video`) === "true",
   );
@@ -1875,10 +1748,15 @@ function CoursePlayer({
         </div>
 
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#070907] shadow-2xl">
-          <SkillForgeVideoPlayer
-            src={lecture.id === "lecture-1" ? R2_LECTURE_1_URL : lecture.videoUrl}
-            title={lecture.title}
-          />
+          <div className="aspect-video bg-black">
+            <iframe
+              className="h-full w-full"
+              src={lecture.videoUrl}
+              title={lecture.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
           <div className="flex flex-col gap-4 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-bold">Finish the lecture before attempting the quiz.</p>
@@ -2604,45 +2482,127 @@ function Modal({
   );
 }
 
+/* ================= LESSON ================= */
+
+function Lesson({
+  title,
+  time,
+  complete = false,
+}: {
+  title: string;
+  time: string;
+  complete?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-4">
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+            complete
+              ? "bg-lime-400 text-black"
+              : "border border-white/10 text-gray-500"
+          }`}
+        >
+          {complete ? (
+            <CheckCircle size={17} />
+          ) : (
+            <Play size={15} />
+          )}
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold">{title}</p>
+
+          <p className="text-xs text-gray-600">
+            Lesson • {time}
+          </p>
+        </div>
+      </div>
+
+      {complete && (
+        <span className="text-xs font-bold text-lime-400">
+          Done
+        </span>
+      )}
+    </div>
+  );
+}
+
 /* ================= COURSE CARD ================= */
 
 function Course({
   course,
   onClick,
-  badge,
 }: {
   course: Course;
   onClick: () => void;
-  badge?: string;
 }) {
-  const covers: Record<string,string> = {
-    aws: "from-slate-950 via-cyan-950 to-emerald-900",
-    security: "from-slate-950 via-indigo-950 to-emerald-900",
-    linux: "from-amber-500 via-yellow-700 to-slate-900",
-    networking: "from-blue-900 via-cyan-800 to-slate-950",
-    windows: "from-blue-700 via-cyan-700 to-indigo-900",
-    sysadmin: "from-slate-900 via-emerald-900 to-slate-950",
-  };
   return (
-    <button onClick={onClick} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl">
-      <div className={`relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br ${covers[course.id] ?? "from-slate-900 to-emerald-900"}`}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.25),transparent_42%)]" />
-        {badge && <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-[10px] font-black text-white shadow-sm">{badge}</span>}
-        <span className="relative text-7xl drop-shadow-lg transition duration-300 group-hover:scale-110">{course.emoji}</span>
+    <button
+      onClick={onClick}
+      className="group overflow-hidden rounded-2xl border border-white/10 bg-[#080a08] text-left transition hover:-translate-y-1 hover:border-lime-400/30"
+    >
+      <div className="relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-lime-400/10 via-[#081008] to-black">
+        <div className="absolute h-32 w-32 rounded-full bg-lime-400/10 blur-3xl" />
+
+        <span className="relative text-6xl transition group-hover:scale-110">
+          {course.emoji}
+        </span>
+
+        <span className="absolute left-4 top-4 rounded-full border border-lime-400/20 bg-black/70 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-lime-400">
+          SkillForge
+        </span>
       </div>
-      <div className="p-4">
-        <h3 className="text-base font-black text-[#0b1736]">{course.title}</h3>
-        <p className="mt-2 min-h-[44px] text-xs leading-5 text-slate-500">{course.description}</p>
-        <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-3 text-[11px] text-slate-500"><span>▣ {course.lessons} Lessons</span><span>◷ {course.duration}</span></div>
-        <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-500"><span>★</span><span className="text-slate-500">4.8 (120)</span></div>
-        <div className="mt-4 flex items-center justify-between"><span className="text-xl font-black text-[#0b1736]">₹799</span><span className="flex items-center gap-2 rounded-xl border border-emerald-300 px-4 py-2 text-xs font-bold text-emerald-700 transition group-hover:bg-emerald-600 group-hover:text-white">View Course <ArrowRight size={14}/></span></div>
+
+      <div className="p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold">{course.title}</h3>
+        </div>
+
+        <p className="mt-2 min-h-[48px] text-sm leading-6 text-gray-500">
+          {course.description}
+        </p>
+
+        <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
+          <div className="flex gap-3 text-xs text-gray-600">
+            <span>{course.lessons} Lessons</span>
+            <span>{course.duration}</span>
+          </div>
+
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-lime-400 text-black transition group-hover:bg-lime-300">
+            <ChevronRight size={17} />
+          </div>
+        </div>
       </div>
     </button>
   );
 }
 
+/* ================= FEATURE ================= */
 
-function Metric({icon,value,label}:{icon:ReactNode;value:string;label:string}){return <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">{icon}</div><div><p className="text-lg font-black text-[#0b1736]">{value}</p><p className="text-[10px] text-slate-500">{label}</p></div></div>}
-function Why({icon,title,text}:{icon:ReactNode;title:string;text:string}){return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">{icon}</div><div><p className="text-xs font-black text-[#0b1736]">{title}</p><p className="mt-1 text-[10px] text-slate-500">{text}</p></div></div></div>}
+function Feature({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-7 transition hover:border-lime-400/20">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+        {icon}
+      </div>
+
+      <h3 className="mt-5 text-lg font-bold">{title}</h3>
+
+      <p className="mt-3 text-sm leading-6 text-gray-500">
+        {text}
+      </p>
+    </div>
+  );
+}
 
 export default App;
+

@@ -1,26 +1,330 @@
 @import "tailwindcss";
 
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0b1736;background:#f8fbfa;font-synthesis:none;text-rendering:optimizeLegibility}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-width:320px;min-height:100vh;background:#f8fbfa;color:#0b1736}
+button,input,select{font:inherit}button{cursor:pointer}
+::selection{background:#bbf7d0;color:#064e3b}
+.skillforge-light{min-height:100vh;background:#f8fbfa;color:#0b1736}
+.skillforge-light h1,.skillforge-light h2,.skillforge-light h3,.skillforge-light h4{letter-spacing:-.025em}
+.skillforge-light .font-black{font-weight:800!important}
+@media(max-width:767px){.skillforge-light h1{font-size:3rem!important}.skillforge-light #home{background:#f8fbfa!important}}
+@import "tailwindcss";
+
 :root {
-  font-family: Inter, system-ui, sans-serif;
-  color: white;
-  background: #030603;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #f7faf8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #030603;
+  background: #f7faf8;
+  color: #0f172a;
+}
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+/* =========================================================
+   SkillForge real EdTech theme
+   This stylesheet intentionally overrides the old dark-theme
+   utility classes used by the current App.tsx.
+   ========================================================= */
+.skillforge-light {
+  min-height: 100vh;
+  background: #f7faf8 !important;
+  color: #0f172a !important;
 }
 
-button {
-  cursor: pointer;
+.skillforge-light header {
+  color: #0f172a;
 }
+
+.skillforge-light .text-white,
+.skillforge-light [class*="text-white"] {
+  color: #0f172a !important;
+}
+
+.skillforge-light .text-gray-300,
+.skillforge-light .text-gray-400,
+.skillforge-light .text-gray-500,
+.skillforge-light .text-gray-600 {
+  color: #64748b !important;
+}
+
+.skillforge-light .text-gray-300:hover,
+.skillforge-light .text-gray-400:hover,
+.skillforge-light .text-gray-500:hover {
+  color: #059669 !important;
+}
+
+/* Old dark surfaces -> premium white surfaces */
+.skillforge-light [class*="bg-[#030603]"],
+.skillforge-light [class*="bg-[#040604]"],
+.skillforge-light [class*="bg-[#050805]"],
+.skillforge-light [class*="bg-[#070907]"],
+.skillforge-light [class*="bg-[#080a08]"],
+.skillforge-light [class*="bg-[#0b0e0b]"] {
+  background: #ffffff !important;
+}
+
+.skillforge-light [class*="bg-white/[0.02]"],
+.skillforge-light [class*="bg-white/[0.03]"] {
+  background: #ffffff !important;
+}
+
+.skillforge-light [class*="bg-lime-400/5"],
+.skillforge-light [class*="bg-lime-400/[0.04]"],
+.skillforge-light [class*="bg-lime-400/[0.03]"] {
+  background: #ecfdf5 !important;
+}
+
+/* Borders */
+.skillforge-light [class*="border-white/10"],
+.skillforge-light [class*="border-white/5"] {
+  border-color: #dbe5df !important;
+}
+
+.skillforge-light [class*="border-lime-400/20"],
+.skillforge-light [class*="border-lime-400/30"],
+.skillforge-light [class*="border-lime-400/40"] {
+  border-color: #b7ead3 !important;
+}
+
+/* Green palette */
+.skillforge-light .text-lime-400,
+.skillforge-light .text-lime-300 {
+  color: #059669 !important;
+}
+
+.skillforge-light .bg-lime-400 {
+  background: #059669 !important;
+}
+
+.skillforge-light .hover\:bg-lime-300:hover {
+  background: #047857 !important;
+}
+
+.skillforge-light .hover\:text-lime-300:hover,
+.skillforge-light .hover\:text-lime-400:hover {
+  color: #047857 !important;
+}
+
+.skillforge-light .accent-lime-400 { accent-color: #059669 !important; }
+
+/* Navbar */
+.skillforge-light > header,
+.skillforge-light header.sticky,
+.skillforge-light header.border-b {
+  background: rgba(255,255,255,.94) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 10px rgba(15,23,42,.04);
+}
+
+.skillforge-light header button { color: #334155; }
+.skillforge-light header button:hover { color: #047857; }
+
+.skillforge-light header .bg-lime-400\/10,
+.skillforge-light header [class*="bg-lime-400/10"] {
+  background: #ecfdf5 !important;
+}
+
+.skillforge-light header .text-lime-400 { color: #059669 !important; }
+
+/* Hero */
+.skillforge-light section#home {
+  background:
+    radial-gradient(circle at 58% 25%, rgba(167,243,208,.38), transparent 30%),
+    linear-gradient(135deg, #ffffff 0%, #f8fbf9 52%, #f0fdf7 100%) !important;
+}
+
+.skillforge-light section#home h2,
+.skillforge-light section#home h3,
+.skillforge-light section#home h4,
+.skillforge-light section#home p {
+  color: #0f172a;
+}
+
+.skillforge-light section#home p.text-gray-400,
+.skillforge-light section#home p.text-gray-500,
+.skillforge-light section#home p.text-gray-600 {
+  color: #64748b !important;
+}
+
+.skillforge-light section#home .bg-lime-400\/10,
+.skillforge-light section#home [class*="bg-lime-400/10"] {
+  background: rgba(16,185,129,.08) !important;
+}
+
+/* Hero dashboard card */
+.skillforge-light section#home .rounded-3xl.border {
+  background: rgba(255,255,255,.96) !important;
+  border-color: #b7ead3 !important;
+  box-shadow: 0 25px 70px rgba(15,118,110,.10) !important;
+}
+
+.skillforge-light section#home .rounded-2xl.border {
+  background: #ffffff !important;
+  border-color: #dce7e1 !important;
+}
+
+/* Categories */
+.skillforge-light section#categories {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.skillforge-light section#categories h2,
+.skillforge-light section#categories h3 {
+  color: #0f172a !important;
+}
+
+.skillforge-light section#categories .group {
+  background: #ffffff !important;
+  border: 1px solid #dfe9e4 !important;
+  box-shadow: 0 8px 28px rgba(15,23,42,.045);
+}
+
+.skillforge-light section#categories .group:hover {
+  border-color: #86efac !important;
+  box-shadow: 0 16px 38px rgba(16,185,129,.10);
+  transform: translateY(-3px);
+}
+
+.skillforge-light section#categories .group .bg-lime-400\/10,
+.skillforge-light section#categories .group [class*="bg-lime-400/10"] {
+  background: #dcfce7 !important;
+}
+
+/* Courses */
+.skillforge-light section#courses {
+  background: #f7faf8 !important;
+}
+
+.skillforge-light section#courses h2,
+.skillforge-light section#courses h3 {
+  color: #0f172a !important;
+}
+
+/* Existing Course component cards */
+.skillforge-light section#courses > div:last-child > div > div,
+.skillforge-light section#courses .group {
+  box-shadow: 0 12px 32px rgba(15,23,42,.055);
+}
+
+/* Make old dark course card surfaces white, but leave video/player alone */
+.skillforge-light section#courses [class*="bg-[#"] {
+  background: #ffffff !important;
+}
+
+.skillforge-light section#courses [class*="bg-black"] {
+  background: #eef7f2 !important;
+}
+
+/* Course cards have their own dark lower section in App.tsx */
+.skillforge-light section#courses .rounded-3xl,
+.skillforge-light section#courses .rounded-2xl {
+  border-color: #dbe7e1 !important;
+}
+
+/* About / CTA */
+.skillforge-light section#about {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.skillforge-light section#about h2,
+.skillforge-light section#about h3 {
+  color: #0f172a !important;
+}
+
+.skillforge-light section#about .rounded-2xl,
+.skillforge-light section#about .rounded-xl {
+  background: #ffffff !important;
+  border-color: #dfe9e4 !important;
+  box-shadow: 0 8px 28px rgba(15,23,42,.04);
+}
+
+.skillforge-light section#about .text-gray-500 { color: #64748b !important; }
+
+.skillforge-light footer {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Course details */
+.skillforge-light main section {
+  border-color: #e2e8f0 !important;
+}
+
+.skillforge-light main .bg-lime-400\/5,
+.skillforge-light main [class*="bg-lime-400/5"] {
+  background: #ecfdf5 !important;
+}
+
+.skillforge-light main .bg-lime-400\/10,
+.skillforge-light main [class*="bg-lime-400/10"] {
+  background: #dcfce7 !important;
+}
+
+.skillforge-light main .rounded-3xl.border {
+  background: #ffffff !important;
+  border-color: #b7ead3 !important;
+  box-shadow: 0 20px 55px rgba(15,23,42,.07) !important;
+}
+
+.skillforge-light main .rounded-xl.border {
+  background: #ffffff !important;
+  border-color: #dce7e1 !important;
+}
+
+.skillforge-light select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #dbe5df !important;
+}
+
+.skillforge-light select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+/* Auth/search modal surfaces */
+.skillforge-light ~ * { color: #0f172a; }
+
+/* Improve typography */
+.skillforge-light h1,
+.skillforge-light h2,
+.skillforge-light h3,
+.skillforge-light h4 {
+  letter-spacing: -.025em;
+}
+
+.skillforge-light .font-black { font-weight: 800 !important; }
+
+/* Subtle global card motion */
+.skillforge-light .transition {
+  transition-duration: 180ms;
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .skillforge-light section#home h2 { font-size: 2.7rem; line-height: 1.04; }
+  .skillforge-light section#home { background: #f7faf8 !important; }
+  .skillforge-light section#categories .grid { gap: 12px; }
+}
+/* New SkillForge storefront overrides */
+.skillforge-light #home .bg-emerald-600,.skillforge-light #projects .bg-emerald-600,.skillforge-light #pricing .bg-emerald-600{color:#fff!important}
+.skillforge-light #home .text-white{color:#fff!important}
+.skillforge-light #home .bg-white{background:#fff!important}
+.skillforge-light #home .border-slate-200{border-color:#e2e8f0!important}
+.skillforge-light #categories .bg-white,.skillforge-light #courses .bg-white,.skillforge-light #projects .bg-white,.skillforge-light #pricing .bg-white{background:#fff!important}
+.skillforge-light #courses .text-white{color:#fff!important}
+.skillforge-light #courses .bg-emerald-500{background:#10b981!important}
