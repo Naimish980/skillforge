@@ -8,6 +8,7 @@ import {
   Cloud,
   LogIn,
   LogOut,
+  KeyRound,
   Menu,
   Network,
   Play,
@@ -172,12 +173,14 @@ const categories = [
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
+
+  const resetToken = new URLSearchParams(window.location.search).get("token");
 
   const [user, setUser] = useState<string | null>(() => {
     return localStorage.getItem("skillforge_user");
@@ -237,6 +240,10 @@ function App() {
 
     return matchesCategory && matchesSearch;
   });
+
+  if (window.location.pathname === "/reset-password") {
+    return <ResetPasswordPage token={resetToken} />;
+  }
 
   if (selectedCourse) {
     return (
@@ -1044,9 +1051,9 @@ function AuthModal({
   onModeChange,
   onSuccess,
 }: {
-  mode: "login" | "signup";
+  mode: "login" | "signup" | "forgot";
   onClose: () => void;
-  onModeChange: (mode: "login" | "signup") => void;
+  onModeChange: (mode: "login" | "signup" | "forgot") => void;
   onSuccess: (name: string) => void;
 }) {
   const [name, setName] = useState("");
@@ -1061,6 +1068,52 @@ function AuthModal({
     e.preventDefault();
 
     setError("");
+
+    if (mode === "forgot") {
+      if (!email.trim()) {
+        setError("Please enter your email address.");
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/auth/forgot-password`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: email.trim().toLowerCase(),
+            }),
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          setError(data.message || "Unable to send reset email.");
+          return;
+        }
+
+        setError("");
+        alert(
+          "If an account exists with this email, a password reset link has been sent. Please check your inbox.",
+        );
+        onModeChange("login");
+      } catch (error) {
+        console.error("Forgot password error:", error);
+        setError("Unable to connect to SkillForge server. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
 
     if (mode === "signup" && !name.trim()) {
       setError("Please enter your name.");
@@ -1185,19 +1238,27 @@ function AuthModal({
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400/10">
             {mode === "login" ? (
               <LogIn className="text-lime-400" />
-            ) : (
+            ) : mode === "signup" ? (
               <UserPlus className="text-lime-400" />
+            ) : (
+              <KeyRound className="text-lime-400" />
             )}
           </div>
 
           <h2 className="mt-5 text-3xl font-black">
-            {mode === "login" ? "Welcome Back" : "Create Account"}
+            {mode === "login"
+              ? "Welcome Back"
+              : mode === "signup"
+                ? "Create Account"
+                : "Forgot Password"}
           </h2>
 
           <p className="mt-2 text-sm text-gray-500">
             {mode === "login"
               ? "Continue your learning journey."
-              : "Create your SkillForge account and start learning."}
+              : mode === "signup"
+                ? "Create your SkillForge account and start learning."
+                : "Enter your email and we’ll send you a secure reset link."}
           </p>
         </div>
 
@@ -1276,6 +1337,7 @@ function AuthModal({
 
           {/* PASSWORD */}
 
+          {mode !== "forgot" && (
           <div>
             <label className="mb-2 block text-sm text-gray-400">
               Password
@@ -1299,6 +1361,7 @@ function AuthModal({
               </p>
             )}
           </div>
+          )}
 
           {/* ERROR */}
 
@@ -1318,10 +1381,14 @@ function AuthModal({
             {loading
               ? mode === "login"
                 ? "Logging in..."
-                : "Creating Account..."
+                : mode === "signup"
+                  ? "Creating Account..."
+                  : "Sending Reset Link..."
               : mode === "login"
                 ? "Login"
-                : "Create Account"}
+                : mode === "signup"
+                  ? "Create Account"
+                  : "Send Reset Link"}
           </button>
         </form>
 
@@ -1332,20 +1399,34 @@ function AuthModal({
         <div className="mt-6 text-center text-sm text-gray-500">
           {mode === "login" ? (
             <>
-              Don't have an account?{" "}
               <button
                 type="button"
                 onClick={() => {
                   setError("");
                   setPassword("");
-                  onModeChange("signup");
+                  onModeChange("forgot");
                 }}
                 className="font-semibold text-lime-400 hover:text-lime-300"
               >
-                Create one
+                Forgot Password?
               </button>
+
+              <div className="mt-4">
+                Don't have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setPassword("");
+                    onModeChange("signup");
+                  }}
+                  className="font-semibold text-lime-400 hover:text-lime-300"
+                >
+                  Create one
+                </button>
+              </div>
             </>
-          ) : (
+          ) : mode === "signup" ? (
             <>
               Already have an account?{" "}
               <button
@@ -1360,6 +1441,21 @@ function AuthModal({
                 Login
               </button>
             </>
+          ) : (
+            <>
+              Remembered your password?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setEmail("");
+                  onModeChange("login");
+                }}
+                className="font-semibold text-lime-400 hover:text-lime-300"
+              >
+                Back to Login
+              </button>
+            </>
           )}
         </div>
 
@@ -1372,6 +1468,168 @@ function AuthModal({
     </Modal>
   );
 }
+/* ================= RESET PASSWORD ================= */
+
+function ResetPasswordPage({ token }: { token: string | null }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!token) {
+      setError("This password reset link is invalid or incomplete.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must contain at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/reset-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token,
+            newPassword: password,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.message || "Unable to reset password.");
+        return;
+      }
+
+      setSuccess(true);
+    } catch (error) {
+      console.error("Reset password error:", error);
+      setError("Unable to connect to SkillForge server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#030603] text-white">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-12">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400/10 blur-[150px]" />
+
+        <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#080a08] p-7 shadow-2xl sm:p-9">
+          <div className="text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400/10">
+              <KeyRound className="text-lime-400" />
+            </div>
+
+            <h1 className="mt-5 text-3xl font-black">
+              {success ? "Password Updated" : "Reset Password"}
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              {success
+                ? "Your SkillForge password has been changed successfully."
+                : "Create a new password for your SkillForge account."}
+            </p>
+          </div>
+
+          {success ? (
+            <button
+              onClick={() => {
+                window.history.replaceState({}, "", "/");
+                window.location.href = "/";
+              }}
+              className="mt-7 w-full rounded-xl bg-lime-400 py-3.5 font-bold text-black transition hover:bg-lime-300"
+            >
+              Go to Login
+            </button>
+          ) : (
+            <form onSubmit={submit} className="mt-7 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm text-gray-400">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  autoComplete="new-password"
+                  disabled={loading || !token}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 outline-none transition focus:border-lime-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-gray-400">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  autoComplete="new-password"
+                  disabled={loading || !token}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 outline-none transition focus:border-lime-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-sm leading-6 text-red-300">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !token}
+                className="w-full rounded-xl bg-lime-400 py-3.5 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Updating Password..." : "Update Password"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/";
+                }}
+                className="w-full rounded-xl border border-white/10 py-3 text-sm font-semibold text-gray-300 transition hover:border-lime-400/30 hover:text-lime-400"
+              >
+                Back to SkillForge
+              </button>
+            </form>
+          )}
+
+          <p className="mt-6 text-center text-xs text-gray-700">
+            Reset links expire automatically for your account security.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ================= MODAL ================= */
 
 function Modal({

@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { pool } from "./db";
 import authRoutes from "./routes/auth";
+import paymentRoutes from "./routes/payment";
 
 dotenv.config();
 
@@ -18,6 +19,11 @@ app.use(express.json());
 // Authentication routes
 // -----------------------------
 app.use("/api/auth", authRoutes);
+
+// -----------------------------
+// Payment routes
+// -----------------------------
+app.use("/api/payment", paymentRoutes);
 
 // -----------------------------
 // Health check
