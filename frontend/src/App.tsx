@@ -5,6 +5,8 @@ import {
   BookOpen,
   CheckCircle,
   ChevronRight,
+  CreditCard,
+  Lock,
   Cloud,
   LogIn,
   LogOut,
@@ -158,6 +160,68 @@ const courses: Course[] = [
   },
 ];
 
+const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  theme?: {
+    color?: string;
+  };
+  handler: (response: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => void;
+  modal?: {
+    ondismiss?: () => void;
+  };
+};
+
+type RazorpayInstance = {
+  open: () => void;
+};
+
+async function loadRazorpayScript(): Promise<boolean> {
+  if (window.Razorpay) {
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    const existing = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+    );
+
+    if (existing) {
+      existing.addEventListener("load", () => resolve(true), { once: true });
+      existing.addEventListener("error", () => resolve(false), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 const categories = [
   {
     title: "Cloud",
@@ -189,6 +253,21 @@ function App() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>(() => {
+    const stored = localStorage.getItem("skillforge_enrollments");
+
+    if (!stored) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
 
@@ -241,6 +320,155 @@ function App() {
     setAuthMode(null);
   };
 
+  const handlePurchase = async (courseIds: string[]) => {
+    const token = localStorage.getItem("skillforge_token");
+
+    if (!user || !token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const uniqueCourseIds = [...new Set(courseIds)];
+
+    if (uniqueCourseIds.length !== 1 && uniqueCourseIds.length !== 2) {
+      alert("Please select one course or exactly two courses.");
+      return;
+    }
+
+    const alreadyEnrolled = uniqueCourseIds.filter((id) =>
+      enrolledCourseIds.includes(id),
+    );
+
+    if (alreadyEnrolled.length > 0) {
+      alert("You are already enrolled in one of the selected courses.");
+      return;
+    }
+
+    try {
+      setPaymentLoading(true);
+
+      const razorpayReady = await loadRazorpayScript();
+
+      if (!razorpayReady || !window.Razorpay) {
+        alert("Unable to load Razorpay Checkout. Please try again.");
+        return;
+      }
+
+      const type = uniqueCourseIds.length === 1 ? "course" : "combo";
+
+      const createOrderResponse = await fetch(
+        `${API_BASE_URL}/api/payment/create-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(
+            type === "course"
+              ? { type, courseId: uniqueCourseIds[0] }
+              : { type, courseIds: uniqueCourseIds },
+          ),
+        },
+      );
+
+      const orderData = await createOrderResponse.json();
+
+      if (!createOrderResponse.ok || !orderData.success) {
+        alert(orderData.message || "Unable to create payment order.");
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        const razorpay = new window.Razorpay!({
+          key: orderData.keyId,
+          amount: orderData.order.amount,
+          currency: orderData.order.currency,
+          name: "SkillForge",
+          description:
+            type === "course"
+              ? `${courses.find((course) => course.id === uniqueCourseIds[0])?.title ?? "Course"} - SkillForge`
+              : "SkillForge 2 Course Combo",
+          order_id: orderData.order.id,
+          prefill: {
+            name: user.name,
+            email: user.email,
+            contact: user.phone,
+          },
+          theme: {
+            color: "#a3e635",
+          },
+          handler: async (paymentResponse) => {
+            try {
+              const verifyResponse = await fetch(
+                `${API_BASE_URL}/api/payment/verify`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify(paymentResponse),
+                },
+              );
+
+              const verifyData = await verifyResponse.json();
+
+              if (!verifyResponse.ok || !verifyData.success) {
+                alert(
+                  verifyData.message ||
+                    "Payment was received but verification failed. Please contact SkillForge support.",
+                );
+                return;
+              }
+
+              const verifiedIds = Array.isArray(verifyData.enrolledCourseIds)
+                ? verifyData.enrolledCourseIds.filter(
+                    (id: unknown): id is string => typeof id === "string",
+                  )
+                : uniqueCourseIds;
+
+              setEnrolledCourseIds((current) => {
+                const merged = [...new Set([...current, ...verifiedIds])];
+                localStorage.setItem(
+                  "skillforge_enrollments",
+                  JSON.stringify(merged),
+                );
+                return merged;
+              });
+
+              alert(
+                type === "course"
+                  ? "Payment successful! Your course is now unlocked."
+                  : "Payment successful! Both courses are now unlocked.",
+              );
+            } catch (error) {
+              console.error("Payment verification error:", error);
+              alert(
+                "Payment verification could not be completed. Please contact SkillForge support.",
+              );
+            } finally {
+              setPaymentLoading(false);
+              resolve();
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setPaymentLoading(false);
+              resolve();
+            },
+          },
+        });
+
+        razorpay.open();
+      });
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Unable to start payment. Please try again.");
+      setPaymentLoading(false);
+    }
+  };
+
   const openCourse = (course: Course) => {
     window.history.pushState({ courseId: course.id }, "", `#course=${course.id}`);
     setSelectedCourse(course);
@@ -288,6 +516,11 @@ function App() {
     return (
       <CourseDetails
         course={selectedCourse}
+        user={user}
+        enrolled={enrolledCourseIds.includes(selectedCourse.id)}
+        enrolledCourseIds={enrolledCourseIds}
+        paymentLoading={paymentLoading}
+        onPurchase={handlePurchase}
         onBack={() => {
           if (window.history.state?.courseId) {
             window.history.back();
@@ -1027,13 +1260,31 @@ function App() {
 
 function CourseDetails({
   course,
+  user,
+  enrolled,
+  enrolledCourseIds,
+  paymentLoading,
+  onPurchase,
   onBack,
   onStart,
 }: {
   course: Course;
+  user: User | null;
+  enrolled: boolean;
+  enrolledCourseIds: string[];
+  paymentLoading: boolean;
+  onPurchase: (courseIds: string[]) => void;
   onBack: () => void;
   onStart: () => void;
 }) {
+  const [comboCourseId, setComboCourseId] = useState("");
+
+  const comboOptions = courses.filter(
+    (item) => item.id !== course.id && !enrolledCourseIds.includes(item.id),
+  );
+
+  const comboSelected = Boolean(comboCourseId);
+
   return (
     <div className="min-h-screen bg-[#030603] text-white">
       <header className="border-b border-white/10 bg-[#030603]/95">
@@ -1077,11 +1328,9 @@ function CourseDetails({
                   <span className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400">
                     {course.lessons} Lessons
                   </span>
-
                   <span className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400">
                     {course.duration}
                   </span>
-
                   <span className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400">
                     {course.level}
                   </span>
@@ -1090,27 +1339,87 @@ function CourseDetails({
 
               <div className="rounded-3xl border border-lime-400/20 bg-[#070907] p-7 shadow-2xl">
                 <p className="text-xs uppercase tracking-[0.2em] text-lime-400">
-                  Course Progress
+                  {enrolled ? "Course Unlocked" : "Course Access"}
                 </p>
 
-                <div className="mt-5 flex items-end justify-between">
-                  <span className="text-4xl font-black">0%</span>
-                  <span className="text-sm text-gray-500">
-                    Not started
-                  </span>
-                </div>
+                {enrolled ? (
+                  <>
+                    <div className="mt-5 flex items-end justify-between">
+                      <span className="text-4xl font-black">0%</span>
+                      <span className="text-sm text-lime-400">Enrolled</span>
+                    </div>
 
-                <div className="mt-5 h-2 rounded-full bg-white/5">
-                  <div className="h-full w-0 rounded-full bg-lime-400" />
-                </div>
+                    <div className="mt-5 h-2 rounded-full bg-white/5">
+                      <div className="h-full w-0 rounded-full bg-lime-400" />
+                    </div>
 
-                <button
-                  onClick={onStart}
-                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300"
-                >
-                  <Play size={18} />
-                  Start Learning
-                </button>
+                    <button
+                      onClick={onStart}
+                      className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300"
+                    >
+                      <Play size={18} />
+                      Start Learning
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-5 flex items-end justify-between">
+                      <span className="text-3xl font-black">₹799</span>
+                      <span className="text-sm text-gray-500">One-time</span>
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-gray-500">
+                      Purchase this course to unlock its learning content.
+                    </p>
+
+                    <button
+                      onClick={() => onPurchase([course.id])}
+                      disabled={paymentLoading || !user}
+                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <CreditCard size={18} />
+                      {paymentLoading ? "Processing..." : user ? "Buy Course — ₹799" : "Login to Purchase"}
+                    </button>
+
+                    <div className="mt-6 border-t border-white/10 pt-5">
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-400">
+                        2 Course Combo
+                      </p>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Select another course and get both for ₹1,499.
+                      </p>
+
+                      <select
+                        value={comboCourseId}
+                        onChange={(e) => setComboCourseId(e.target.value)}
+                        disabled={paymentLoading || !user || comboOptions.length === 0}
+                        className="mt-4 w-full rounded-xl border border-white/10 bg-[#0b0e0b] px-4 py-3 text-sm text-white outline-none focus:border-lime-400/50 disabled:opacity-50"
+                      >
+                        <option value="">Choose second course</option>
+                        {comboOptions.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.emoji} {item.title}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        onClick={() => onPurchase([course.id, comboCourseId])}
+                        disabled={paymentLoading || !user || !comboSelected}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-lime-400/30 py-3 font-bold text-lime-300 transition hover:bg-lime-400/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <CreditCard size={17} />
+                        Buy Combo — ₹1,499
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {!user && !enrolled && (
+                  <p className="mt-4 flex items-center gap-2 text-xs text-gray-600">
+                    <Lock size={13} /> Login is required for secure course access.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1121,27 +1430,20 @@ function CourseDetails({
             Course Content
           </p>
 
-          <h2 className="mt-3 text-3xl font-black">
-            What you'll learn
-          </h2>
+          <h2 className="mt-3 text-3xl font-black">What you'll learn</h2>
 
           <div className="mt-8 space-y-3">
             {course.modules.map((module, index) => (
               <button
                 key={module}
-                onClick={onStart}
+                onClick={enrolled ? onStart : () => onPurchase([course.id])}
                 className="flex w-full items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-5 text-left transition hover:border-lime-400/30 hover:bg-lime-400/[0.03]"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400/10 text-sm font-bold text-lime-400">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-
                 <span className="font-semibold">{module}</span>
-
-                <ChevronRight
-                  size={18}
-                  className="ml-auto text-gray-600"
-                />
+                <ChevronRight size={18} className="ml-auto text-gray-600" />
               </button>
             ))}
           </div>
@@ -1185,8 +1487,6 @@ function AuthModal({
 
       try {
         setLoading(true);
-
-        const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
 
         const response = await fetch(
           `${API_BASE_URL}/api/auth/forgot-password`,
@@ -1259,8 +1559,6 @@ function AuthModal({
 
     try {
       setLoading(true);
-
-      const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
 
       const endpoint =
         mode === "login"
@@ -1610,8 +1908,6 @@ function ResetPasswordPage({ token }: { token: string | null }) {
 
     try {
       setLoading(true);
-
-      const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
 
       const response = await fetch(
         `${API_BASE_URL}/api/auth/reset-password`,
