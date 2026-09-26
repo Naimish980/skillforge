@@ -43,6 +43,106 @@ type Course = {
   modules: string[];
 };
 
+type QuizQuestion = {
+  question: string;
+  options: string[];
+  answer: number;
+  explanation: string;
+};
+
+type Lecture = {
+  id: string;
+  title: string;
+  duration: string;
+  videoUrl: string;
+  questions: QuizQuestion[];
+};
+
+type CourseModule = {
+  id: string;
+  title: string;
+  duration: string;
+  lectures: Lecture[];
+};
+
+const securityModules: CourseModule[] = [
+  {
+    id: "module-1",
+    title: "Module 1 — Introduction",
+    duration: "2h 17m",
+    lectures: [
+      {
+        id: "lecture-1",
+        title: "Introduction to me & the Course",
+        duration: "23:39",
+        videoUrl: "https://www.youtube.com/embed/GTlmZPjacWs?rel=0&modestbranding=1",
+        questions: [
+          {
+            question: "According to the lecture, what happens to the attack surface as IoT devices increase?",
+            options: ["It decreases", "It increases", "It disappears", "It stays exactly the same"],
+            answer: 1,
+            explanation: "The lecture explains that increasing IoT devices create more possible points that attackers can target, increasing the attack surface."
+          },
+          {
+            question: "What is the first step described in the penetration-testing process?",
+            options: ["Exploitation", "Information gathering about the target", "Deleting data", "Installing antivirus"],
+            answer: 1,
+            explanation: "The lecture describes information gathering first, followed by identifying a vulnerability, choosing an appropriate technique and exploitation."
+          },
+          {
+            question: "What does ransomware typically do to a victim's data?",
+            options: ["Backs it up", "Encrypts or locks it and demands payment", "Improves it", "Publishes it automatically"],
+            answer: 1,
+            explanation: "The lecture explains that ransomware encrypts or locks data and displays a ransom demand for unlocking/decryption."
+          },
+          {
+            question: "How is malware described in the lecture?",
+            options: ["A security policy", "Malicious code", "A backup device", "A network protocol"],
+            answer: 1,
+            explanation: "Malware is described as malicious code used to compromise or harm a system."
+          },
+          {
+            question: "In the phishing example, what is the attacker trying to steal?",
+            options: ["A monitor", "User credentials", "A printer", "A backup drive"],
+            answer: 1,
+            explanation: "The fake Netflix example shows a user being directed to a legitimate-looking page where entering credentials results in credential theft."
+          },
+          {
+            question: "Which three principles form the CIA Triad?",
+            options: ["Control, Internet, Access", "Confidentiality, Integrity, Availability", "Cybersecurity, Intelligence, Authentication", "Confidentiality, Internet, Authorization"],
+            answer: 1,
+            explanation: "The lecture identifies Confidentiality, Integrity and Availability as the three main cybersecurity pillars."
+          },
+          {
+            question: "What does Integrity protect against?",
+            options: ["Unauthorized modification of information", "All internet access", "Physical theft only", "Lack of user training"],
+            answer: 0,
+            explanation: "Integrity means protecting information from unauthorized modification so that it remains accurate and unchanged."
+          },
+          {
+            question: "Which three elements are discussed for implementing cybersecurity in an organization?",
+            options: ["Hardware, Software, Internet", "People, Process, Technology", "Server, Client, Router", "Data, Cloud, VPN"],
+            answer: 1,
+            explanation: "The lecture explains People, Process and Technology as the three elements used to improve an organization's security posture."
+          },
+          {
+            question: "What is the initial purpose of containment during incident response?",
+            options: ["Spread the malware faster", "Prevent the threat from causing further damage", "Delete every company system", "Share passwords"],
+            answer: 1,
+            explanation: "Containment is used to stop the malware/threat from spreading to other systems and causing further damage."
+          },
+          {
+            question: "According to the lecture, how is cybersecurity best learned?",
+            options: ["Only by watching videos", "Only by memorizing theory", "Through hands-on practice and execution", "Only by collecting certificates"],
+            answer: 2,
+            explanation: "The lecture emphasizes that cybersecurity is a skill developed over time through hands-on practice and execution, not video watching alone."
+          }
+        ]
+      }
+    ]
+  }
+];
+
 const courses: Course[] = [
   {
     id: "linux",
@@ -126,17 +226,23 @@ const courses: Course[] = [
     title: "Cyber Security Essentials",
     description:
       "Learn security fundamentals, threats and practical security concepts.",
-    lessons: 16,
-    duration: "4+ Hours",
+    lessons: 57,
+    duration: "27+ Hours",
     category: "Cyber Security",
     level: "Beginner",
     modules: [
-      "Security Fundamentals",
-      "Threats & Vulnerabilities",
-      "Endpoint Security",
-      "Network Security",
-      "Identity & Access",
-      "Security Best Practices",
+      "Module 1 — Introduction",
+      "Module 2 — Linux & Python Fundamentals",
+      "Module 3 — Foundations of Information Security",
+      "Module 4 — Application Security and Penetration Testing",
+      "Module 5/6 — Network Defense & Penetration Testing",
+      "Module 7 — Data Protection and Cryptography",
+      "Module 8 — Governance, Risk & Compliance",
+      "Module 9 — Securing Emerging Technologies",
+      "Module 10 — Security Operations Center",
+      "Module 11 — RCA & Cyber Breach Investigation",
+      "Module 12 — SIEM Architecture & Hands-On Splunk",
+      "Module 13 — Job Ready Module",
     ],
   },
   {
@@ -251,10 +357,10 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [learningCourse, setLearningCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
-  const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
@@ -274,6 +380,63 @@ function App() {
       return null;
     }
   });
+
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (!user) {
+        setEnrolledCourseIds([]);
+        return;
+      }
+
+      const token = localStorage.getItem("skillforge_token");
+      if (!token) {
+        setEnrolledCourseIds([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/payment/enrollments`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          setEnrolledCourseIds([]);
+          return;
+        }
+
+        const ids = Array.isArray(data.enrolledCourseIds)
+          ? data.enrolledCourseIds.filter(
+              (id: unknown): id is string => typeof id === "string",
+            )
+          : [];
+
+        setEnrolledCourseIds(ids);
+        localStorage.setItem(`skillforge_enrollments_${user.id}`, JSON.stringify(ids));
+      } catch (error) {
+        console.error("Enrollment loading error:", error);
+        const stored = localStorage.getItem(`skillforge_enrollments_${user.id}`);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            setEnrolledCourseIds(
+              Array.isArray(parsed)
+                ? parsed.filter((id) => typeof id === "string")
+                : [],
+            );
+          } catch {
+            setEnrolledCourseIds([]);
+          }
+        } else {
+          setEnrolledCourseIds([]);
+        }
+      }
+    };
+
+    loadEnrollments();
+  }, [user]);
 
   const scrollToSection = (id: string) => {
     setMenuOpen(false);
@@ -299,7 +462,6 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("skillforge_user");
     localStorage.removeItem("skillforge_token");
-    setEnrolledCourseIds([]);
     setUser(null);
   };
 
@@ -308,71 +470,6 @@ function App() {
     setUser(loggedInUser);
     setAuthMode(null);
   };
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadEnrollments = async () => {
-      const token = localStorage.getItem("skillforge_token");
-
-      if (!user || !token) {
-        setEnrolledCourseIds([]);
-        setEnrollmentsLoading(false);
-        return;
-      }
-
-      try {
-        setEnrollmentsLoading(true);
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/payment/enrollments`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        const data = await response.json();
-
-        if (cancelled) {
-          return;
-        }
-
-        if (!response.ok || !data.success) {
-          setEnrolledCourseIds([]);
-          return;
-        }
-
-        const ids = Array.isArray(data.enrolledCourseIds)
-          ? data.enrolledCourseIds.filter(
-              (id: unknown): id is string => typeof id === "string",
-            )
-          : [];
-
-        setEnrolledCourseIds(ids);
-        localStorage.setItem(
-          `skillforge_enrollments_${user.id}`,
-          JSON.stringify(ids),
-        );
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Enrollment loading error:", error);
-          setEnrolledCourseIds([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setEnrollmentsLoading(false);
-        }
-      }
-    };
-
-    loadEnrollments();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   const handlePurchase = async (courseIds: string[]) => {
     const token = localStorage.getItem("skillforge_token");
@@ -523,6 +620,21 @@ function App() {
     }
   };
 
+  const openLearning = (course: Course) => {
+    if (!user || !enrolledCourseIds.includes(course.id)) {
+      return;
+    }
+
+    window.history.pushState(
+      { learningCourseId: course.id },
+      "",
+      `#learn=${encodeURIComponent(course.id)}`,
+    );
+    setSelectedCourse(null);
+    setLearningCourse(course);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const openCourse = (course: Course) => {
     window.history.pushState({ courseId: course.id }, "", `#course=${course.id}`);
     setSelectedCourse(course);
@@ -534,11 +646,22 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
+      const learnMatch = window.location.hash.match(/^#learn=(.+)$/);
+      if (learnMatch) {
+        const learnCourse = courses.find(
+          (item) => item.id === decodeURIComponent(learnMatch[1]),
+        );
+        setSelectedCourse(null);
+        setLearningCourse(learnCourse ?? null);
+        return;
+      }
+
       const match = window.location.hash.match(/^#course=(.+)$/);
       const course = match
         ? courses.find((item) => item.id === decodeURIComponent(match[1]))
         : undefined;
 
+      setLearningCourse(null);
       setSelectedCourse(course ?? null);
     };
 
@@ -566,6 +689,17 @@ function App() {
     return <ResetPasswordPage token={resetToken} />;
   }
 
+  if (learningCourse) {
+    return (
+      <CoursePlayer
+        course={learningCourse}
+        onBack={() => {
+          window.history.back();
+        }}
+      />
+    );
+  }
+
   if (selectedCourse) {
     return (
       <CourseDetails
@@ -582,7 +716,7 @@ function App() {
             setSelectedCourse(null);
           }
         }}
-        onStart={() => setIntroOpen(true)}
+        onStart={() => openLearning(selectedCourse)}
       />
     );
   }
@@ -1502,6 +1636,198 @@ function CourseDetails({
             ))}
           </div>
         </section>
+      </main>
+    </div>
+  );
+}
+
+/* ================= COURSE PLAYER ================= */
+
+function CoursePlayer({
+  course,
+  onBack,
+}: {
+  course: Course;
+  onBack: () => void;
+}) {
+  const modules = course.id === "security" ? securityModules : [];
+  const lecture = modules[0]?.lectures[0];
+  const progressKey = `skillforge_lecture_progress_${course.id}_${lecture?.id ?? ""}`;
+  const [videoMarkedComplete, setVideoMarkedComplete] = useState(() =>
+    localStorage.getItem(`${progressKey}_video`) === "true",
+  );
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+
+  if (!lecture) {
+    return (
+      <div className="min-h-screen bg-[#030603] text-white">
+        <header className="border-b border-white/10 bg-[#030603]/95">
+          <div className="mx-auto flex h-20 max-w-7xl items-center px-6">
+            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-lime-400">
+              <ArrowLeft size={18} /> Back to Course
+            </button>
+          </div>
+        </header>
+        <main className="mx-auto max-w-4xl px-6 py-20 text-center">
+          <Lock className="mx-auto text-gray-600" size={48} />
+          <h1 className="mt-5 text-3xl font-black">Lecture content coming soon</h1>
+          <p className="mt-3 text-gray-500">This course player will be populated as each lecture video is added.</p>
+        </main>
+      </div>
+    );
+  }
+
+  const submitQuiz = () => {
+    const total = lecture.questions.length;
+    let currentScore = 0;
+    lecture.questions.forEach((question, index) => {
+      if (answers[index] === question.answer) currentScore += 1;
+    });
+    setScore(currentScore);
+    setSubmitted(true);
+    localStorage.setItem(`${progressKey}_quiz_score`, String(currentScore));
+    localStorage.setItem(`${progressKey}_quiz_completed`, "true");
+    if (currentScore >= Math.ceil(total * 0.7)) {
+      localStorage.setItem(`${progressKey}_complete`, "true");
+    }
+  };
+
+  const passed = submitted && score >= Math.ceil(lecture.questions.length * 0.7);
+
+  return (
+    <div className="min-h-screen bg-[#030603] text-white">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#030603]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
+          <button onClick={onBack} className="flex items-center gap-2 text-gray-400 transition hover:text-lime-400">
+            <ArrowLeft size={18} /> Back to Course
+          </button>
+          <div className="text-xl font-black">Skill<span className="text-lime-400">Forge</span></div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-6 py-10">
+        <div className="mb-8">
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">Cyber Security Essentials</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Module 1 — Introduction</h1>
+          <p className="mt-2 text-gray-500">Lecture 1 · {lecture.title} · {lecture.duration}</p>
+        </div>
+
+        <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#070907] shadow-2xl">
+          <div className="aspect-video bg-black">
+            <iframe
+              className="h-full w-full"
+              src={lecture.videoUrl}
+              title={lecture.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+          <div className="flex flex-col gap-4 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-bold">Finish the lecture before attempting the quiz.</p>
+              <p className="mt-1 text-sm text-gray-500">After watching, confirm the lecture is complete to unlock the questions.</p>
+            </div>
+            <button
+              onClick={() => {
+                setVideoMarkedComplete(true);
+                localStorage.setItem(`${progressKey}_video`, "true");
+                setQuizStarted(true);
+              }}
+              className={`rounded-xl px-6 py-3 font-bold transition ${videoMarkedComplete ? "border border-lime-400/30 bg-lime-400/10 text-lime-300" : "bg-lime-400 text-black hover:bg-lime-300"}`}
+            >
+              {videoMarkedComplete ? "✓ Lecture Completed" : "I've Watched — Start Quiz"}
+            </button>
+          </div>
+        </section>
+
+        {videoMarkedComplete && quizStarted && (
+          <section className="mt-8 rounded-3xl border border-white/10 bg-[#070907] p-6 sm:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">Lecture Assessment</p>
+                <h2 className="mt-2 text-2xl font-black">Test your understanding</h2>
+              </div>
+              <span className="rounded-full border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-xs font-bold text-lime-300">Pass: 7 / 10</span>
+            </div>
+
+            <div className="mt-8 space-y-6">
+              {lecture.questions.map((question, index) => (
+                <div key={index} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <p className="font-bold leading-7"><span className="mr-2 text-lime-400">Q{index + 1}.</span>{question.question}</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {question.options.map((option, optionIndex) => {
+                      const selected = answers[index] === optionIndex;
+                      const correct = submitted && optionIndex === question.answer;
+                      const wrong = submitted && selected && optionIndex !== question.answer;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => !submitted && setAnswers((current) => ({ ...current, [index]: optionIndex }))}
+                          className={`rounded-xl border p-4 text-left text-sm transition ${
+                            correct
+                              ? "border-lime-400/60 bg-lime-400/10 text-lime-200"
+                              : wrong
+                                ? "border-red-400/40 bg-red-400/5 text-red-200"
+                                : selected
+                                  ? "border-lime-400/40 bg-lime-400/5 text-white"
+                                  : "border-white/10 bg-white/[0.02] text-gray-400 hover:border-lime-400/30 hover:text-white"
+                          }`}
+                        >
+                          <span className="mr-3 font-bold text-gray-600">{String.fromCharCode(65 + optionIndex)}.</span>
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {submitted && (
+                    <p className="mt-4 rounded-xl border border-white/5 bg-black/20 p-3 text-sm leading-6 text-gray-400">
+                      <span className="font-semibold text-lime-300">Explanation:</span> {question.explanation}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {!submitted ? (
+              <button
+                onClick={submitQuiz}
+                disabled={Object.keys(answers).length !== lecture.questions.length}
+                className="mt-8 w-full rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Submit Quiz
+              </button>
+            ) : (
+              <div className={`mt-8 rounded-2xl border p-6 text-center ${passed ? "border-lime-400/30 bg-lime-400/5" : "border-red-400/20 bg-red-400/5"}`}>
+                <p className="text-sm uppercase tracking-[0.2em] text-gray-500">Your Score</p>
+                <p className={`mt-2 text-5xl font-black ${passed ? "text-lime-400" : "text-red-300"}`}>{score}/10</p>
+                <p className="mt-3 font-semibold">{passed ? "🎉 Passed — Lecture 2 can be unlocked." : "❌ Not passed — Please retry the quiz."}</p>
+                {passed ? (
+                  <button
+                    onClick={onBack}
+                    className="mt-5 rounded-xl bg-lime-400 px-6 py-3 font-bold text-black hover:bg-lime-300"
+                  >
+                    Back to Course
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setAnswers({});
+                      setSubmitted(false);
+                      setScore(0);
+                    }}
+                    className="mt-5 rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:border-lime-400/30 hover:text-lime-300"
+                  >
+                    Retry Quiz
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
