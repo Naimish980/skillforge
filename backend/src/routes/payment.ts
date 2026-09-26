@@ -22,6 +22,60 @@ const razorpay = new Razorpay({
 });
 
 /* =====================================================
+   GET USER ENROLLMENTS
+   GET /api/payment/enrollments
+===================================================== */
+
+router.get(
+  "/enrollments",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const userId = req.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user not found",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        SELECT course_id
+        FROM enrollments
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+        `,
+        [userId],
+      );
+
+      const enrolledCourseIds = result.rows.map(
+        (row) => String(row.course_id),
+      );
+
+      return res.status(200).json({
+        success: true,
+        enrolledCourseIds,
+      });
+    } catch (error) {
+      console.error(
+        "Get user enrollments error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load course enrollments",
+      });
+    }
+  },
+);
+
+/* =====================================================
    CREATE PAYMENT ORDER
    POST /api/payment/create-order
 ===================================================== */
@@ -90,7 +144,8 @@ router.post(
             message: "You are already enrolled in this course",
           });
         }
-          amount = 79900;
+
+        amount = 79900;
         receipt = `course_${normalizedCourseId}_${Date.now()}`;
       }
 
