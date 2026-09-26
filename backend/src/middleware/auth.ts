@@ -1,4 +1,3 @@
-
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
@@ -45,12 +44,28 @@ export function authenticateToken(
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
+    if (typeof decoded === "string") {
+      res.status(401).json({
+        success: false,
+        message: "Invalid authentication token",
+      });
+      return;
+    }
+
+    const rawUserId = decoded.userId;
+
+    const userId =
+      typeof rawUserId === "number"
+        ? rawUserId
+        : typeof rawUserId === "string"
+          ? Number(rawUserId)
+          : NaN;
+
     if (
-      typeof decoded === "string" ||
-      typeof decoded.userId !== "number" ||
-      !Number.isSafeInteger(decoded.userId) ||
-      decoded.userId <= 0 ||
-      typeof decoded.email !== "string"
+      !Number.isSafeInteger(userId) ||
+      userId <= 0 ||
+      typeof decoded.email !== "string" ||
+      !decoded.email.trim()
     ) {
       res.status(401).json({
         success: false,
@@ -59,7 +74,7 @@ export function authenticateToken(
       return;
     }
 
-    req.userId = decoded.userId;
+    req.userId = userId;
     req.userEmail = decoded.email;
 
     next();
