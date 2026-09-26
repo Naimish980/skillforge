@@ -1,11 +1,10 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
   CheckCircle,
   ChevronRight,
-  Headphones,
   Cloud,
   LogIn,
   LogOut,
@@ -190,7 +189,6 @@ function App() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
 
   const resetToken = new URLSearchParams(window.location.search).get("token");
 
@@ -235,7 +233,6 @@ function App() {
     localStorage.removeItem("skillforge_user");
     localStorage.removeItem("skillforge_token");
     setUser(null);
-    setProfileOpen(false);
   };
 
   const handleAuth = (loggedInUser: User) => {
@@ -245,12 +242,28 @@ function App() {
   };
 
   const openCourse = (course: Course) => {
+    window.history.pushState({ courseId: course.id }, "", `#course=${course.id}`);
     setSelectedCourse(course);
     window.scrollTo({
       top: 0,
       behavior: "smooth",
     });
   };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const match = window.location.hash.match(/^#course=(.+)$/);
+      const course = match
+        ? courses.find((item) => item.id === decodeURIComponent(match[1]))
+        : undefined;
+
+      setSelectedCourse(course ?? null);
+    };
+
+    handlePopState();
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const filteredCourses = courses.filter((course) => {
     const matchesCategory =
@@ -275,7 +288,13 @@ function App() {
     return (
       <CourseDetails
         course={selectedCourse}
-        onBack={() => setSelectedCourse(null)}
+        onBack={() => {
+          if (window.history.state?.courseId) {
+            window.history.back();
+          } else {
+            setSelectedCourse(null);
+          }
+        }}
         onStart={() => setIntroOpen(true)}
       />
     );
@@ -353,14 +372,56 @@ function App() {
 
             {user ? (
               <>
-                <button
-                  onClick={() => setProfileOpen(true)}
-                  className="flex items-center gap-2 rounded-xl border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-sm transition hover:border-lime-400/40 hover:bg-lime-400/10"
-                >
-                  <UserCircle size={18} className="text-lime-400" />
-                  Hi,{" "}
-                  <span className="font-bold text-lime-400">{user.name}</span>
-                </button>
+                <div className="group relative">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-xl border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-sm transition hover:border-lime-400/40 hover:bg-lime-400/10"
+                  >
+                    <UserCircle size={18} className="text-lime-400" />
+                    Hi,{" "}
+                    <span className="font-bold text-lime-400">{user.name}</span>
+                  </button>
+
+                  <div className="pointer-events-none invisible absolute right-0 top-full z-[70] w-80 translate-y-2 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                    <div className="rounded-2xl border border-white/10 bg-[#080a08]/95 p-5 shadow-2xl backdrop-blur-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
+                          <UserCircle size={23} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-white">{user.name}</p>
+                          <p className="truncate text-xs text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2 border-t border-white/10 pt-4 text-sm">
+                        <div className="flex items-center gap-3 text-gray-300">
+                          <Mail size={15} className="text-lime-400" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-gray-300">
+                          <Phone size={15} className="text-lime-400" />
+                          <span>+91 {user.phone}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-lime-400/10 bg-lime-400/[0.04] p-3">
+                        <p className="text-xs font-semibold text-lime-400">Need Help?</p>
+                        <p className="mt-1 text-xs text-gray-500">snera980@gmail.com</p>
+                        <p className="mt-1 text-xs text-gray-500">+91 8960513302</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-400/20 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-400/5"
+                      >
+                        <LogOut size={15} />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <button
                   onClick={handleLogout}
@@ -443,16 +504,20 @@ function App() {
 
               {user ? (
                 <>
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setProfileOpen(true);
-                    }}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-lime-400/20 bg-lime-400/5 py-3 text-lime-300"
-                  >
-                    <UserCircle size={18} />
-                    My Profile
-                  </button>
+                  <div className="rounded-xl border border-lime-400/20 bg-lime-400/5 p-4">
+                    <div className="flex items-center gap-3">
+                      <UserCircle size={20} className="text-lime-400" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-lime-300">{user.name}</p>
+                        <p className="truncate text-xs text-gray-500">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1 text-xs text-gray-500">
+                      <p>+91 {user.phone}</p>
+                      <p>Support: snera980@gmail.com</p>
+                      <p>Support: +91 8960513302</p>
+                    </div>
+                  </div>
 
                   <button
                     onClick={handleLogout}
@@ -920,14 +985,6 @@ function App() {
           onClose={() => setAuthMode(null)}
           onModeChange={setAuthMode}
           onSuccess={handleAuth}
-        />
-      )}
-
-      {profileOpen && user && (
-        <ProfileModal
-          user={user}
-          onClose={() => setProfileOpen(false)}
-          onLogout={handleLogout}
         />
       )}
 
@@ -1523,110 +1580,6 @@ function AuthModal({
     </Modal>
   );
 }
-/* ================= PROFILE ================= */
-
-function ProfileModal({
-  user,
-  onClose,
-  onLogout,
-}: {
-  user: User;
-  onClose: () => void;
-  onLogout: () => void;
-}) {
-  return (
-    <Modal onClose={onClose}>
-      <div className="w-full max-w-lg">
-        <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-lime-400/10">
-            <UserCircle className="text-lime-400" size={32} />
-          </div>
-
-          <p className="mt-5 text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
-            My Profile
-          </p>
-
-          <h2 className="mt-2 text-3xl font-black">{user.name}</h2>
-          <p className="mt-2 text-sm text-gray-500">Your SkillForge account details</p>
-        </div>
-
-        <div className="mt-8 space-y-3">
-          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
-              <UserCircle size={21} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Full Name</p>
-              <p className="mt-1 truncate font-semibold text-white">{user.name}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
-              <Mail size={21} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Email Address</p>
-              <p className="mt-1 truncate font-semibold text-white">{user.email}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
-              <Phone size={21} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-600">Mobile Number</p>
-              <p className="mt-1 font-semibold text-white">+91 {user.phone}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-7 rounded-2xl border border-lime-400/20 bg-lime-400/[0.04] p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400">
-              <Headphones size={20} />
-            </div>
-
-            <div>
-              <p className="font-bold text-white">Need Help?</p>
-              <p className="mt-1 text-sm text-gray-500">
-                Contact SkillForge support for help with your account or learning.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-2 text-sm">
-            <a
-              href="mailto:snera980@gmail.com"
-              className="flex items-center gap-3 text-gray-300 transition hover:text-lime-400"
-            >
-              <Mail size={16} className="text-lime-400" />
-              snera980@gmail.com
-            </a>
-
-            <a
-              href="tel:+918960513302"
-              className="flex items-center gap-3 text-gray-300 transition hover:text-lime-400"
-            >
-              <Phone size={16} className="text-lime-400" />
-              +91 8960513302
-            </a>
-          </div>
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-red-400/20 py-3.5 font-semibold text-red-300 transition hover:bg-red-400/5"
-        >
-          <LogOut size={17} />
-          Logout
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
 /* ================= RESET PASSWORD ================= */
 
 function ResetPasswordPage({ token }: { token: string | null }) {
