@@ -327,3 +327,91 @@ router.get(
     }
   },
 );
+router.post(
+  "/courses",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+      if (!isAdmin) return;
+
+      const {
+        title,
+        description,
+        category,
+        level,
+        price,
+        thumbnail,
+        isPublished,
+      } = req.body;
+
+      if (!title || String(title).trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "Course title is required",
+        });
+      }
+
+      const parsedPrice = Number(price);
+
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid course price is required",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        INSERT INTO courses
+        (
+          title,
+          description,
+          category,
+          level,
+          price,
+          thumbnail,
+          is_published
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          thumbnail,
+          is_published,
+          created_at,
+          updated_at
+        `,
+        [
+          String(title).trim(),
+          description ? String(description).trim() : null,
+          category ? String(category).trim() : null,
+          level ? String(level).trim() : null,
+          parsedPrice,
+          thumbnail ? String(thumbnail).trim() : null,
+          Boolean(isPublished),
+        ],
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: "Course created successfully",
+        course: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Create admin course error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to create course",
+      });
+    }
+  },
+);
