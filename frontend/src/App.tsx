@@ -45,6 +45,7 @@ type User = {
 
 type Course = {
   id: string;
+  dbId?: number;
   emoji: string;
   title: string;
   description: string;
@@ -53,6 +54,9 @@ type Course = {
   category: string;
   level: string;
   modules: string[];
+  price: number;
+  thumbnail?: string | null;
+  isPublished?: boolean;
 };
 
 type QuizQuestion = {
@@ -320,7 +324,7 @@ const getLocalCourseProgress = (course: Course): number => {
   );
 };
 
-const courses: Course[] = [
+let courses: Course[] = [
   {
     id: "linux",
     emoji: "🐧",
@@ -331,6 +335,7 @@ const courses: Course[] = [
     duration: "5+ Hours",
     category: "IT & Tech",
     level: "Beginner",
+    price: 799,
     modules: [
       "Linux Fundamentals",
       "File System & Permissions",
@@ -350,6 +355,7 @@ const courses: Course[] = [
     duration: "6+ Hours",
     category: "Cloud",
     level: "Beginner",
+    price: 799,
     modules: [
       "Introduction to AWS",
       "Understanding EC2",
@@ -369,6 +375,7 @@ const courses: Course[] = [
     duration: "5+ Hours",
     category: "Networking",
     level: "Beginner",
+    price: 799,
     modules: [
       "Networking Basics",
       "OSI Model",
@@ -388,6 +395,7 @@ const courses: Course[] = [
     duration: "4+ Hours",
     category: "IT & Tech",
     level: "Intermediate",
+    price: 799,
     modules: [
       "Windows Administration",
       "Active Directory",
@@ -407,6 +415,7 @@ const courses: Course[] = [
     duration: "27+ Hours",
     category: "Cyber Security",
     level: "Beginner",
+    price: 799,
     modules: [
       "Module 1 — Introduction",
       "Module 2 — Linux & Python Fundamentals",
@@ -432,6 +441,7 @@ const courses: Course[] = [
     duration: "5+ Hours",
     category: "IT & Tech",
     level: "Intermediate",
+    price: 799,
     modules: [
       "System Administration",
       "Server Management",
@@ -680,6 +690,81 @@ function App() {
     }
   });
 
+  const [catalogCourses, setCatalogCourses] = useState<Course[]>(courses);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCourseCatalog = async () => {
+      try {
+        setCatalogLoading(true);
+
+        const response = await fetch(`${API_BASE_URL}/api/admin/public-courses`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success || !Array.isArray(data.courses)) {
+          throw new Error(data?.message || "Unable to load course catalog");
+        }
+
+        const mappedCourses: Course[] = data.courses
+          .filter((item: { isPublished?: boolean }) => item.isPublished === true)
+          .map((item: {
+            id: string;
+            dbId?: number;
+            emoji?: string;
+            title: string;
+            description?: string;
+            lessons?: number;
+            duration?: string;
+            category?: string;
+            level?: string;
+            modules?: string[];
+            price?: number;
+            thumbnail?: string | null;
+            isPublished?: boolean;
+          }) => ({
+            id: String(item.id),
+            dbId: Number(item.dbId) || undefined,
+            emoji: item.emoji || "📚",
+            title: String(item.title),
+            description: item.description || "Practical, structured learning from SkillForge.",
+            lessons: Number(item.lessons) || 0,
+            duration: item.duration || "Self-paced",
+            category: item.category || "IT & Tech",
+            level: item.level || "Beginner",
+            modules: Array.isArray(item.modules)
+              ? item.modules.map((module) => String(module))
+              : [],
+            price: Number.isFinite(Number(item.price)) ? Number(item.price) : 0,
+            thumbnail: item.thumbnail || null,
+            isPublished: Boolean(item.isPublished),
+          }));
+
+        if (!cancelled && mappedCourses.length > 0) {
+          courses = mappedCourses;
+          setCatalogCourses(mappedCourses);
+        }
+      } catch (error) {
+        console.error("Course catalog loading error:", error);
+
+        if (!cancelled) {
+          setCatalogCourses(courses);
+        }
+      } finally {
+        if (!cancelled) {
+          setCatalogLoading(false);
+        }
+      }
+    };
+
+    void loadCourseCatalog();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     const loadEnrollments = async () => {
       if (!user) {
@@ -743,7 +828,7 @@ function App() {
   useEffect(() => {
     const loadHomeLearningProgress = async () => {
       const token = localStorage.getItem("skillforge_token");
-      const firstCourse = courses.find((course) =>
+      const firstCourse = catalogCourses.find((course) =>
         enrolledCourseIds.includes(course.id),
       );
 
@@ -802,7 +887,7 @@ function App() {
       window.removeEventListener("skillforge-progress-updated", refreshHomeProgress);
       window.removeEventListener("storage", refreshHomeProgress);
     };
-  }, [enrolledCourseIds]);
+  }, [enrolledCourseIds, catalogCourses]);
 
   const scrollToSection = (id: string) => {
     setMenuOpen(false);
@@ -1065,9 +1150,9 @@ function App() {
     handlePopState();
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [catalogCourses]);
 
-  const filteredCourses = courses.filter((course) => {
+  const filteredCourses = catalogCourses.filter((course) => {
     const matchesCategory =
       selectedCategory === "All" || course.category === selectedCategory;
 
@@ -1322,7 +1407,7 @@ function App() {
               })()}
             </div>
           </div>
-          <div className="mx-auto grid max-w-[1300px] grid-cols-2 gap-3 px-5 pb-10 sm:grid-cols-4 lg:px-8"><Metric icon={<GraduationCap/>} value="10+" label="Courses"/><Metric icon={<Shield/>} value="100%" label="Practical Learning"/><Metric icon={<Clock3/>} value="24/7" label="Access"/><Metric icon={<Award/>} value="Certificate" label="On Completion"/></div>
+          <div className="mx-auto grid max-w-[1300px] grid-cols-2 gap-3 px-5 pb-10 sm:grid-cols-4 lg:px-8"><Metric icon={<GraduationCap/>} value={`${catalogCourses.length}`} label="Published Courses"/><Metric icon={<Shield/>} value="100%" label="Practical Learning"/><Metric icon={<Clock3/>} value="24/7" label="Access"/><Metric icon={<Award/>} value="Certificate" label="On Completion"/></div>
         </section>
 
         <section id="categories" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 py-12 lg:px-8">
@@ -1366,6 +1451,11 @@ function App() {
 
         <section id="courses" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
           <div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Popular Courses</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Start Learning Today</h2><p className="mt-2 text-sm text-slate-500">Beginner-friendly courses focused on practical skills.</p></div><button onClick={() => setSelectedCategory("All")} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
+          {catalogLoading ? (
+            <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              Loading courses...
+            </div>
+          ) : (
           <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredCourses.slice(0,8).map((course,index)=>{
             const isPurchased = enrolledCourseIds.includes(course.id);
             return (
@@ -1390,11 +1480,12 @@ function App() {
               />
             );
           })}</div>
+          )}
         </section>
 
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
-        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Individual courses are ₹799 and the 2-course combo is ₹1,499 with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
+        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. The 2-course combo is ₹1,499 with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
 
         <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
 
@@ -2367,7 +2458,7 @@ function CourseOverviewPage({
                 ) : (
                   <>
                     <div className="mt-3 flex items-end gap-2">
-                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">₹799</span>
+                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">₹{course.price.toLocaleString("en-IN")}</span>
                       <span className="pb-1 text-sm text-slate-400">one-time</span>
                     </div>
 
@@ -2382,7 +2473,7 @@ function CourseOverviewPage({
                       className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <CreditCard size={18} />
-                      {paymentLoading ? "Processing..." : user ? "Buy Course — ₹799" : "Login to Purchase"}
+                      {paymentLoading ? "Processing..." : user ? `Buy Course — ₹${course.price.toLocaleString("en-IN")}` : "Login to Purchase"}
                     </button>
 
                     {!user && (
@@ -2630,7 +2721,7 @@ function CourseOverviewPage({
                   disabled={paymentLoading || !user}
                   className="shrink-0 rounded-xl bg-emerald-600 px-7 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {paymentLoading ? "Processing..." : user ? "Unlock Course — ₹799" : "Login to Purchase"}
+                  {paymentLoading ? "Processing..." : user ? `Unlock Course — ₹${course.price.toLocaleString("en-IN")}` : "Login to Purchase"}
                 </button>
               )}
             </div>
@@ -3328,7 +3419,7 @@ html.dark .skillforge-course-player header {
                     onClick={goToPurchase}
                     className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
                   >
-                    <CreditCard size={17} /> Unlock Course — ₹799
+                    <CreditCard size={17} /> Unlock Course — ₹{course.price.toLocaleString("en-IN")}
                   </button>
                 </div>
               ) : (
@@ -4337,8 +4428,16 @@ function Course({
     <button onClick={onClick} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl">
       <div className={`relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br ${covers[course.id] ?? "from-slate-900 to-emerald-900"}`}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.25),transparent_42%)]" />
+        {course.thumbnail ? (
+          <img
+            src={course.thumbnail}
+            alt={course.title}
+            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <span className="relative text-7xl drop-shadow-lg transition duration-300 group-hover:scale-110">{course.emoji}</span>
+        )}
         {badge && <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-[10px] font-black text-white shadow-sm">{badge}</span>}
-        <span className="relative text-7xl drop-shadow-lg transition duration-300 group-hover:scale-110">{course.emoji}</span>
       </div>
       <div className="p-4">
         <h3 className="text-base font-black text-[#0b1736]">{course.title}</h3>
@@ -4352,7 +4451,7 @@ function Course({
               Purchased
             </span>
           ) : (
-            <span className="text-xl font-black text-[#0b1736]">₹799</span>
+            <span className="text-xl font-black text-[#0b1736]">₹{course.price.toLocaleString("en-IN")}</span>
           )}
 
           <span className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition ${
