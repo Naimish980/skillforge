@@ -246,3 +246,84 @@ router.get(
 );
 
 export default router;
+/* =====================================================
+   GET ALL COURSES
+   GET /api/admin/courses
+===================================================== */
+
+router.get(
+  "/courses",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const coursesResult = await pool.query(
+        `
+        SELECT
+          c.id,
+          c.title,
+          c.description,
+          c.category,
+          c.level,
+          c.price,
+          c.thumbnail,
+          c.is_published,
+          c.created_at,
+          c.updated_at,
+
+          COUNT(DISTINCT m.id)::int AS module_count,
+          COUNT(DISTINCT l.id)::int AS lecture_count,
+          COUNT(DISTINCT q.id)::int AS quiz_count
+
+        FROM courses c
+
+        LEFT JOIN modules m
+          ON m.course_id = c.id
+
+        LEFT JOIN lectures l
+          ON l.module_id = m.id
+
+        LEFT JOIN quizzes q
+          ON q.lecture_id = l.id
+
+        GROUP BY
+          c.id,
+          c.title,
+          c.description,
+          c.category,
+          c.level,
+          c.price,
+          c.thumbnail,
+          c.is_published,
+          c.created_at,
+          c.updated_at
+
+        ORDER BY c.created_at DESC
+        `,
+      );
+
+      return res.status(200).json({
+        success: true,
+        courses: coursesResult.rows,
+      });
+    } catch (error) {
+      console.error(
+        "Get admin courses error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load courses",
+      });
+    }
+  },
+);
