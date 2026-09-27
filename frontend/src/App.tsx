@@ -34,6 +34,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import AdminDashboard from "./pages/AdminDashboard";
 
 type User = {
   id: number;
@@ -501,6 +502,111 @@ async function loadRazorpayScript(): Promise<boolean> {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
+}
+
+
+function AdminRoute() {
+  const [status, setStatus] = useState<"checking" | "allowed" | "denied">("checking");
+  const [message, setMessage] = useState("Checking admin access...");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const verifyAdminAccess = async () => {
+      const token = localStorage.getItem("skillforge_token");
+
+      if (!token) {
+        if (!cancelled) {
+          setStatus("denied");
+          setMessage("Please log in with your SkillForge admin account.");
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/admin/dashboard`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success) {
+          if (!cancelled) {
+            setStatus("denied");
+            setMessage(
+              data?.message === "Admin access required"
+                ? "Access denied. This area is only available to administrators."
+                : data?.message || "Unable to verify admin access.",
+            );
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setStatus("allowed");
+        }
+      } catch (error) {
+        console.error("Admin access verification error:", error);
+
+        if (!cancelled) {
+          setStatus("denied");
+          setMessage("Unable to connect to the admin service. Please try again.");
+        }
+      }
+    };
+
+    void verifyAdminAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (status === "checking") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
+        <div className="text-center">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-slate-700 border-t-indigo-400" />
+          <p className="mt-4 text-sm text-slate-400">Checking admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "denied") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-7 text-center shadow-2xl">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+            <Shield size={27} />
+          </div>
+
+          <h1 className="mt-5 text-2xl font-bold">Admin Access Required</h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-400">{message}</p>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+            className="mt-6 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-200"
+          >
+            Back to SkillForge
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <AdminDashboard />;
 }
 
 function App() {
@@ -976,6 +1082,10 @@ function App() {
 
   if (window.location.pathname === "/reset-password") {
     return <ResetPasswordPage token={resetToken} />;
+  }
+
+  if (window.location.pathname === "/admin") {
+    return <AdminRoute />;
   }
 
   if (dashboardOpen) {
