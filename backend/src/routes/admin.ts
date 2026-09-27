@@ -120,6 +120,7 @@ router.get(
           ) AS modules
 
         FROM courses c
+        WHERE c.is_published = true
         ORDER BY c.created_at DESC, c.id DESC
         `,
       );
@@ -258,6 +259,7 @@ router.get(
           is_published
         FROM courses
         WHERE id = $1
+          AND is_published = true
         LIMIT 1
         `,
         [courseId],
@@ -807,6 +809,703 @@ router.post(
         success: false,
         message:
           "Unable to create course",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   UPDATE COURSE
+   PUT /api/admin/courses/:courseId
+===================================================== */
+
+router.put(
+  "/courses/:courseId",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(req.params.courseId);
+
+      if (!Number.isInteger(courseId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const existingResult = await pool.query(
+        `
+        SELECT
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          thumbnail,
+          is_published
+        FROM courses
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [courseId],
+      );
+
+      if (existingResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      const existing = existingResult.rows[0];
+      const {
+        title,
+        description,
+        category,
+        level,
+        price,
+        thumbnail,
+        isPublished,
+      } = req.body;
+
+      const finalTitle =
+        title === undefined
+          ? String(existing.title)
+          : String(title).trim();
+
+      if (!finalTitle) {
+        return res.status(400).json({
+          success: false,
+          message: "Course title is required",
+        });
+      }
+
+      const finalPrice =
+        price === undefined
+          ? Number(existing.price)
+          : Number(price);
+
+      if (!Number.isFinite(finalPrice) || finalPrice < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid course price is required",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE courses
+        SET
+          title = $1,
+          description = $2,
+          category = $3,
+          level = $4,
+          price = $5,
+          thumbnail = $6,
+          is_published = $7,
+          updated_at = NOW()
+        WHERE id = $8
+        RETURNING
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          thumbnail,
+          is_published,
+          created_at,
+          updated_at
+        `,
+        [
+          finalTitle,
+          description === undefined
+            ? existing.description
+            : description
+              ? String(description).trim()
+              : null,
+          category === undefined
+            ? existing.category
+            : category
+              ? String(category).trim()
+              : null,
+          level === undefined
+            ? existing.level
+            : level
+              ? String(level).trim()
+              : null,
+          finalPrice,
+          thumbnail === undefined
+            ? existing.thumbnail
+            : thumbnail
+              ? String(thumbnail).trim()
+              : null,
+          isPublished === undefined
+            ? Boolean(existing.is_published)
+            : Boolean(isPublished),
+          courseId,
+        ],
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Course updated successfully",
+        course: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Update admin course error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to update course",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   TOGGLE COURSE PUBLISH STATUS
+   PATCH /api/admin/courses/:courseId/publish
+===================================================== */
+
+router.patch(
+  "/courses/:courseId/publish",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(req.params.courseId);
+
+      if (!Number.isInteger(courseId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const { isPublished } = req.body;
+
+      if (typeof isPublished !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "isPublished must be true or false",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE courses
+        SET
+          is_published = $1,
+          updated_at = NOW()
+        WHERE id = $2
+        RETURNING
+          id,
+          title,
+          is_published,
+          updated_at
+        `,
+        [isPublished, courseId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: isPublished
+          ? "Course published successfully"
+          : "Course unpublished successfully",
+        course: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Publish course error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to change course publish status",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   DELETE COURSE
+   DELETE /api/admin/courses/:courseId
+
+   Existing enrollments/payments are preserved. A course with
+   enrollments cannot be deleted accidentally.
+===================================================== */
+
+router.delete(
+  "/courses/:courseId",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(req.params.courseId);
+
+      if (!Number.isInteger(courseId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const enrollmentResult = await pool.query(
+        `
+        SELECT COUNT(*)::int AS total
+        FROM enrollments
+        WHERE course_id = $1
+        `,
+        [courseId],
+      );
+
+      if (Number(enrollmentResult.rows[0].total) > 0) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This course has enrollments and cannot be deleted. Unpublish it instead.",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        DELETE FROM courses
+        WHERE id = $1
+        RETURNING id, title
+        `,
+        [courseId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Course deleted successfully",
+        courseId: result.rows[0].id,
+        title: result.rows[0].title,
+      });
+    } catch (error) {
+      console.error("Delete admin course error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to delete course",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   GET LECTURE QUIZZES
+   GET /api/admin/lectures/:lectureId/quizzes
+===================================================== */
+
+router.get(
+  "/lectures/:lectureId/quizzes",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const lectureId = Number(req.params.lectureId);
+
+      if (!Number.isInteger(lectureId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid lecture ID",
+        });
+      }
+
+      const lectureResult = await pool.query(
+        `
+        SELECT id, module_id, title
+        FROM lectures
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [lectureId],
+      );
+
+      if (lectureResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Lecture not found",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          lecture_id,
+          question,
+          options,
+          correct_answer,
+          created_at
+        FROM quizzes
+        WHERE lecture_id = $1
+        ORDER BY id ASC
+        `,
+        [lectureId],
+      );
+
+      return res.status(200).json({
+        success: true,
+        lecture: lectureResult.rows[0],
+        quizzes: result.rows,
+      });
+    } catch (error) {
+      console.error("Get lecture quizzes error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load quizzes",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   CREATE QUIZ
+   POST /api/admin/lectures/:lectureId/quizzes
+
+   Body:
+   {
+     question: string,
+     options: string[],
+     correctAnswer: string
+   }
+===================================================== */
+
+router.post(
+  "/lectures/:lectureId/quizzes",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const lectureId = Number(req.params.lectureId);
+
+      if (!Number.isInteger(lectureId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid lecture ID",
+        });
+      }
+
+      const { question, options, correctAnswer } = req.body;
+
+      if (!question || String(question).trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "Quiz question is required",
+        });
+      }
+
+      if (!Array.isArray(options) || options.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "At least two quiz options are required",
+        });
+      }
+
+      const cleanOptions = options
+        .map((option: unknown) => String(option).trim())
+        .filter((option: string) => option.length > 0);
+
+      if (cleanOptions.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "At least two non-empty quiz options are required",
+        });
+      }
+
+      const cleanCorrectAnswer = String(correctAnswer ?? "").trim();
+
+      if (!cleanCorrectAnswer || !cleanOptions.includes(cleanCorrectAnswer)) {
+        return res.status(400).json({
+          success: false,
+          message: "Correct answer must match one of the quiz options",
+        });
+      }
+
+      const lectureResult = await pool.query(
+        `
+        SELECT id
+        FROM lectures
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [lectureId],
+      );
+
+      if (lectureResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Lecture not found",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        INSERT INTO quizzes
+        (
+          lecture_id,
+          question,
+          options,
+          correct_answer
+        )
+        VALUES ($1, $2, $3::jsonb, $4)
+        RETURNING
+          id,
+          lecture_id,
+          question,
+          options,
+          correct_answer,
+          created_at
+        `,
+        [
+          lectureId,
+          String(question).trim(),
+          JSON.stringify(cleanOptions),
+          cleanCorrectAnswer,
+        ],
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: "Quiz created successfully",
+        quiz: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Create quiz error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to create quiz",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   UPDATE QUIZ
+   PUT /api/admin/quizzes/:quizId
+===================================================== */
+
+router.put(
+  "/quizzes/:quizId",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const quizId = Number(req.params.quizId);
+
+      if (!Number.isInteger(quizId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid quiz ID",
+        });
+      }
+
+      const { question, options, correctAnswer } = req.body;
+
+      if (!question || String(question).trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "Quiz question is required",
+        });
+      }
+
+      if (!Array.isArray(options) || options.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "At least two quiz options are required",
+        });
+      }
+
+      const cleanOptions = options
+        .map((option: unknown) => String(option).trim())
+        .filter((option: string) => option.length > 0);
+
+      if (cleanOptions.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "At least two non-empty quiz options are required",
+        });
+      }
+
+      const cleanCorrectAnswer = String(correctAnswer ?? "").trim();
+
+      if (!cleanCorrectAnswer || !cleanOptions.includes(cleanCorrectAnswer)) {
+        return res.status(400).json({
+          success: false,
+          message: "Correct answer must match one of the quiz options",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE quizzes
+        SET
+          question = $1,
+          options = $2::jsonb,
+          correct_answer = $3
+        WHERE id = $4
+        RETURNING
+          id,
+          lecture_id,
+          question,
+          options,
+          correct_answer,
+          created_at
+        `,
+        [
+          String(question).trim(),
+          JSON.stringify(cleanOptions),
+          cleanCorrectAnswer,
+          quizId,
+        ],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Quiz updated successfully",
+        quiz: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Update quiz error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to update quiz",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   DELETE QUIZ
+   DELETE /api/admin/quizzes/:quizId
+===================================================== */
+
+router.delete(
+  "/quizzes/:quizId",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const quizId = Number(req.params.quizId);
+
+      if (!Number.isInteger(quizId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid quiz ID",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        DELETE FROM quizzes
+        WHERE id = $1
+        RETURNING id, lecture_id
+        `,
+        [quizId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Quiz deleted successfully",
+        quizId: result.rows[0].id,
+        lectureId: result.rows[0].lecture_id,
+      });
+    } catch (error) {
+      console.error("Delete quiz error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to delete quiz",
       });
     }
   },
@@ -1461,6 +2160,33 @@ router.post(
         });
       }
 
+      const courseResult = await pool.query(
+        `
+          SELECT m.course_id
+          FROM modules m
+          WHERE m.id = $1
+          LIMIT 1
+        `,
+        [moduleId],
+      );
+
+      const courseId = Number(courseResult.rows[0].course_id);
+
+      const existingCourseLecturesResult = await pool.query(
+        `
+          SELECT l.id
+          FROM lectures l
+          INNER JOIN modules m ON m.id = l.module_id
+          WHERE m.course_id = $1
+          ORDER BY m.module_order ASC, m.id ASC, l.lecture_order ASC, l.id ASC
+          LIMIT 1
+        `,
+        [courseId],
+      );
+
+      const isFirstCourseLecture = existingCourseLecturesResult.rows.length === 0;
+      const finalIsFree = isFirstCourseLecture ? true : Boolean(isFree);
+
       const result = await pool.query(
         `
           INSERT INTO lectures
@@ -1497,7 +2223,7 @@ router.post(
             : null,
           parsedLectureOrder,
           parsedDuration,
-          Boolean(isFree),
+          finalIsFree,
         ],
       );
 
@@ -1638,6 +2364,44 @@ router.put(
           success: false,
           message: "Lecture not found",
         });
+      }
+
+      const moduleCourseResult = await pool.query(
+        `
+        SELECT m.course_id
+        FROM modules m
+        INNER JOIN lectures l ON l.module_id = m.id
+        WHERE l.id = $1
+        LIMIT 1
+        `,
+        [lectureId],
+      );
+
+      if (moduleCourseResult.rows.length > 0) {
+        const courseId = Number(moduleCourseResult.rows[0].course_id);
+
+        const firstLectureResult = await pool.query(
+          `
+          SELECT l.id
+          FROM lectures l
+          INNER JOIN modules m ON m.id = l.module_id
+          WHERE m.course_id = $1
+          ORDER BY m.module_order ASC, m.id ASC, l.lecture_order ASC, l.id ASC
+          LIMIT 1
+          `,
+          [courseId],
+        );
+
+        if (
+          firstLectureResult.rows.length > 0 &&
+          Number(firstLectureResult.rows[0].id) === lectureId
+        ) {
+          await pool.query(
+            `UPDATE lectures SET is_free = true, updated_at = NOW() WHERE id = $1`,
+            [lectureId],
+          );
+          result.rows[0].is_free = true;
+        }
       }
 
       return res.status(200).json({
