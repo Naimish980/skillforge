@@ -92,7 +92,6 @@ router.get(
 
       const admin = adminResult.rows[0];
 
-      /* Total students */
       const studentsResult = await pool.query(
         `
         SELECT COUNT(*)::int AS total
@@ -101,7 +100,6 @@ router.get(
         `,
       );
 
-      /* Total enrollments */
       const enrollmentsResult = await pool.query(
         `
         SELECT COUNT(*)::int AS total
@@ -109,7 +107,6 @@ router.get(
         `,
       );
 
-      /* Total successful payments */
       const paymentsResult = await pool.query(
         `
         SELECT COUNT(*)::int AS total
@@ -118,7 +115,6 @@ router.get(
         `,
       );
 
-      /* Total revenue */
       const revenueResult = await pool.query(
         `
         SELECT COALESCE(SUM(amount), 0)::bigint AS total
@@ -245,7 +241,6 @@ router.get(
   },
 );
 
-export default router;
 /* =====================================================
    GET ALL COURSES
    GET /api/admin/courses
@@ -327,6 +322,12 @@ router.get(
     }
   },
 );
+
+/* =====================================================
+   CREATE COURSE
+   POST /api/admin/courses
+===================================================== */
+
 router.post(
   "/courses",
   authenticateToken,
@@ -336,7 +337,10 @@ router.post(
   ) => {
     try {
       const isAdmin = await verifyAdmin(req, res);
-      if (!isAdmin) return;
+
+      if (!isAdmin) {
+        return;
+      }
 
       const {
         title,
@@ -357,10 +361,14 @@ router.post(
 
       const parsedPrice = Number(price);
 
-      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      if (
+        !Number.isFinite(parsedPrice) ||
+        parsedPrice < 0
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Valid course price is required",
+          message:
+            "Valid course price is required",
         });
       }
 
@@ -391,27 +399,491 @@ router.post(
         `,
         [
           String(title).trim(),
-          description ? String(description).trim() : null,
-          category ? String(category).trim() : null,
-          level ? String(level).trim() : null,
+          description
+            ? String(description).trim()
+            : null,
+
+          category
+            ? String(category).trim()
+            : null,
+
+          level
+            ? String(level).trim()
+            : null,
+
           parsedPrice,
-          thumbnail ? String(thumbnail).trim() : null,
+
+          thumbnail
+            ? String(thumbnail).trim()
+            : null,
+
           Boolean(isPublished),
         ],
       );
 
       return res.status(201).json({
         success: true,
-        message: "Course created successfully",
+        message:
+          "Course created successfully",
         course: result.rows[0],
       });
     } catch (error) {
-      console.error("Create admin course error:", error);
+      console.error(
+        "Create admin course error:",
+        error,
+      );
 
       return res.status(500).json({
         success: false,
-        message: "Unable to create course",
+        message:
+          "Unable to create course",
       });
     }
   },
 );
+
+/* =====================================================
+   GET COURSE CONTENT
+   GET /api/admin/courses/:courseId/content
+
+   Returns:
+   Course
+   └── Modules
+       └── Lectures
+           └── Quizzes
+===================================================== */
+
+router.get(
+  "/courses/:courseId/content",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(
+        req.params.courseId,
+      );
+
+      if (!Number.isInteger(courseId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const courseResult = await pool.query(
+        `
+        SELECT
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          thumbnail,
+          is_published,
+          created_at,
+          updated_at
+        FROM courses
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [courseId],
+      );
+
+      if (courseResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      const modulesResult = await pool.query(
+        `
+        SELECT
+          id,
+          course_id,
+          title,
+          description,
+          module_order,
+          created_at,
+          updated_at
+        FROM modules
+        WHERE course_id = $1
+        ORDER BY module_order ASC, id ASC
+        `,
+        [courseId],
+      );
+
+      return res.status(200).json({
+        success: true,
+        course: courseResult.rows[0],
+        modules: modulesResult.rows,
+      });
+    } catch (error) {
+      console.error(
+        "Get course content error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to load course content",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   CREATE MODULE
+   POST /api/admin/courses/:courseId/modules
+===================================================== */
+
+router.post(
+  "/courses/:courseId/modules",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(
+        req.params.courseId,
+      );
+
+      if (!Number.isInteger(courseId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const {
+        title,
+        description,
+        moduleOrder,
+      } = req.body;
+
+      if (
+        !title ||
+        String(title).trim() === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Module title is required",
+        });
+      }
+
+      const courseResult = await pool.query(
+        `
+        SELECT id
+        FROM courses
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [courseId],
+      );
+
+      if (courseResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      let parsedModuleOrder: number;
+
+      if (
+        moduleOrder !== undefined &&
+        moduleOrder !== null &&
+        String(moduleOrder).trim() !== ""
+      ) {
+        parsedModuleOrder = Number(
+          moduleOrder,
+        );
+      } else {
+        const orderResult =
+          await pool.query(
+            `
+            SELECT COALESCE(
+              MAX(module_order),
+              0
+            ) + 1 AS next_order
+            FROM modules
+            WHERE course_id = $1
+            `,
+            [courseId],
+          );
+
+        parsedModuleOrder = Number(
+          orderResult.rows[0].next_order,
+        );
+      }
+
+      if (
+        !Number.isInteger(parsedModuleOrder) ||
+        parsedModuleOrder < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Module order must be a positive number",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        INSERT INTO modules
+        (
+          course_id,
+          title,
+          description,
+          module_order
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+          id,
+          course_id,
+          title,
+          description,
+          module_order,
+          created_at,
+          updated_at
+        `,
+        [
+          courseId,
+          String(title).trim(),
+          description
+            ? String(description).trim()
+            : null,
+          parsedModuleOrder,
+        ],
+      );
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Module created successfully",
+        module: result.rows[0],
+      });
+    } catch (error) {
+      console.error(
+        "Create module error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to create module",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   UPDATE MODULE
+   PUT /api/admin/modules/:moduleId
+===================================================== */
+
+router.put(
+  "/modules/:moduleId",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const moduleId = Number(
+        req.params.moduleId,
+      );
+
+      if (!Number.isInteger(moduleId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid module ID",
+        });
+      }
+
+      const {
+        title,
+        description,
+        moduleOrder,
+      } = req.body;
+
+      if (
+        !title ||
+        String(title).trim() === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Module title is required",
+        });
+      }
+
+      const parsedModuleOrder = Number(
+        moduleOrder,
+      );
+
+      if (
+        !Number.isInteger(
+          parsedModuleOrder,
+        ) ||
+        parsedModuleOrder < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Module order must be a positive number",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE modules
+        SET
+          title = $1,
+          description = $2,
+          module_order = $3,
+          updated_at = NOW()
+        WHERE id = $4
+        RETURNING
+          id,
+          course_id,
+          title,
+          description,
+          module_order,
+          created_at,
+          updated_at
+        `,
+        [
+          String(title).trim(),
+          description
+            ? String(description).trim()
+            : null,
+          parsedModuleOrder,
+          moduleId,
+        ],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Module not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Module updated successfully",
+        module: result.rows[0],
+      });
+    } catch (error) {
+      console.error(
+        "Update module error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to update module",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   DELETE MODULE
+   DELETE /api/admin/modules/:moduleId
+
+   Because modules.course_id and lectures.module_id
+   use ON DELETE CASCADE, deleting a module will
+   also delete its lectures and related quizzes.
+===================================================== */
+
+router.delete(
+  "/modules/:moduleId",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const moduleId = Number(
+        req.params.moduleId,
+      );
+
+      if (!Number.isInteger(moduleId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid module ID",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        DELETE FROM modules
+        WHERE id = $1
+        RETURNING id, course_id
+        `,
+        [moduleId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Module not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Module deleted successfully",
+        moduleId: result.rows[0].id,
+        courseId: result.rows[0].course_id,
+      });
+    } catch (error) {
+      console.error(
+        "Delete module error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to delete module",
+      });
+    }
+  },
+);
+
+export default router;
