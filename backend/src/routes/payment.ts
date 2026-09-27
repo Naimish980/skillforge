@@ -146,19 +146,18 @@ router.post(
         }
 
         /* ---------------------------------------------
-           TEMPORARY PAYMENT TEST PRICE
-           Networking = ₹1
-           All other individual courses = ₹799
+           COURSE PRICE
+           All individual courses = ₹799
         --------------------------------------------- */
 
-        if (normalizedCourseId === "networking") {
-          amount = 100; // ₹1 in paise
-        } else {
-          amount = 79900; // ₹799 in paise
-        }
+        amount = 79900; // ₹799 in paise
 
         receipt = `course_${normalizedCourseId}_${Date.now()}`;
       }
+
+      /* =================================================
+         TWO COURSE COMBO
+      ================================================= */
 
       else if (type === "combo") {
         if (
@@ -230,7 +229,12 @@ router.post(
           });
         }
 
+        /* ---------------------------------------------
+           Combo price = ₹1499
+        --------------------------------------------- */
+
         amount = 149900;
+
         receipt = `combo_${Date.now()}`;
       }
 
