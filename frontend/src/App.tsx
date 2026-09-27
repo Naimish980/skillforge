@@ -55,6 +55,7 @@ type Course = {
   level: string;
   modules: string[];
   price: number;
+  originalPrice?: number | null;
   thumbnail?: string | null;
   isPublished?: boolean;
 };
@@ -721,6 +722,7 @@ function App() {
             level?: string;
             modules?: string[];
             price?: number;
+            originalPrice?: number | null;
             thumbnail?: string | null;
             isPublished?: boolean;
           }) => ({
@@ -737,6 +739,10 @@ function App() {
               ? item.modules.map((module) => String(module))
               : [],
             price: Number.isFinite(Number(item.price)) ? Number(item.price) : 0,
+            originalPrice:
+              item.originalPrice == null || !Number.isFinite(Number(item.originalPrice))
+                ? null
+                : Number(item.originalPrice),
             thumbnail: item.thumbnail || null,
             isPublished: Boolean(item.isPublished),
           }));
@@ -2436,8 +2442,15 @@ function CourseOverviewPage({
                   </>
                 ) : (
                   <>
-                    <div className="mt-3 flex items-end gap-2">
-                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">₹{course.price.toLocaleString("en-IN")}</span>
+                    <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-1">
+                      {course.originalPrice != null && course.originalPrice > course.price && (
+                        <span className="pb-1 text-base font-semibold text-slate-400 line-through">
+                          ₹{course.originalPrice.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">
+                        ₹{course.price.toLocaleString("en-IN")}
+                      </span>
                       <span className="pb-1 text-sm text-slate-400">one-time</span>
                     </div>
 
@@ -4399,7 +4412,16 @@ function Course({
               Purchased
             </span>
           ) : (
-            <span className="text-xl font-black text-[#0b1736]">₹{course.price.toLocaleString("en-IN")}</span>
+            <div className="flex items-end gap-2">
+              {course.originalPrice != null && course.originalPrice > course.price && (
+                <span className="text-xs font-semibold text-slate-400 line-through">
+                  ₹{course.originalPrice.toLocaleString("en-IN")}
+                </span>
+              )}
+              <span className="text-xl font-black text-[#0b1736]">
+                ₹{course.price.toLocaleString("en-IN")}
+              </span>
+            </div>
           )}
 
           <span className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition ${
