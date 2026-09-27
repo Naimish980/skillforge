@@ -81,6 +81,7 @@ router.get(
           c.category,
           c.level,
           c.price,
+          c.original_price,
           c.thumbnail,
           c.is_published,
           c.created_at,
@@ -196,6 +197,7 @@ router.get(
           ? String(course.level)
           : "Beginner",
         price: Number(course.price) || 0,
+        originalPrice: course.original_price == null ? null : Number(course.original_price),
         thumbnail: course.thumbnail
           ? String(course.thumbnail)
           : null,
@@ -255,6 +257,7 @@ router.get(
           category,
           level,
           price,
+          original_price,
           thumbnail,
           is_published
         FROM courses
@@ -413,6 +416,10 @@ router.get(
             ? String(courseResult.rows[0].level)
             : null,
           price: Number(courseResult.rows[0].price) || 0,
+          originalPrice:
+            courseResult.rows[0].original_price == null
+              ? null
+              : Number(courseResult.rows[0].original_price),
           thumbnail: courseResult.rows[0].thumbnail
             ? String(courseResult.rows[0].thumbnail)
             : null,
@@ -641,6 +648,7 @@ router.get(
           c.category,
           c.level,
           c.price,
+          c.original_price,
           c.thumbnail,
           c.is_published,
           c.created_at,
@@ -668,6 +676,7 @@ router.get(
           c.category,
           c.level,
           c.price,
+          c.original_price,
           c.thumbnail,
           c.is_published,
           c.created_at,
@@ -720,6 +729,7 @@ router.post(
         category,
         level,
         price,
+        originalPrice,
         thumbnail,
         isPublished,
       } = req.body;
@@ -732,6 +742,12 @@ router.post(
       }
 
       const parsedPrice = Number(price);
+      const parsedOriginalPrice =
+        originalPrice === undefined ||
+        originalPrice === null ||
+        String(originalPrice).trim() === ""
+          ? null
+          : Number(originalPrice);
 
       if (
         !Number.isFinite(parsedPrice) ||
@@ -740,7 +756,19 @@ router.post(
         return res.status(400).json({
           success: false,
           message:
-            "Valid course price is required",
+            "Valid offer price is required",
+        });
+      }
+
+      if (
+        parsedOriginalPrice !== null &&
+        (!Number.isFinite(parsedOriginalPrice) ||
+          parsedOriginalPrice < parsedPrice)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Actual price must be greater than or equal to offer price",
         });
       }
 
@@ -753,10 +781,11 @@ router.post(
           category,
           level,
           price,
+          original_price,
           thumbnail,
           is_published
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING
           id,
           title,
@@ -764,6 +793,7 @@ router.post(
           category,
           level,
           price,
+          original_price,
           thumbnail,
           is_published,
           created_at,
@@ -784,6 +814,7 @@ router.post(
             : null,
 
           parsedPrice,
+          parsedOriginalPrice,
 
           thumbnail
             ? String(thumbnail).trim()
@@ -851,6 +882,7 @@ router.put(
           category,
           level,
           price,
+          original_price,
           thumbnail,
           is_published
         FROM courses
@@ -874,6 +906,7 @@ router.put(
         category,
         level,
         price,
+        originalPrice,
         thumbnail,
         isPublished,
       } = req.body;
@@ -898,7 +931,30 @@ router.put(
       if (!Number.isFinite(finalPrice) || finalPrice < 0) {
         return res.status(400).json({
           success: false,
-          message: "Valid course price is required",
+          message: "Valid offer price is required",
+        });
+      }
+
+      const finalOriginalPrice =
+        originalPrice === undefined
+          ? existing.original_price === null ||
+            existing.original_price === undefined
+            ? null
+            : Number(existing.original_price)
+          : originalPrice === null ||
+            String(originalPrice).trim() === ""
+            ? null
+            : Number(originalPrice);
+
+      if (
+        finalOriginalPrice !== null &&
+        (!Number.isFinite(finalOriginalPrice) ||
+          finalOriginalPrice < finalPrice)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Actual price must be greater than or equal to offer price",
         });
       }
 
@@ -911,10 +967,11 @@ router.put(
           category = $3,
           level = $4,
           price = $5,
-          thumbnail = $6,
-          is_published = $7,
+          original_price = $6,
+          thumbnail = $7,
+          is_published = $8,
           updated_at = NOW()
-        WHERE id = $8
+        WHERE id = $9
         RETURNING
           id,
           title,
@@ -922,6 +979,7 @@ router.put(
           category,
           level,
           price,
+          original_price,
           thumbnail,
           is_published,
           created_at,
@@ -945,6 +1003,7 @@ router.put(
               ? String(level).trim()
               : null,
           finalPrice,
+          finalOriginalPrice,
           thumbnail === undefined
             ? existing.thumbnail
             : thumbnail
@@ -1556,6 +1615,7 @@ router.get(
           category,
           level,
           price,
+          original_price,
           thumbnail,
           is_published,
           created_at,
