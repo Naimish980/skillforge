@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -61,12 +61,18 @@ type QuizQuestion = {
   explanation: string;
 };
 
+type LectureResource = {
+  title: string;
+  url: string;
+};
+
 type Lecture = {
   id: string;
   title: string;
   duration: string;
   videoUrl: string;
   questions: QuizQuestion[];
+  resources?: LectureResource[];
 };
 
 type CourseModule = {
@@ -148,11 +154,169 @@ const securityModules: CourseModule[] = [
             answer: 2,
             explanation: "The lecture emphasizes that cybersecurity is a skill developed over time through hands-on practice and execution, not video watching alone."
           }
+        ],
+        resources: []
+      },
+      {
+        id: "lecture-2",
+        title: "Different CyberSecurity Job Profiles",
+        duration: "36:46",
+        videoUrl: "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/cyber-security/Module%201%20%E2%80%94%20Introduction/lecture%202.mp4",
+        questions: [
+          {
+            question: "What does a Computer Forensic Analyst specialize in?",
+            options: [
+              "Designing secure network systems and frameworks",
+              "Recovering and investigating material found in digital devices",
+              "Managing an organization's compliance with regulations",
+              "Coordinating response efforts during cyber incidents"
+            ],
+            answer: 1,
+            explanation: "The lecture describes a Computer Forensic Analyst, also called a digital forensics examiner, as specializing in the recovery and investigation of material found in digital devices."
+          },
+          {
+            question: "In which contexts does the lecture say the Computer Forensic Analyst role is crucial?",
+            options: [
+              "Only software development and testing",
+              "Legal contexts, corporate investigations, and cybersecurity incident response",
+              "Only cloud migration projects",
+              "Only network performance monitoring"
+            ],
+            answer: 1,
+            explanation: "The lecture specifically connects computer forensics with legal contexts, corporate investigations, and cybersecurity incident response."
+          },
+          {
+            question: "What is a key responsibility of a GRC Analyst?",
+            options: [
+              "Dissecting malicious software",
+              "Designing secure network systems",
+              "Ensuring policies and procedures align with regulations and managing risks",
+              "Recovering deleted files from digital devices"
+            ],
+            answer: 2,
+            explanation: "The GRC Analyst slide describes the role as ensuring policies and procedures align with regulations, managing risks, and maintaining compliance with standards and legal requirements."
+          },
+          {
+            question: "Which activity is associated with an Incident Responder in the lecture?",
+            options: [
+              "Investigating breaches and coordinating response efforts",
+              "Creating legal testimony from forensic findings only",
+              "Writing application source code",
+              "Managing employee payroll systems"
+            ],
+            answer: 0,
+            explanation: "The lecture states that an Incident Responder handles and mitigates cyber incidents by investigating breaches and coordinating response efforts."
+          },
+          {
+            question: "What does a Security Architect focus on according to the lecture?",
+            options: [
+              "Designing secure network systems and developing security policies and frameworks",
+              "Recovering evidence from digital devices",
+              "Analyzing only financial transactions",
+              "Creating reports for marketing campaigns"
+            ],
+            answer: 0,
+            explanation: "The lecture describes a Security Architect as someone who designs secure network systems and develops security policies and frameworks."
+          },
+          {
+            question: "What is the main focus of a Malware Analyst?",
+            options: [
+              "Managing regulatory compliance",
+              "Studying and dissecting malicious software to understand its behavior, origin, and impact",
+              "Designing corporate networks",
+              "Providing general IT help-desk support"
+            ],
+            answer: 1,
+            explanation: "The lecture explains that a Malware Analyst studies and dissects malicious software to understand its behavior, origin, and impact, and to develop detection and removal methods."
+          },
+          {
+            question: "Which activity is specifically mentioned under digital forensics documentation?",
+            options: [
+              "Maintaining detailed records of findings and processes to ensure evidence integrity",
+              "Deleting all investigation records after an incident",
+              "Replacing evidence with screenshots only",
+              "Publishing passwords in the final report"
+            ],
+            answer: 0,
+            explanation: "The lecture's digital forensics material identifies documentation as maintaining detailed records of findings and processes to ensure evidence integrity."
+          },
+          {
+            question: "What is one purpose of reporting in the forensic role described in the lecture?",
+            options: [
+              "Creating comprehensive reports for legal proceedings, internal investigations, or regulatory compliance",
+              "Removing all evidence from the investigation",
+              "Designing wireless networks",
+              "Writing malware samples"
+            ],
+            answer: 0,
+            explanation: "The lecture states that reporting can involve creating comprehensive reports for legal proceedings, internal investigations, or regulatory compliance."
+          },
+          {
+            question: "What does the lecture identify as one area where forensic analysts may provide expert testimony?",
+            options: [
+              "Court proceedings about the methods and findings of forensic analysis",
+              "Software sales meetings",
+              "Product advertising campaigns",
+              "Routine hardware procurement"
+            ],
+            answer: 0,
+            explanation: "The lecture lists legal testimony as providing expert testimony in court about the methods and findings of forensic analysis."
+          },
+          {
+            question: "Which of the following is listed as another cybersecurity job role in the lecture?",
+            options: [
+              "Malware Analyst",
+              "Graphic Designer",
+              "Database Sales Manager",
+              "Content Editor"
+            ],
+            answer: 0,
+            explanation: "The lecture's section on other cybersecurity job roles includes Malware Analyst along with roles such as Incident Responder and Security Architect."
+          }
+        ],
+        resources: [
+          {
+            title: "NIST NICE Cybersecurity Workforce Framework",
+            url: "https://www.nist.gov/itl/applied-cybersecurity/nice/nice-framework-resource-center"
+          },
+          {
+            title: "CISA Cybersecurity Career Resources",
+            url: "https://www.cisa.gov/careers"
+          },
+          {
+            title: "Cybersecurity Job Role Notes — SkillForge",
+            url: "https://www.nist.gov/itl/applied-cybersecurity/nice"
+          }
         ]
       }
     ]
   }
 ];
+
+const getLocalCompletedLessons = (courseId: string): number => {
+  if (typeof window === "undefined") return 0;
+
+  const moduleLectures =
+    courseId === "security"
+      ? securityModules.flatMap((module) => module.lectures)
+      : [];
+
+  return moduleLectures.filter((lecture) => {
+    const key = `skillforge_lecture_progress_${courseId}_${lecture.id}`;
+    return (
+      localStorage.getItem(`${key}_video`) === "true" ||
+      localStorage.getItem(`${key}_complete`) === "true"
+    );
+  }).length;
+};
+
+const getLocalCourseProgress = (course: Course): number => {
+  const completed = getLocalCompletedLessons(course.id);
+  return Math.min(
+    100,
+    Math.round((completed / Math.max(course.lessons, 1)) * 100),
+  );
+};
 
 const courses: Course[] = [
   {
@@ -348,6 +512,35 @@ function App() {
   const [learningCourse, setLearningCourse] = useState<Course | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [introOpen, setIntroOpen] = useState(false);
+  const introHistoryRef = useRef(false);
+
+  const openIntro = () => {
+    if (introOpen) return;
+    window.history.pushState({ skillforgeIntro: true }, "", window.location.href);
+    introHistoryRef.current = true;
+    setIntroOpen(true);
+  };
+
+  const closeIntro = () => {
+    if (introHistoryRef.current && window.history.state?.skillforgeIntro) {
+      introHistoryRef.current = false;
+      window.history.back();
+      return;
+    }
+    introHistoryRef.current = false;
+    setIntroOpen(false);
+  };
+
+  useEffect(() => {
+    const handleIntroBack = () => {
+      if (!introHistoryRef.current) return;
+      introHistoryRef.current = false;
+      setIntroOpen(false);
+    };
+
+    window.addEventListener("popstate", handleIntroBack);
+    return () => window.removeEventListener("popstate", handleIntroBack);
+  }, []);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
@@ -437,8 +630,9 @@ function App() {
     loadEnrollments();
   }, [user]);
 
-  // Load real progress for the user's first enrolled course so the
-  // homepage "Your Learning" card is never hard-coded to AWS/68%.
+  // Keep the homepage progress in sync with the Course Player/Dashboard.
+  // Local lecture completion updates immediately; backend progress is used
+  // when available and whichever value is higher is shown.
   useEffect(() => {
     const loadHomeLearningProgress = async () => {
       const token = localStorage.getItem("skillforge_token");
@@ -446,8 +640,15 @@ function App() {
         enrolledCourseIds.includes(course.id),
       );
 
-      if (!token || !firstCourse) {
+      if (!firstCourse) {
         setHomeLearningProgress(0);
+        return;
+      }
+
+      const localPercent = getLocalCourseProgress(firstCourse);
+      setHomeLearningProgress(localPercent);
+
+      if (!token) {
         return;
       }
 
@@ -462,7 +663,6 @@ function App() {
         );
 
         if (!response.ok) {
-          setHomeLearningProgress(0);
           return;
         }
 
@@ -472,19 +672,29 @@ function App() {
           (item: { passed?: boolean }) => item.passed === true,
         ).length;
 
-        setHomeLearningProgress(
-          Math.min(
-            100,
-            Math.round((completed / Math.max(firstCourse.lessons, 1)) * 100),
-          ),
+        const apiPercent = Math.min(
+          100,
+          Math.round((completed / Math.max(firstCourse.lessons, 1)) * 100),
         );
+
+        setHomeLearningProgress(Math.max(localPercent, apiPercent));
       } catch (error) {
         console.error("Homepage progress loading error:", error);
-        setHomeLearningProgress(0);
       }
     };
 
+    const refreshHomeProgress = () => {
+      void loadHomeLearningProgress();
+    };
+
     void loadHomeLearningProgress();
+    window.addEventListener("skillforge-progress-updated", refreshHomeProgress);
+    window.addEventListener("storage", refreshHomeProgress);
+
+    return () => {
+      window.removeEventListener("skillforge-progress-updated", refreshHomeProgress);
+      window.removeEventListener("storage", refreshHomeProgress);
+    };
   }, [enrolledCourseIds]);
 
   const scrollToSection = (id: string) => {
@@ -512,6 +722,11 @@ function App() {
     localStorage.removeItem("skillforge_user");
     localStorage.removeItem("skillforge_token");
     setUser(null);
+    setDashboardOpen(false);
+    setSelectedCourse(null);
+    setLearningCourse(null);
+    window.history.replaceState({}, "", window.location.pathname);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleAuth = (loggedInUser: User) => {
@@ -768,7 +983,15 @@ function App() {
       <DashboardPage
         user={user}
         enrolledCourseIds={enrolledCourseIds}
-        onBack={() => window.history.back()}
+        darkMode={darkMode}
+        onToggleTheme={() => setDarkMode((prev) => !prev)}
+        onBack={() => {
+          setDashboardOpen(false);
+          setSelectedCourse(null);
+          setLearningCourse(null);
+          window.history.replaceState({}, "", window.location.pathname);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
         onCourse={openCourse}
         onLearn={openLearning}
         onLogout={handleLogout}
@@ -780,8 +1003,18 @@ function App() {
     return (
       <CoursePlayer
         course={learningCourse}
+        darkMode={darkMode}
+        onToggleTheme={() => setDarkMode((prev) => !prev)}
         onBack={() => {
-          window.history.back();
+          // Course Player -> Course Overview (never close the course).
+          setLearningCourse(null);
+          setSelectedCourse(learningCourse);
+          window.history.replaceState(
+            { courseId: learningCourse.id },
+            "",
+            `#course=${encodeURIComponent(learningCourse.id)}`,
+          );
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       />
     );
@@ -789,12 +1022,14 @@ function App() {
 
   if (selectedCourse) {
     return (
-      <CourseDetails
+      <CourseOverviewPage
         course={selectedCourse}
         user={user}
         enrolled={enrolledCourseIds.includes(selectedCourse.id)}
         enrolledCourseIds={enrolledCourseIds}
         paymentLoading={paymentLoading}
+        darkMode={darkMode}
+        onToggleTheme={() => setDarkMode((prev) => !prev)}
         onPurchase={handlePurchase}
         onBack={() => {
           if (window.history.state?.courseId) {
@@ -918,7 +1153,7 @@ function App() {
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700"><span>✨</span> Learn skills that matter</div>
               <h1 className="max-w-xl text-[48px] font-black leading-[1.03] tracking-[-0.045em] text-[#0b1736] sm:text-[60px]">Build Real <span className="text-emerald-600">Skills</span> for a Better Future.</h1>
               <p className="mt-6 max-w-xl text-[17px] leading-7 text-slate-500">Learn practical IT and technology skills through structured courses, hands-on projects and real-world practice.</p>
-              <div className="mt-7 flex flex-wrap gap-3"><button onClick={() => scrollToSection("courses")} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/15 hover:bg-emerald-700">Explore Courses <ArrowRight size={17}/></button><button onClick={() => setIntroOpen(true)} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 hover:border-emerald-300"><Play size={16} className="fill-emerald-500 text-emerald-500"/> Watch Intro</button></div>
+              <div className="mt-7 flex flex-wrap gap-3"><button onClick={() => scrollToSection("courses")} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/15 hover:bg-emerald-700">Explore Courses <ArrowRight size={17}/></button><button onClick={openIntro} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 hover:border-emerald-300"><Play size={16} className="fill-emerald-500 text-emerald-500"/> Watch Intro</button></div>
             </div>
 
             <div className="relative hidden min-h-[390px] items-end justify-center lg:flex">
@@ -1033,7 +1268,7 @@ function App() {
                 key={course.id}
                 course={course}
                 enrolled={isPurchased}
-                onClick={() => isPurchased ? openLearning(course) : openCourse(course)}
+                onClick={() => openCourse(course)}
                 badge={
                   isPurchased
                     ? "Purchased"
@@ -1063,7 +1298,7 @@ function App() {
 
       {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
-      {introOpen && <Modal onClose={() => setIntroOpen(false)}><div className="w-full max-w-2xl text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50"><Play className="fill-emerald-600 text-emerald-600" size={28}/></div><h2 className="mt-6 text-3xl font-black text-[#0b1736]">Welcome to SkillForge</h2><p className="mx-auto mt-4 max-w-lg text-slate-500">Practical IT and technology learning with structured lessons, hands-on projects, quizzes and certificates.</p><button onClick={()=>{setIntroOpen(false);scrollToSection("courses")}} className="mt-7 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></Modal>}
+      {introOpen && <Modal onClose={closeIntro}><div className="w-full max-w-5xl"><div className="mb-5 pr-8"><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Welcome to SkillForge</p><h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Learn. Practice. Grow.</h2><p className="mt-2 text-sm text-slate-400">See how SkillForge works before you start learning.</p></div><div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"><video className="aspect-video w-full bg-black object-contain" src={`${import.meta.env.BASE_URL}skillforge-intro.mp4`} controls autoPlay playsInline preload="auto" onError={(event) => { console.error("SkillForge intro video failed to load:", event.currentTarget.error); }} /></div><div className="mt-5 flex flex-wrap justify-end gap-3"><button onClick={() => { closeIntro(); scrollToSection("courses"); }} className="rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></div></Modal>}
       </div>
     </>
   );
@@ -1075,6 +1310,8 @@ function App() {
 function DashboardPage({
   user,
   enrolledCourseIds,
+  darkMode,
+  onToggleTheme,
   onBack,
   onCourse,
   onLearn,
@@ -1082,6 +1319,8 @@ function DashboardPage({
 }: {
   user: User | null;
   enrolledCourseIds: string[];
+  darkMode: boolean;
+  onToggleTheme: () => void;
   onBack: () => void;
   onCourse: (course: Course) => void;
   onLearn: (course: Course) => void;
@@ -1118,15 +1357,27 @@ function DashboardPage({
             );
 
             if (!response.ok) return;
+            const localPercent = getLocalCourseProgress(course);
+
+            if (!response.ok) {
+              next[course.id] = localPercent;
+              return;
+            }
+
             const data = await response.json();
             const progress = Array.isArray(data.progress) ? data.progress : [];
             const completed = progress.filter(
               (item: { passed?: boolean }) => item.passed === true,
             ).length;
-            next[course.id] = Math.min(
+
+            const apiPercent = Math.min(
               100,
               Math.round((completed / Math.max(course.lessons, 1)) * 100),
             );
+
+            // Keep the UI in sync immediately with the course player.
+            // If the backend has a higher value, keep that value.
+            next[course.id] = Math.max(localPercent, apiPercent);
           } catch (error) {
             console.error(`Progress loading error for ${course.id}:`, error);
           }
@@ -1138,6 +1389,18 @@ function DashboardPage({
     };
 
     void loadProgress();
+
+    const refreshProgress = () => {
+      void loadProgress();
+    };
+
+    window.addEventListener("skillforge-progress-updated", refreshProgress);
+    window.addEventListener("storage", refreshProgress);
+
+    return () => {
+      window.removeEventListener("skillforge-progress-updated", refreshProgress);
+      window.removeEventListener("storage", refreshProgress);
+    };
   }, [enrolledCourseIds]);
 
   const totalProgress = enrolledCourses.length
@@ -1156,7 +1419,99 @@ function DashboardPage({
   const [activeTab, setActiveTab] = useState<"dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support">("dashboard");
 
   return (
-    <div className="min-h-screen bg-[#f7faf8] text-[#0b1736]">
+    <div className="skillforge-dashboard min-h-screen bg-[#f7faf8] text-[#0b1736]">
+<style>{`
+html.dark .skillforge-dashboard,
+html.dark .skillforge-course-player {
+  background: #050b14 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-dashboard .bg-white,
+html.dark .skillforge-course-player .bg-white,
+html.dark .skillforge-dashboard .bg-white\\/95,
+html.dark .skillforge-course-player .bg-white\\/95,
+html.dark .skillforge-dashboard .bg-white\\/80,
+html.dark .skillforge-course-player .bg-white\\/80 {
+  background-color: #0f172a !important;
+}
+
+html.dark .skillforge-dashboard .bg-slate-50,
+html.dark .skillforge-dashboard .bg-slate-50\\/60,
+html.dark .skillforge-course-player .bg-slate-50,
+html.dark .skillforge-course-player .bg-slate-50\\/70 {
+  background-color: #111c2d !important;
+}
+
+html.dark .skillforge-dashboard [class*="bg-[#f7faf8]"],
+html.dark .skillforge-course-player [class*="bg-[#f7f8fc]"] {
+  background-color: #050b14 !important;
+}
+
+html.dark .skillforge-dashboard .text-\\[\\#0b1736\\],
+html.dark .skillforge-course-player .text-\\[\\#0b1736\\],
+html.dark .skillforge-dashboard .text-slate-900,
+html.dark .skillforge-course-player .text-slate-900,
+html.dark .skillforge-dashboard .text-slate-700,
+html.dark .skillforge-course-player .text-slate-700,
+html.dark .skillforge-dashboard .text-slate-600,
+html.dark .skillforge-course-player .text-slate-600 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-dashboard .text-slate-500,
+html.dark .skillforge-dashboard .text-slate-400,
+html.dark .skillforge-course-player .text-slate-500,
+html.dark .skillforge-course-player .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark .skillforge-dashboard .border-slate-200,
+html.dark .skillforge-dashboard .border-slate-300,
+html.dark .skillforge-course-player .border-slate-200,
+html.dark .skillforge-course-player .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+html.dark .skillforge-dashboard .border-slate-100,
+html.dark .skillforge-course-player .border-slate-100 {
+  border-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .bg-slate-100,
+html.dark .skillforge-course-player .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .bg-emerald-50,
+html.dark .skillforge-course-player .bg-emerald-50 {
+  background-color: rgba(16,185,129,.12) !important;
+}
+
+html.dark .skillforge-dashboard .text-emerald-700,
+html.dark .skillforge-dashboard .text-emerald-600,
+html.dark .skillforge-course-player .text-emerald-700,
+html.dark .skillforge-course-player .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+html.dark .skillforge-dashboard header,
+html.dark .skillforge-course-player header {
+  background-color: rgba(15,23,42,.96) !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .dashboard-hero {
+  background: linear-gradient(135deg, #0b1b2b 0%, #0f172a 55%, #0a2230 100%) !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
+  background-color: #0b1220 !important;
+  border-color: #334155 !important;
+}
+`}</style>
+
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-[1380px] items-center justify-between px-5 lg:px-8">
           <button
@@ -1178,6 +1533,24 @@ function DashboardPage({
           </button>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onBack}
+              className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:flex"
+            >
+              <ArrowLeft size={16} />
+              Back to Home
+            </button>
+
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={darkMode ? "Light Mode" : "Dark Mode"}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 sm:block">
               Hi, <span className="text-emerald-600">{user?.name ?? "Student"}</span>
             </div>
@@ -1211,7 +1584,7 @@ function DashboardPage({
         <main>
           {activeTab === "dashboard" ? (
             <>
-          <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-6 shadow-sm sm:p-8">
+          <section className="dashboard-hero rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-6 shadow-sm sm:p-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">
@@ -1224,7 +1597,7 @@ function DashboardPage({
                   Continue your courses, track your progress and complete your next learning milestone.
                 </p>
               </div>
-              <div className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
+              <div className="dashboard-streak rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
                     <Flame size={20} />
@@ -1543,12 +1916,14 @@ function ProgressLine({ label, value }: { label: string; value: string }) {
 
 /* ================= COURSE DETAILS ================= */
 
-function CourseDetails({
+function CourseOverviewPage({
   course,
   user,
   enrolled,
   enrolledCourseIds,
   paymentLoading,
+  darkMode,
+  onToggleTheme,
   onPurchase,
   onBack,
   onStart,
@@ -1558,6 +1933,8 @@ function CourseDetails({
   enrolled: boolean;
   enrolledCourseIds: string[];
   paymentLoading: boolean;
+  darkMode: boolean;
+  onToggleTheme: () => void;
   onPurchase: (courseIds: string[]) => void;
   onBack: () => void;
   onStart: () => void;
@@ -1568,171 +1945,595 @@ function CourseDetails({
     (item) => item.id !== course.id && !enrolledCourseIds.includes(item.id),
   );
 
-  const comboSelected = Boolean(comboCourseId);
+  const overviewContent: Record<
+    string,
+    {
+      intro: string;
+      benefits: string[];
+      skills: string[];
+      audience: string[];
+      modules: { title: string; description: string; topics: string }[];
+    }
+  > = {
+    linux: {
+      intro:
+        "A practical Linux administration path covering the command line, files, permissions, users, packages, processes and networking. The curriculum is designed to build confidence working with Linux systems in real IT environments.",
+      benefits: [
+        "Build confidence with Linux command-line administration.",
+        "Understand users, groups, permissions and system resources.",
+        "Practice everyday server and troubleshooting workflows.",
+        "Create a foundation for cloud, DevOps and system administration.",
+      ],
+      skills: [
+        "Linux CLI",
+        "File system",
+        "Permissions",
+        "Users & Groups",
+        "Processes",
+        "Networking",
+      ],
+      audience: [
+        "IT support professionals",
+        "Aspiring Linux administrators",
+        "Cloud and DevOps beginners",
+        "Students building system administration skills",
+      ],
+      modules: [
+        { title: "Linux Fundamentals", description: "Understand Linux, distributions, terminal usage and the basic administration workflow.", topics: "Linux basics • terminal • commands • shell navigation" },
+        { title: "File System & Permissions", description: "Work with Linux directories, files, ownership and permission controls.", topics: "Filesystem • paths • chmod • chown • permissions" },
+        { title: "Users & Groups", description: "Manage local users and groups and understand access control in a Linux environment.", topics: "Users • groups • sudo • account management" },
+        { title: "Package Management", description: "Install, update and manage software packages using standard Linux package tools.", topics: "Repositories • packages • updates • software management" },
+        { title: "Process Management", description: "Monitor and control running processes and understand system resource usage.", topics: "Processes • services • jobs • resource monitoring" },
+        { title: "Networking", description: "Learn the Linux networking commands and concepts used during administration and troubleshooting.", topics: "IP • interfaces • DNS • connectivity • troubleshooting" },
+      ],
+    },
+    aws: {
+      intro:
+        "An AWS foundation course focused on cloud concepts and the core services used to build and manage cloud infrastructure. It introduces practical AWS workflows without exposing paid course lectures publicly.",
+      benefits: [
+        "Understand the fundamentals of cloud computing and AWS.",
+        "Learn how core AWS services fit together.",
+        "Build a foundation for cloud engineering and administration.",
+        "Practice concepts that can be extended into real cloud projects.",
+      ],
+      skills: [
+        "AWS fundamentals",
+        "EC2",
+        "S3",
+        "IAM",
+        "VPC",
+        "CloudWatch",
+      ],
+      audience: [
+        "Cloud computing beginners",
+        "IT support professionals moving to cloud",
+        "Aspiring AWS / Cloud Engineers",
+        "Students preparing for hands-on cloud projects",
+      ],
+      modules: [
+        { title: "Introduction to AWS", description: "Understand cloud computing, AWS regions, availability zones and the AWS service model.", topics: "Cloud concepts • regions • AZs • AWS console" },
+        { title: "Understanding EC2", description: "Learn the role of virtual servers and the main concepts behind EC2-based workloads.", topics: "Instances • AMIs • storage • security groups" },
+        { title: "Amazon S3 Basics", description: "Understand object storage and how S3 is used for files, backups and application data.", topics: "Buckets • objects • storage classes • access" },
+        { title: "IAM Fundamentals", description: "Learn identities, users, roles and permissions for controlling access to AWS resources.", topics: "Users • groups • policies • roles • least privilege" },
+        { title: "VPC Fundamentals", description: "Understand the networking foundation used to isolate and connect AWS resources.", topics: "VPC • subnets • routing • internet access" },
+        { title: "CloudWatch", description: "Learn the basics of monitoring AWS resources and observing application or infrastructure activity.", topics: "Metrics • logs • alarms • monitoring" },
+      ],
+    },
+    networking: {
+      intro:
+        "A practical networking foundation covering how devices communicate, how IP networks work and how common network services operate. It also introduces structured troubleshooting workflows.",
+      benefits: [
+        "Understand how modern computer networks communicate.",
+        "Learn the core protocols used in day-to-day IT support.",
+        "Develop a systematic approach to network troubleshooting.",
+        "Build a foundation for networking, cloud and security roles.",
+      ],
+      skills: [
+        "OSI & TCP/IP",
+        "IP addressing",
+        "DNS",
+        "DHCP",
+        "Network protocols",
+        "Troubleshooting",
+      ],
+      audience: [
+        "Desktop / IT support beginners",
+        "Networking students",
+        "Cloud beginners",
+        "Aspiring network administrators",
+      ],
+      modules: [
+        { title: "Networking Basics", description: "Learn the purpose of networks, devices and common network communication models.", topics: "LAN • WAN • switches • routers • clients" },
+        { title: "OSI Model", description: "Break network communication into layers and use the model to understand problems.", topics: "7 layers • encapsulation • troubleshooting approach" },
+        { title: "TCP/IP", description: "Understand the TCP/IP model and the protocols commonly used across enterprise networks.", topics: "TCP • UDP • IP • ports • protocols" },
+        { title: "IP Addressing", description: "Learn IPv4 addressing, subnet concepts and how devices are identified on a network.", topics: "IPv4 • subnetting • gateway • addressing" },
+        { title: "DNS & DHCP", description: "Understand how hosts receive network configuration and resolve names to addresses.", topics: "DNS • DHCP • leases • name resolution" },
+        { title: "Network Troubleshooting", description: "Use a structured process and common commands to diagnose connectivity issues.", topics: "ping • tracert • ipconfig • nslookup • troubleshooting" },
+      ],
+    },
+    windows: {
+      intro:
+        "A practical Windows administration course covering system administration, Active Directory, Group Policy, users, troubleshooting and security. It is designed around the tasks commonly encountered while managing Windows environments.",
+      benefits: [
+        "Strengthen Windows administration fundamentals.",
+        "Understand Active Directory and centralized user management.",
+        "Learn practical troubleshooting workflows.",
+        "Build a foundation for desktop and system administration work.",
+      ],
+      skills: [
+        "Windows administration",
+        "Active Directory",
+        "Group Policy",
+        "User management",
+        "Troubleshooting",
+        "System security",
+      ],
+      audience: [
+        "Desktop support professionals",
+        "IT support engineers",
+        "Aspiring Windows administrators",
+        "Students preparing for enterprise IT environments",
+      ],
+      modules: [
+        { title: "Windows Administration", description: "Learn the core administrative tasks used to manage Windows systems.", topics: "System settings • services • configuration • administration" },
+        { title: "Active Directory", description: "Understand domains, users, groups and the role of Active Directory in an organization.", topics: "AD • domains • users • groups • organizational structure" },
+        { title: "Group Policy", description: "Learn how centralized policies can control Windows users and computers.", topics: "GPO • policies • configuration • centralized management" },
+        { title: "User Management", description: "Work with accounts, access and permissions in managed Windows environments.", topics: "Accounts • groups • permissions • access control" },
+        { title: "Windows Troubleshooting", description: "Follow a structured approach to diagnose common Windows system problems.", topics: "Diagnostics • logs • startup • performance • connectivity" },
+        { title: "System Security", description: "Understand practical Windows security controls and secure administration habits.", topics: "Security settings • updates • endpoint protection • hardening" },
+      ],
+    },
+    security: {
+      intro:
+        "A broad cybersecurity learning path moving from fundamentals into application security, network defense, cryptography, governance, security operations, incident investigation, SIEM and job readiness.",
+      benefits: [
+        "Understand core cybersecurity principles and terminology.",
+        "Explore offensive and defensive security concepts.",
+        "Learn how security operations and incident investigation work.",
+        "Build a structured foundation for further cybersecurity practice.",
+      ],
+      skills: [
+        "Information security",
+        "Linux & Python",
+        "Network defense",
+        "Cryptography",
+        "SOC",
+        "SIEM / Splunk",
+      ],
+      audience: [
+        "Cybersecurity beginners",
+        "IT professionals moving into security",
+        "Students building security fundamentals",
+        "Learners preparing for hands-on security practice",
+      ],
+      modules: [
+        { title: "Module 1 — Introduction", description: "Start with cybersecurity concepts, threats, attack surfaces, CIA Triad and security fundamentals.", topics: "Threats • malware • phishing • CIA Triad • security basics" },
+        { title: "Module 2 — Linux & Python Fundamentals", description: "Build the Linux and Python foundation useful for security learning and automation.", topics: "Linux • command line • Python basics • security workflow" },
+        { title: "Module 3 — Foundations of Information Security", description: "Understand foundational information security concepts, controls and security practices.", topics: "Security principles • controls • risk • protection" },
+        { title: "Module 4 — Application Security and Penetration Testing", description: "Explore application security concepts and the fundamentals of penetration testing.", topics: "Web security • vulnerabilities • testing methodology • exploitation concepts" },
+        { title: "Module 5/6 — Network Defense & Penetration Testing", description: "Study network attack and defense concepts and how security testing is approached.", topics: "Network security • defense • attacks • penetration testing" },
+        { title: "Module 7 — Data Protection and Cryptography", description: "Learn how cryptographic concepts help protect information and communications.", topics: "Encryption • hashing • keys • data protection" },
+        { title: "Module 8 — Governance, Risk & Compliance", description: "Understand the organizational side of cybersecurity, including risk and compliance.", topics: "GRC • risk • policies • compliance" },
+        { title: "Module 9 — Securing Emerging Technologies", description: "Explore security considerations for newer technologies and modern environments.", topics: "Emerging tech • cloud considerations • modern attack surface" },
+        { title: "Module 10 — Security Operations Center", description: "Understand the role of a SOC and the workflow used to monitor security events.", topics: "SOC • monitoring • alerts • triage • response" },
+        { title: "Module 11 — RCA & Cyber Breach Investigation", description: "Learn the concepts behind root-cause analysis and investigating security incidents.", topics: "RCA • incident investigation • evidence • breach analysis" },
+        { title: "Module 12 — SIEM Architecture & Hands-On Splunk", description: "Understand SIEM architecture and how Splunk can be used for security monitoring.", topics: "SIEM • Splunk • logs • correlation • investigation" },
+        { title: "Module 13 — Job Ready Module", description: "Bring the learning together with a job-focused module covering practical preparation.", topics: "Job readiness • practical revision • security career preparation" },
+      ],
+    },
+    sysadmin: {
+      intro:
+        "A practical system administration path covering server management, monitoring, backup and recovery, automation fundamentals and troubleshooting across modern IT environments.",
+      benefits: [
+        "Understand the responsibilities of a system administrator.",
+        "Learn practical server management and monitoring concepts.",
+        "Build structured backup, recovery and troubleshooting habits.",
+        "Create a foundation for system administration and cloud operations.",
+      ],
+      skills: [
+        "System administration",
+        "Server management",
+        "Monitoring",
+        "Backup & recovery",
+        "Automation",
+        "Troubleshooting",
+      ],
+      audience: [
+        "IT support engineers",
+        "Aspiring system administrators",
+        "Infrastructure beginners",
+        "Learners moving toward cloud operations",
+      ],
+      modules: [
+        { title: "System Administration", description: "Understand the role of a system administrator and the core tasks involved in maintaining systems.", topics: "Administration • configuration • maintenance • access" },
+        { title: "Server Management", description: "Learn the fundamentals of managing server workloads and keeping systems organized.", topics: "Servers • services • configuration • maintenance" },
+        { title: "Monitoring", description: "Understand how system and service monitoring helps identify issues early.", topics: "Metrics • logs • alerts • resource monitoring" },
+        { title: "Backup & Recovery", description: "Learn the purpose of backups and the concepts behind recovering systems and data.", topics: "Backup strategy • recovery • data protection" },
+        { title: "Automation Basics", description: "Explore how repetitive administration tasks can be simplified through automation.", topics: "Scripts • repetitive tasks • automation concepts" },
+        { title: "Troubleshooting", description: "Build a structured troubleshooting approach for system and infrastructure problems.", topics: "Problem isolation • logs • diagnostics • resolution" },
+      ],
+    },
+  };
+
+  const content = overviewContent[course.id] ?? {
+    intro: course.description,
+    benefits: ["Structured learning", "Practical concepts", "Quizzes and assessment", "Certificate on completion"],
+    skills: course.modules.slice(0, 6),
+    audience: ["Students", "IT learners", "Career switchers"],
+    modules: course.modules.map((module) => ({
+      title: module,
+      description: "This module is part of the course curriculum.",
+      topics: "Lessons • practical concepts • assessment",
+    })),
+  };
 
   return (
-    <div className="skillforge-light min-h-screen bg-[#f7faf8] text-slate-900">
-      <header className="border-b border-slate-200 bg-white/95">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
+    <div className="min-h-screen bg-[#f7fbf9] text-[#0b1736] transition-colors dark:bg-[#07110e] dark:text-slate-100">
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-[#0b1512]/95">
+        <div className="mx-auto flex h-[76px] max-w-[1380px] items-center justify-between gap-4 px-5 lg:px-8">
           <button
+            type="button"
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-400 transition hover:text-lime-400"
+            className="flex shrink-0 items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400"
           >
             <ArrowLeft size={18} />
-            Back to Courses
+            <span className="hidden sm:inline">Back to Courses</span>
+            <span className="sm:hidden">Back</span>
           </button>
 
-          <div className="text-xl font-black">
-            Skill<span className="text-lime-400">Forge</span>
-          </div>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            title={darkMode ? "Light Mode" : "Dark Mode"}
+          >
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
       </header>
 
       <main>
-        <section className="relative overflow-hidden border-b border-white/10">
-          <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-lime-400/10 blur-[130px]" />
+        {/* HERO — same visual language as the main SkillForge website */}
+        <section className="relative overflow-hidden border-b border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-emerald-100/30 dark:border-emerald-900/40 dark:from-[#07110e] dark:via-[#0a1814] dark:to-[#0c241b]">
+          <div className="pointer-events-none absolute -left-24 top-0 h-80 w-80 rounded-full bg-emerald-200/40 blur-3xl dark:bg-emerald-900/20" />
+          <div className="pointer-events-none absolute right-0 top-20 h-96 w-96 rounded-full bg-emerald-100/70 blur-3xl dark:bg-emerald-800/10" />
 
-          <div className="relative mx-auto max-w-6xl px-6 py-20">
-            <div className="grid gap-12 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="relative mx-auto max-w-[1380px] px-5 py-12 lg:px-8 lg:py-16">
+            <div className="grid gap-10 lg:grid-cols-[1fr_390px] lg:items-center">
               <div>
-                <span className="rounded-full border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-lime-400">
-                  {course.category}
-                </span>
-
-                <div className="mt-7 text-7xl">{course.emoji}</div>
-
-                <h1 className="mt-6 text-4xl font-black sm:text-6xl">
-                  {course.title}
-                </h1>
-
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-400">
-                  {course.description}
-                </p>
-
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <span className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400">
-                    {course.lessons} Lessons
+                <div className="flex flex-wrap gap-3">
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {course.category}
                   </span>
-                  <span className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400">
-                    {course.duration}
-                  </span>
-                  <span className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-400">
+                  <span className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
                     {course.level}
                   </span>
                 </div>
+
+                <div className="mt-7 text-6xl sm:text-7xl">{course.emoji}</div>
+
+                <h1 className="mt-5 max-w-4xl text-[42px] font-black leading-[1.03] tracking-[-0.045em] text-[#0b1736] sm:text-[58px] dark:text-white">
+                  {course.title}
+                </h1>
+
+                <p className="mt-5 max-w-3xl text-[16px] leading-7 text-slate-500 sm:text-[17px] dark:text-slate-400">
+                  {course.description}
+                </p>
+
+                <div className="mt-7 flex flex-wrap gap-3">
+                  {[
+                    ["Lessons", String(course.lessons)],
+                    ["Duration", course.duration],
+                    ["Modules", String(content.modules.length)],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/80"
+                    >
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                      <p className="mt-1 font-black text-[#0b1736] dark:text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="rounded-3xl border border-lime-400/20 bg-[#070907] p-7 shadow-2xl">
-                <p className="text-xs uppercase tracking-[0.2em] text-lime-400">
+              <aside className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_25px_70px_rgba(15,118,110,0.10)] dark:border-emerald-900/50 dark:bg-[#0d1915] dark:shadow-none">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
                   {enrolled ? "Course Unlocked" : "Course Access"}
                 </p>
 
                 {enrolled ? (
                   <>
-                    <div className="mt-5 flex items-end justify-between">
-                      <span className="text-4xl font-black">0%</span>
-                      <span className="text-sm text-lime-400">Enrolled</span>
-                    </div>
-
-                    <div className="mt-5 h-2 rounded-full bg-white/5">
-                      <div className="h-full w-0 rounded-full bg-lime-400" />
-                    </div>
-
+                    <h2 className="mt-2 text-2xl font-black text-[#0b1736] dark:text-white">
+                      You're ready to learn.
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      Your lectures, quizzes and learning progress are unlocked for this course.
+                    </p>
                     <button
+                      type="button"
                       onClick={onStart}
-                      className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300"
+                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700"
                     >
-                      <Play size={18} />
-                      Start Learning
+                      <Play size={18} className="fill-white" /> Continue Learning
                     </button>
                   </>
                 ) : (
                   <>
-                    <div className="mt-5 flex items-end justify-between">
-                      <span className="text-3xl font-black">₹799</span>
-                      <span className="text-sm text-gray-500">One-time</span>
+                    <div className="mt-3 flex items-end gap-2">
+                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">₹799</span>
+                      <span className="pb-1 text-sm text-slate-400">one-time</span>
                     </div>
 
-                    <p className="mt-3 text-sm leading-6 text-gray-500">
-                      Purchase this course to unlock its learning content.
+                    <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      Explore the complete syllabus publicly. Purchase the course to unlock the actual lectures, videos, quizzes and progress tracking.
                     </p>
 
                     <button
+                      type="button"
                       onClick={() => onPurchase([course.id])}
                       disabled={paymentLoading || !user}
-                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <CreditCard size={18} />
                       {paymentLoading ? "Processing..." : user ? "Buy Course — ₹799" : "Login to Purchase"}
                     </button>
 
-                    <div className="mt-6 border-t border-white/10 pt-5">
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-400">
-                        2 Course Combo
+                    {!user && (
+                      <p className="mt-3 text-center text-xs text-slate-400">
+                        Login is required only for purchase and course access.
                       </p>
-                      <p className="mt-2 text-sm text-gray-500">
-                        Select another course and get both for ₹1,499.
-                      </p>
+                    )}
 
-                      <select
-                        value={comboCourseId}
-                        onChange={(e) => setComboCourseId(e.target.value)}
-                        disabled={paymentLoading || !user || comboOptions.length === 0}
-                        className="mt-4 w-full rounded-xl border border-white/10 bg-[#0b0e0b] px-4 py-3 text-sm text-white outline-none focus:border-lime-400/50 disabled:opacity-50"
-                      >
-                        <option value="">Choose second course</option>
-                        {comboOptions.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.emoji} {item.title}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        onClick={() => onPurchase([course.id, comboCourseId])}
-                        disabled={paymentLoading || !user || !comboSelected}
-                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-lime-400/30 py-3 font-bold text-lime-300 transition hover:bg-lime-400/10 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <CreditCard size={17} />
-                        Buy Combo — ₹1,499
-                      </button>
-                    </div>
+                    {comboOptions.length > 0 && (
+                      <div className="mt-6 border-t border-slate-100 pt-5 dark:border-slate-800">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                          2 Course Combo
+                        </p>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                          Choose another course and get both for ₹1,499.
+                        </p>
+                        <select
+                          value={comboCourseId}
+                          onChange={(e) => setComboCourseId(e.target.value)}
+                          disabled={paymentLoading || !user}
+                          className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-400 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        >
+                          <option value="">Choose second course</option>
+                          {comboOptions.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.emoji} {item.title}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => onPurchase([course.id, comboCourseId])}
+                          disabled={paymentLoading || !user || !comboCourseId}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 py-3 font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                        >
+                          <CreditCard size={17} /> Buy Combo — ₹1,499
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
+              </aside>
+            </div>
+          </div>
+        </section>
 
-                {!user && !enrolled && (
-                  <p className="mt-4 flex items-center gap-2 text-xs text-gray-600">
-                    <Lock size={13} /> Login is required for secure course access.
+        {/* OVERVIEW */}
+        <section className="mx-auto max-w-[1380px] px-5 py-16 lg:px-8">
+          <div className="max-w-4xl">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+              Course Overview
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-[#0b1736] sm:text-4xl dark:text-white">
+              What will you learn?
+            </h2>
+            <p className="mt-5 text-sm leading-8 text-slate-500 sm:text-base dark:text-slate-400">
+              {content.intro}
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              [BookOpen, "Structured Curriculum", "A clear learning path from fundamentals to practical concepts."],
+              [PlayCircle, "Practical Learning", "Course lectures and demonstrations are available after purchase."],
+              [Award, "Quizzes & Certificate", "Assess your learning and complete the course requirements."],
+              [TrendingUp, "Career Foundation", "Build skills that can support further projects and career learning."],
+            ].map(([Icon, title, description]) => {
+              const FeatureIcon = Icon as typeof BookOpen;
+              return (
+                <div
+                  key={title as string}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-emerald-800"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                    <FeatureIcon size={20} />
+                  </div>
+                  <h3 className="mt-5 font-bold text-[#0b1736] dark:text-white">{title as string}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {description as string}
                   </p>
-                )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* SKILLS */}
+        <section className="border-y border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-[#0a1512]">
+          <div className="mx-auto max-w-[1380px] px-5 py-16 lg:px-8">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+              Skills Covered
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-[#0b1736] sm:text-4xl dark:text-white">
+              What you'll be able to work with
+            </h2>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              {content.skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-800 dark:hover:text-emerald-300"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* DETAILED CURRICULUM */}
+        <section className="mx-auto max-w-[1380px] px-5 py-16 lg:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+                Course Curriculum
+              </p>
+              <h2 className="mt-3 text-3xl font-black text-[#0b1736] sm:text-4xl dark:text-white">
+                What will be taught?
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500 dark:text-slate-400">
+                Every module below is visible to everyone. Module names and topic previews are public; the actual lectures and assessments remain locked until the course is purchased.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-slate-400">
+              {content.modules.length} modules • {course.lessons} lessons
+            </span>
+          </div>
+
+          <div className="mt-9 space-y-3">
+            {content.modules.map((module, index) => (
+              <div
+                key={module.title}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-emerald-800"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-sm font-black text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-[#0b1736] dark:text-white">{module.title}</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                          {module.description}
+                        </p>
+                        <p className="mt-3 text-xs font-semibold text-slate-400">
+                          Topics: <span className="text-slate-500 dark:text-slate-300">{module.topics}</span>
+                        </p>
+                      </div>
+
+                      {enrolled ? (
+                        <CheckCircle2 className="mt-1 shrink-0 text-emerald-600 dark:text-emerald-400" size={18} />
+                      ) : (
+                        <Lock className="mt-1 shrink-0 text-slate-300 dark:text-slate-600" size={18} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* BENEFITS + WHO IS IT FOR */}
+        <section className="border-y border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-[#0a1512]">
+          <div className="mx-auto grid max-w-[1380px] gap-6 px-5 py-16 lg:grid-cols-2 lg:px-8">
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+                Benefits
+              </p>
+              <h2 className="mt-3 text-2xl font-black text-[#0b1736] sm:text-3xl dark:text-white">
+                Why take this course?
+              </h2>
+
+              <div className="mt-7 space-y-4">
+                {content.benefits.map((benefit) => (
+                  <div key={benefit} className="flex gap-3">
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" size={18} />
+                    <p className="text-sm leading-6 text-slate-600 dark:text-slate-400">{benefit}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+                Who is this for?
+              </p>
+              <h2 className="mt-3 text-2xl font-black text-[#0b1736] sm:text-3xl dark:text-white">
+                Is this course right for you?
+              </h2>
+
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                {content.audience.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300"
+                  >
+                    {item}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">
-            Course Content
-          </p>
+        {/* FINAL CTA */}
+        <section className="mx-auto max-w-[1380px] px-5 py-16 lg:px-8">
+          <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/60 p-8 shadow-sm sm:p-10 dark:border-emerald-900/50 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/20">
+            <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+                  Start Learning
+                </p>
+                <h2 className="mt-3 text-2xl font-black text-[#0b1736] sm:text-3xl dark:text-white">
+                  Ready to start {course.title}?
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 dark:text-slate-400">
+                  The complete curriculum is visible above. Purchase the course to unlock the actual lectures, videos, quizzes and progress tracking.
+                </p>
+              </div>
 
-          <h2 className="mt-3 text-3xl font-black">What you'll learn</h2>
-
-          <div className="mt-8 space-y-3">
-            {course.modules.map((module, index) => (
-              <button
-                key={module}
-                onClick={enrolled ? onStart : () => onPurchase([course.id])}
-                className="flex w-full items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-5 text-left transition hover:border-lime-400/30 hover:bg-lime-400/[0.03]"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400/10 text-sm font-bold text-lime-400">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="font-semibold">{module}</span>
-                <ChevronRight size={18} className="ml-auto text-gray-600" />
-              </button>
-            ))}
+              {enrolled ? (
+                <button
+                  type="button"
+                  onClick={onStart}
+                  className="shrink-0 rounded-xl bg-emerald-600 px-7 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700"
+                >
+                  Continue Learning
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onPurchase([course.id])}
+                  disabled={paymentLoading || !user}
+                  className="shrink-0 rounded-xl bg-emerald-600 px-7 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {paymentLoading ? "Processing..." : user ? "Unlock Course — ₹799" : "Login to Purchase"}
+                </button>
+              )}
+            </div>
           </div>
         </section>
+
+        <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#08110e]">
+          <div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+            <div>
+              <div className="font-black text-[#0b1736] dark:text-white">
+                Skill<span className="text-emerald-600 dark:text-emerald-400">Forge</span>
+              </div>
+              <p className="mt-1 text-xs">Learn • Practice • Grow</p>
+            </div>
+            <p>© 2026 SkillForge. All rights reserved.</p>
+          </div>
+        </footer>
       </main>
     </div>
   );
@@ -1741,13 +2542,22 @@ function CourseDetails({
 /* ================= COURSE PLAYER ================= */
 
 const R2_LECTURE_1_URL = "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/cyber-security/Module%201%20%E2%80%94%20Introduction/lecture-1.mp4";
+const R2_LECTURE_2_URL = "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/cyber-security/Module%201%20%E2%80%94%20Introduction/lecture%202.mp4";
 
 function SkillForgeVideoPlayer({
   src,
   title,
+  lectureNumber,
+  moduleLabel,
+  autoPlay = false,
+  onEnded,
 }: {
   src: string;
   title: string;
+  lectureNumber?: number;
+  moduleLabel?: string;
+  autoPlay?: boolean;
+  onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
@@ -1839,13 +2649,18 @@ function SkillForgeVideoPlayer({
         className="h-full w-full object-contain bg-black"
         src={src}
         playsInline
+        autoPlay={autoPlay}
         preload="metadata"
         controls={false}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
         onPlay={() => { setPlaying(true); showControls(); }}
         onPause={() => { setPlaying(false); setControlsVisible(true); }}
-        onEnded={() => { setPlaying(false); setControlsVisible(true); }}
+        onEnded={() => {
+          setPlaying(false);
+          setControlsVisible(true);
+          onEnded?.();
+        }}
         onVolumeChange={(event) => {
           setVolume(event.currentTarget.volume);
           setMuted(event.currentTarget.muted);
@@ -1861,8 +2676,8 @@ function SkillForgeVideoPlayer({
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-400">SkillForge</p>
           <p className="mt-0.5 max-w-[70vw] truncate text-sm font-semibold text-white">{title}</p>
         </div>
-        <div className="rounded-full border border-lime-400/20 bg-black/45 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-lime-300 backdrop-blur-md">
-          Lecture 1
+        <div className="rounded-full border border-lime-400/20 bg-black/45 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-lime-300 backdrop-blur-md">
+          {moduleLabel ?? `Module ${lectureNumber ?? 1}`}
         </div>
       </div>
 
@@ -1980,185 +2795,588 @@ function SkillForgeVideoPlayer({
 
 function CoursePlayer({
   course,
+  darkMode,
+  onToggleTheme,
   onBack,
 }: {
   course: Course;
+  darkMode: boolean;
+  onToggleTheme: () => void;
   onBack: () => void;
 }) {
   const modules = course.id === "security" ? securityModules : [];
-  const lecture = modules[0]?.lectures[0];
-  const progressKey = `skillforge_lecture_progress_${course.id}_${lecture?.id ?? ""}`;
-  const [videoMarkedComplete, setVideoMarkedComplete] = useState(() =>
-    localStorage.getItem(`${progressKey}_video`) === "true",
-  );
+  const [activeModuleIndex, setActiveModuleIndex] = useState(0);
+  const [activeLectureIndex, setActiveLectureIndex] = useState(0);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [infoTab, setInfoTab] = useState<"description" | "resources">("description");
+
+  const activeModule = modules[activeModuleIndex];
+  const lecture = activeModule?.lectures[activeLectureIndex];
+
+  const [videoMarkedComplete, setVideoMarkedComplete] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
-  if (!lecture) {
-    return (
-      <div className="min-h-screen bg-[#030603] text-white">
-        <header className="border-b border-white/10 bg-[#030603]/95">
-          <div className="mx-auto flex h-20 max-w-7xl items-center px-6">
-            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-lime-400">
-              <ArrowLeft size={18} /> Back to Course
-            </button>
-          </div>
-        </header>
-        <main className="mx-auto max-w-4xl px-6 py-20 text-center">
-          <Lock className="mx-auto text-gray-600" size={48} />
-          <h1 className="mt-5 text-3xl font-black">Lecture content coming soon</h1>
-          <p className="mt-3 text-gray-500">This course player will be populated as each lecture video is added.</p>
-        </main>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!lecture) return;
+    const key = `skillforge_lecture_progress_${course.id}_${lecture.id}`;
+    setVideoMarkedComplete(localStorage.getItem(`${key}_video`) === "true");
+    setQuizStarted(false);
+    setAnswers({});
+    setSubmitted(false);
+    setScore(0);
+    setQuizOpen(false);
+    setInfoTab("description");
+  }, [course.id, lecture?.id]);
+
+  const selectLecture = (moduleIndex: number, lectureIndex: number) => {
+    setActiveModuleIndex(moduleIndex);
+    setActiveLectureIndex(lectureIndex);
+    setQuizOpen(false);
+  };
+
+  const markLectureComplete = () => {
+    if (!lecture) return;
+    const key = `skillforge_lecture_progress_${course.id}_${lecture.id}`;
+    localStorage.setItem(`${key}_video`, "true");
+    setVideoMarkedComplete(true);
+    window.dispatchEvent(new Event("skillforge-progress-updated"));
+    setQuizStarted(false);
+    setSubmitted(false);
+    setScore(0);
+    setQuizOpen(lecture.questions.length > 0);
+  };
 
   const submitQuiz = () => {
+    if (!lecture) return;
+
     const total = lecture.questions.length;
     let currentScore = 0;
     lecture.questions.forEach((question, index) => {
       if (answers[index] === question.answer) currentScore += 1;
     });
+
     setScore(currentScore);
     setSubmitted(true);
-    localStorage.setItem(`${progressKey}_quiz_score`, String(currentScore));
-    localStorage.setItem(`${progressKey}_quiz_completed`, "true");
+
+    const key = `skillforge_lecture_progress_${course.id}_${lecture.id}`;
+    localStorage.setItem(`${key}_quiz_score`, String(currentScore));
+    localStorage.setItem(`${key}_quiz_completed`, "true");
+
     if (currentScore >= Math.ceil(total * 0.7)) {
-      localStorage.setItem(`${progressKey}_complete`, "true");
+      localStorage.setItem(`${key}_complete`, "true");
     }
+
+    window.dispatchEvent(new Event("skillforge-progress-updated"));
   };
 
-  const passed = submitted && score >= Math.ceil(lecture.questions.length * 0.7);
+  const passed = submitted && !!lecture && score >= Math.ceil(lecture.questions.length * 0.7);
+  const allLectures = modules.flatMap((module) => module.lectures);
+  const currentLectureNumber = Math.max(1, allLectures.findIndex((item) => item.id === lecture?.id) + 1);
+  const totalLectures = Math.max(course.lessons, allLectures.length);
+  const localCourseProgress = getLocalCourseProgress(course);
+
+  if (!modules.length || !lecture) {
+    return (
+      <div className="min-h-screen bg-[#07111f] text-white">
+        <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1736]/95 backdrop-blur-xl">
+          <div className="flex h-16 items-center justify-between px-5 lg:px-8">
+            <button onClick={onBack} className="flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-emerald-400">
+              <ArrowLeft size={18} /> Back to Course
+            </button>
+            <div className="text-lg font-black">Skill<span className="text-emerald-400">Forge</span></div>
+          </div>
+        </header>
+        <main className="mx-auto max-w-5xl px-5 py-16 text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-400"><BookOpen size={38} /></div>
+          <h1 className="mt-6 text-3xl font-black">{course.title}</h1>
+          <p className="mx-auto mt-3 max-w-xl text-slate-400">Course lectures will appear here as they are added.</p>
+          <button onClick={onBack} className="mt-7 rounded-xl bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400">Back to Courses</button>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#030603] text-white">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#030603]/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-          <button onClick={onBack} className="flex items-center gap-2 text-gray-400 transition hover:text-lime-400">
-            <ArrowLeft size={18} /> Back to Course
-          </button>
-          <div className="text-xl font-black">Skill<span className="text-lime-400">Forge</span></div>
+    <div className="skillforge-course-player min-h-screen bg-[#f7f8fc] text-slate-900">
+<style>{`
+html.dark .skillforge-dashboard,
+html.dark .skillforge-course-player {
+  background: #050b14 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-dashboard .bg-white,
+html.dark .skillforge-course-player .bg-white,
+html.dark .skillforge-dashboard .bg-white\\/95,
+html.dark .skillforge-course-player .bg-white\\/95,
+html.dark .skillforge-dashboard .bg-white\\/80,
+html.dark .skillforge-course-player .bg-white\\/80 {
+  background-color: #0f172a !important;
+}
+
+html.dark .skillforge-dashboard .bg-slate-50,
+html.dark .skillforge-dashboard .bg-slate-50\\/60,
+html.dark .skillforge-course-player .bg-slate-50,
+html.dark .skillforge-course-player .bg-slate-50\\/70 {
+  background-color: #111c2d !important;
+}
+
+html.dark .skillforge-dashboard [class*="bg-[#f7faf8]"],
+html.dark .skillforge-course-player [class*="bg-[#f7f8fc]"] {
+  background-color: #050b14 !important;
+}
+
+html.dark .skillforge-dashboard .text-\\[\\#0b1736\\],
+html.dark .skillforge-course-player .text-\\[\\#0b1736\\],
+html.dark .skillforge-dashboard .text-slate-900,
+html.dark .skillforge-course-player .text-slate-900,
+html.dark .skillforge-dashboard .text-slate-700,
+html.dark .skillforge-course-player .text-slate-700,
+html.dark .skillforge-dashboard .text-slate-600,
+html.dark .skillforge-course-player .text-slate-600 {
+  color: #f8fafc !important;
+}
+
+html.dark .skillforge-dashboard .text-slate-500,
+html.dark .skillforge-dashboard .text-slate-400,
+html.dark .skillforge-course-player .text-slate-500,
+html.dark .skillforge-course-player .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark .skillforge-dashboard .border-slate-200,
+html.dark .skillforge-dashboard .border-slate-300,
+html.dark .skillforge-course-player .border-slate-200,
+html.dark .skillforge-course-player .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+html.dark .skillforge-dashboard .border-slate-100,
+html.dark .skillforge-course-player .border-slate-100 {
+  border-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .bg-slate-100,
+html.dark .skillforge-course-player .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .bg-emerald-50,
+html.dark .skillforge-course-player .bg-emerald-50 {
+  background-color: rgba(16,185,129,.12) !important;
+}
+
+html.dark .skillforge-dashboard .text-emerald-700,
+html.dark .skillforge-dashboard .text-emerald-600,
+html.dark .skillforge-course-player .text-emerald-700,
+html.dark .skillforge-course-player .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+html.dark .skillforge-dashboard header,
+html.dark .skillforge-course-player header {
+  background-color: rgba(15,23,42,.96) !important;
+  border-color: #1e293b !important;
+}
+`}</style>
+
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+        <div className="flex min-h-[68px] items-center justify-between gap-4 px-4 lg:px-7">
+          <div className="flex min-w-0 items-center gap-4">
+            <button onClick={onBack} className="flex shrink-0 items-center gap-2 text-sm font-bold text-slate-600 hover:text-emerald-600">
+              <ArrowLeft size={18} /><span className="hidden sm:inline">Back to Course</span>
+            </button>
+            <div className="hidden h-7 w-px bg-slate-200 sm:block" />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-black uppercase tracking-[0.18em] text-emerald-600">SkillForge Learning</p>
+              <h1 className="truncate text-base font-black text-[#0b1736] sm:text-lg">{course.title}</h1>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={darkMode ? "Light Mode" : "Dark Mode"}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <div className="hidden rounded-xl border border-slate-200 bg-white px-4 py-2 text-right sm:block">
+              <p className="text-xs font-black text-[#0b1736]">{currentLectureNumber} / {totalLectures}</p>
+              <p className="text-[10px] font-semibold text-slate-400">Lectures</p>
+            </div>
+            <div className="hidden w-40 sm:block">
+              <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-500"><span>Course Progress</span><span>{localCourseProgress}%</span></div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${localCourseProgress}%` }} /></div>
+            </div>
+            <div className="hidden h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 md:flex"><UserCircle size={20} /></div>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-8">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">Cyber Security Essentials</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Module 1 — Introduction</h1>
-          <p className="mt-2 text-gray-500">Lecture 1 · {lecture.title} · {lecture.duration}</p>
-        </div>
+      <div className="border-b border-amber-200 bg-amber-400 px-4 py-2 text-center text-xs font-semibold text-slate-900">
+        If you are facing any issues with lectures, mentors or technical support, please contact SkillForge support.
+      </div>
 
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#070907] shadow-2xl">
-          <SkillForgeVideoPlayer
-            src={lecture.id === "lecture-1" ? R2_LECTURE_1_URL : lecture.videoUrl}
-            title={lecture.title}
-          />
-          <div className="flex flex-col gap-4 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-bold">Finish the lecture before attempting the quiz.</p>
-              <p className="mt-1 text-sm text-gray-500">After watching, confirm the lecture is complete to unlock the questions.</p>
-            </div>
-            <button
-              onClick={() => {
-                setVideoMarkedComplete(true);
-                localStorage.setItem(`${progressKey}_video`, "true");
-                setQuizStarted(true);
-              }}
-              className={`rounded-xl px-6 py-3 font-bold transition ${videoMarkedComplete ? "border border-lime-400/30 bg-lime-400/10 text-lime-300" : "bg-lime-400 text-black hover:bg-lime-300"}`}
-            >
-              {videoMarkedComplete ? "✓ Lecture Completed" : "I've Watched — Start Quiz"}
-            </button>
-          </div>
-        </section>
-
-        {videoMarkedComplete && quizStarted && (
-          <section className="mt-8 rounded-3xl border border-white/10 bg-[#070907] p-6 sm:p-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-400">Lecture Assessment</p>
-                <h2 className="mt-2 text-2xl font-black">Test your understanding</h2>
+      {/* Main player left + course modules right */}
+      <div className="mx-auto grid min-h-[calc(100vh-108px)] max-w-[1600px] lg:grid-cols-[minmax(0,1fr)_340px]">
+        <main className="min-w-0 bg-[#f7f8fc] p-3 sm:p-5 lg:p-7">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">{activeModule.title}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-black text-[#0b1736] sm:text-2xl">{lecture.title}</h2>
+                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold text-slate-500 shadow-sm">{lecture.duration}</span>
               </div>
-              <span className="rounded-full border border-lime-400/20 bg-lime-400/5 px-4 py-2 text-xs font-bold text-lime-300">Pass: 7 / 10</span>
             </div>
 
-            <div className="mt-8 space-y-6">
-              {lecture.questions.map((question, index) => (
-                <div key={index} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                  <p className="font-bold leading-7"><span className="mr-2 text-lime-400">Q{index + 1}.</span>{question.question}</p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {question.options.map((option, optionIndex) => {
-                      const selected = answers[index] === optionIndex;
-                      const correct = submitted && optionIndex === question.answer;
-                      const wrong = submitted && selected && optionIndex !== question.answer;
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => !submitted && setAnswers((current) => ({ ...current, [index]: optionIndex }))}
-                          className={`rounded-xl border p-4 text-left text-sm transition ${
-                            correct
-                              ? "border-lime-400/60 bg-lime-400/10 text-lime-200"
-                              : wrong
-                                ? "border-red-400/40 bg-red-400/5 text-red-200"
-                                : selected
-                                  ? "border-lime-400/40 bg-lime-400/5 text-white"
-                                  : "border-white/10 bg-white/[0.02] text-gray-400 hover:border-lime-400/30 hover:text-white"
-                          }`}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-xl">
+              <SkillForgeVideoPlayer
+                key={lecture.id}
+                src={lecture.id === "lecture-1" ? R2_LECTURE_1_URL : lecture.id === "lecture-2" ? R2_LECTURE_2_URL : lecture.videoUrl}
+                title={lecture.title}
+                lectureNumber={activeLectureIndex + 1}
+                moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
+                autoPlay
+                onEnded={markLectureComplete}
+              />
+            </section>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-black text-[#0b1736]">{lecture.title}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{lecture.duration} · {activeModule.title} · Lecture {activeLectureIndex + 1}</p>
+                </div>
+                <button onClick={markLectureComplete} className={`shrink-0 rounded-xl px-5 py-3 text-sm font-black transition ${videoMarkedComplete ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+                  {videoMarkedComplete ? "✓ Lecture Completed · Open Quiz" : "Mark as Complete"}
+                </button>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setInfoTab("description")}
+                  className={`rounded-xl px-4 py-2 text-xs font-bold transition ${infoTab === "description" ? "bg-emerald-50 text-emerald-700" : "text-slate-500 hover:bg-slate-50"}`}
+                >
+                  Description
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInfoTab("resources")}
+                  className={`rounded-xl px-4 py-2 text-xs font-bold transition ${infoTab === "resources" ? "bg-emerald-50 text-emerald-700" : "text-slate-500 hover:bg-slate-50"}`}
+                >
+                  Resources
+                </button>
+              </div>
+
+              {infoTab === "description" ? (
+                <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-500">
+                  {lecture.id === "lecture-2"
+                    ? "This lecture introduces different cybersecurity job profiles and the types of roles learners can explore within the cybersecurity field."
+                    : `In this lecture, you will learn the key concepts covered in ${activeModule.title.replace(" — ", ": ")} and build the practical foundation needed for the next lecture.`}
+                </p>
+              ) : (
+                <div className="mt-4">
+                  {lecture.resources?.length ? (
+                    <div className="space-y-2">
+                      {lecture.resources.map((resource) => (
+                        <a
+                          key={resource.url}
+                          href={resource.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
                         >
-                          <span className="mr-3 font-bold text-gray-600">{String.fromCharCode(65 + optionIndex)}.</span>
-                          {option}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {submitted && (
-                    <p className="mt-4 rounded-xl border border-white/5 bg-black/20 p-3 text-sm leading-6 text-gray-400">
-                      <span className="font-semibold text-lime-300">Explanation:</span> {question.explanation}
-                    </p>
+                          <span>{resource.title}</span>
+                          <ArrowRight size={16} />
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-6 text-slate-500">No resources have been added for this lecture yet.</p>
                   )}
                 </div>
-              ))}
+              )}
+            </div>
+          </div>
+        </main>
+
+        {/* Course modules on the RIGHT */}
+        <aside className="border-l border-slate-200 bg-white">
+          <div className="sticky top-[108px] max-h-[calc(100vh-108px)] overflow-y-auto">
+            <div className="border-b border-slate-200 p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><GraduationCap size={22} /></div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[#0b1736]">{course.title}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{currentLectureNumber} / {totalLectures} Lectures</p>
+                </div>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${localCourseProgress}%` }} /></div>
             </div>
 
-            {!submitted ? (
-              <button
-                onClick={submitQuiz}
-                disabled={Object.keys(answers).length !== lecture.questions.length}
-                className="mt-8 w-full rounded-xl bg-lime-400 py-4 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Submit Quiz
-              </button>
-            ) : (
-              <div className={`mt-8 rounded-2xl border p-6 text-center ${passed ? "border-lime-400/30 bg-lime-400/5" : "border-red-400/20 bg-red-400/5"}`}>
-                <p className="text-sm uppercase tracking-[0.2em] text-gray-500">Your Score</p>
-                <p className={`mt-2 text-5xl font-black ${passed ? "text-lime-400" : "text-red-300"}`}>{score}/10</p>
-                <p className="mt-3 font-semibold">{passed ? "🎉 Passed — Lecture 2 can be unlocked." : "❌ Not passed — Please retry the quiz."}</p>
-                {passed ? (
-                  <button
-                    onClick={onBack}
-                    className="mt-5 rounded-xl bg-lime-400 px-6 py-3 font-bold text-black hover:bg-lime-300"
-                  >
-                    Back to Course
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setAnswers({});
-                      setSubmitted(false);
-                      setScore(0);
-                    }}
-                    className="mt-5 rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:border-lime-400/30 hover:text-lime-300"
-                  >
-                    Retry Quiz
-                  </button>
-                )}
+            <div className="p-3">
+              <button onClick={onBack} className="mb-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"><BookOpen size={17} /> Course Overview</button>
+              {modules.map((module, moduleIndex) => {
+                const expanded = activeModuleIndex === moduleIndex;
+                return (
+                  <div key={module.id} className="mb-2 overflow-hidden rounded-2xl border border-slate-200">
+                    <button onClick={() => { setActiveModuleIndex(moduleIndex); setActiveLectureIndex(0); }} className={`flex w-full items-center gap-3 p-4 text-left transition ${expanded ? "bg-emerald-50 text-emerald-700" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black text-slate-500">{moduleIndex + 1}</span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{module.title.replace(" — ", ": ")}</span><span className="mt-1 block text-[10px] font-medium text-slate-400">{module.duration} · {module.lectures.length} lectures</span></span>
+                      <ChevronRight size={17} className={`shrink-0 transition-transform ${expanded ? "rotate-90 text-emerald-600" : ""}`} />
+                    </button>
+                    {expanded && (
+                      <div className="border-t border-slate-100 bg-slate-50/70 p-2">
+                        {module.lectures.map((item, lectureIndex) => {
+                          const active = item.id === lecture.id;
+                          const itemKey = `skillforge_lecture_progress_${course.id}_${item.id}`;
+                          const completed = localStorage.getItem(`${itemKey}_video`) === "true";
+                          return (
+                            <button key={item.id} onClick={() => selectLecture(moduleIndex, lectureIndex)} className={`mb-1 flex w-full items-start gap-3 rounded-xl p-3 text-left transition last:mb-0 ${active ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100" : "text-slate-600 hover:bg-white"}`}>
+                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-black">{completed ? <CheckCircle2 size={15} className="text-emerald-500" /> : lectureIndex + 1}</span>
+                              <span className="min-w-0 flex-1"><span className="block text-xs font-bold leading-5">{item.title}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400"><Clock3 size={11} />{item.duration}</span></span>
+                              {active && <PlayCircle size={16} className="mt-1 shrink-0 text-emerald-500" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* Quiz appears only after the lecture is completed */}
+      {quizOpen && (
+        <Modal onClose={() => setQuizOpen(false)}>
+          <div className="w-full max-w-3xl">
+            <div className="mb-5 flex items-start justify-between gap-4 pr-8">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Lecture completed</p>
+                <h2 className="mt-1 text-2xl font-black text-white">Test Your Knowledge</h2>
+                <p className="mt-1 text-sm text-slate-400">Complete the quiz before moving to the next lecture.</p>
               </div>
-            )}
-          </section>
-        )}
-      </main>
+              <div className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-black text-emerald-400">{lecture.questions.length} Questions</div>
+            </div>
+            <QuizPanel
+              lecture={lecture}
+              videoMarkedComplete={videoMarkedComplete}
+              quizStarted={quizStarted}
+              setQuizStarted={setQuizStarted}
+              answers={answers}
+              setAnswers={setAnswers}
+              submitted={submitted}
+              score={score}
+              passed={passed}
+              submitQuiz={submitQuiz}
+              onClose={() => setQuizOpen(false)}
+            />
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function QuizPanel({
+  lecture,
+  videoMarkedComplete,
+  quizStarted,
+  setQuizStarted,
+  answers,
+  setAnswers,
+  submitted,
+  score,
+  passed,
+  submitQuiz,
+  onClose,
+}: {
+  lecture: Lecture;
+  videoMarkedComplete: boolean;
+  quizStarted: boolean;
+  setQuizStarted: Dispatch<SetStateAction<boolean>>;
+  answers: Record<number, number>;
+  setAnswers: Dispatch<SetStateAction<Record<number, number>>>;
+  submitted: boolean;
+  score: number;
+  passed: boolean;
+  submitQuiz: () => void;
+  onClose: () => void;
+}) {
+  const requiredScore = Math.ceil(lecture.questions.length * 0.7);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">
+              Assessment
+            </p>
+            <h3 className="mt-1 text-lg font-black text-[#0b1736]">
+              Lecture Quiz
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-500">
+              {lecture.questions.length} Questions
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-black text-slate-500 hover:border-emerald-200 hover:text-emerald-600"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          Complete the lecture and answer at least {requiredScore} questions
+          correctly to pass.
+        </p>
+      </div>
+
+      {!videoMarkedComplete ? (
+        <div className="p-5">
+          <div className="rounded-2xl bg-amber-50 p-4">
+            <Lock size={20} className="text-amber-600" />
+            <p className="mt-3 text-sm font-black text-amber-900">
+              Quiz locked
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-800/70">
+              Watch the lecture first, then click “Mark as Complete” below the
+              video to unlock the quiz.
+            </p>
+          </div>
+        </div>
+      ) : !quizStarted ? (
+        <div className="p-5">
+          <div className="rounded-2xl bg-emerald-50 p-4">
+            <CheckCircle2 size={21} className="text-emerald-600" />
+            <p className="mt-3 text-sm font-black text-emerald-900">
+              Lecture completed
+            </p>
+            <p className="mt-1 text-xs leading-5 text-emerald-800/70">
+              Your quiz is ready.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setQuizStarted(true)}
+            className="mt-4 w-full rounded-xl bg-emerald-600 py-3 text-sm font-black text-white hover:bg-emerald-700"
+          >
+            Start Quiz
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4 p-4">
+          {lecture.questions.map((question, index) => (
+            <div
+              key={index}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+            >
+              <p className="text-xs font-black leading-5 text-[#0b1736]">
+                {index + 1}. {question.question}
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {question.options.map((option, optionIndex) => {
+                  const selected = answers[index] === optionIndex;
+                  const correct =
+                    submitted && optionIndex === question.answer;
+                  const wrong =
+                    submitted &&
+                    selected &&
+                    optionIndex !== question.answer;
+
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      disabled={submitted}
+                      onClick={() =>
+                        setAnswers((current) => ({
+                          ...current,
+                          [index]: optionIndex,
+                        }))
+                      }
+                      className={`w-full rounded-lg border px-3 py-2.5 text-left text-[11px] font-semibold transition ${
+                        correct
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                          : wrong
+                            ? "border-red-300 bg-red-50 text-red-700"
+                            : selected
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="mr-2 font-black text-slate-400">
+                        {String.fromCharCode(65 + optionIndex)}.
+                      </span>
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {!submitted ? (
+            <button
+              onClick={submitQuiz}
+              disabled={
+                Object.keys(answers).length !== lecture.questions.length
+              }
+              className="w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Submit Quiz
+            </button>
+          ) : (
+            <div
+              className={`rounded-2xl p-5 text-center ${
+                passed ? "bg-emerald-50" : "bg-red-50"
+              }`}
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                Your Score
+              </p>
+              <p
+                className={`mt-2 text-4xl font-black ${
+                  passed ? "text-emerald-600" : "text-red-600"
+                }`}
+              >
+                {score}/{lecture.questions.length}
+              </p>
+
+              <p className="mt-2 text-xs font-bold text-slate-600">
+                {passed
+                  ? "🎉 Quiz passed."
+                  : `You need ${requiredScore}/${lecture.questions.length} to pass.`}
+              </p>
+
+              {passed && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
+                >
+                  Back to Lecture
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
