@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth";
 import paymentRoutes from "./routes/payment";
 import progressRoutes from "./routes/progress";
 import adminRoutes from "./routes/admin";
+import offerRoutes from "./routes/offers";
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/offers", offerRoutes);
 
 /* =====================================================
    HEALTH CHECK
