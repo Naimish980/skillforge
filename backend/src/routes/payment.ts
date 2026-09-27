@@ -207,7 +207,7 @@ router.post(
         });
       }
 
-      const { type, courseId, courseIds } = req.body;
+      const { type, courseId } = req.body;
 
       let amount = 0;
       let receipt = "";
@@ -304,90 +304,6 @@ router.post(
       }
 
       /* =================================================
-         TWO COURSE COMBO
-      ================================================= */
-
-      else if (type === "combo") {
-        if (
-          !Array.isArray(courseIds) ||
-          courseIds.length !== 2
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Exactly 2 course IDs are required for the combo",
-          });
-        }
-
-        normalizedCourseIds = courseIds.map((id) =>
-          String(id).trim(),
-        );
-
-        if (
-          normalizedCourseIds.some(
-            (id) => id.length === 0,
-          )
-        ) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid course IDs",
-          });
-        }
-
-        const uniqueCourseIds = [
-          ...new Set(normalizedCourseIds),
-        ];
-
-        if (uniqueCourseIds.length !== 2) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Combo must contain 2 different courses",
-          });
-        }
-
-        normalizedCourseIds = uniqueCourseIds;
-
-        /* ---------------------------------------------
-           Check existing enrollments
-        --------------------------------------------- */
-
-        const existingEnrollment =
-          await pool.query(
-            `
-            SELECT course_id
-            FROM enrollments
-            WHERE user_id = $1
-              AND course_id = ANY($2::text[])
-            `,
-            [userId, normalizedCourseIds],
-          );
-
-        if (existingEnrollment.rows.length > 0) {
-          const alreadyEnrolled =
-            existingEnrollment.rows.map(
-              (row) => row.course_id,
-            );
-
-          return res.status(409).json({
-            success: false,
-            message:
-              "You are already enrolled in one or more selected courses",
-            alreadyEnrolled,
-          });
-        }
-
-        /* ---------------------------------------------
-           Combo price remains ₹1499 for now.
-           Individual course pricing is fully Admin/DB driven.
-        --------------------------------------------- */
-
-        amount = 149900;
-
-        receipt = `combo_${Date.now()}`;
-      }
-
-      /* =================================================
          INVALID PAYMENT TYPE
       ================================================= */
 
@@ -408,15 +324,8 @@ router.post(
         receipt,
         notes: {
           userId: String(userId),
-          type,
-          courseId:
-            type === "course"
-              ? normalizedCourseIds[0]
-              : "",
-          courseIds:
-            type === "combo"
-              ? normalizedCourseIds.join(",")
-              : "",
+          type: "course",
+          courseId: normalizedCourseIds[0],
         },
       });
 
@@ -462,10 +371,8 @@ router.post(
           order.id,
           amount,
           "INR",
-          type,
-          type === "course"
-            ? normalizedCourseIds[0]
-            : null,
+          "course",
+          normalizedCourseIds[0],
           normalizedCourseIds,
         ],
       );
@@ -591,11 +498,9 @@ router.post(
           success: true,
           message: "Payment was already verified",
           enrolledCourseIds:
-            paymentOrder.payment_type === "course"
+            paymentOrder.payment_type === "course" && paymentOrder.course_id
               ? [String(paymentOrder.course_id)]
-              : Array.isArray(paymentOrder.course_ids)
-                ? paymentOrder.course_ids.map((id: string) => String(id))
-                : [],
+              : [],
         });
       }
 
@@ -697,16 +602,6 @@ router.post(
           ];
         }
 
-        if (
-          paymentOrder.payment_type ===
-            "combo" &&
-          Array.isArray(paymentOrder.course_ids)
-        ) {
-          enrollmentCourseIds =
-            paymentOrder.course_ids.map(
-              (id: string) => String(id),
-            );
-        }
 
         /* ---------------------------------------------
            Create enrollments
