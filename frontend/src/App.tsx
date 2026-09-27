@@ -1049,7 +1049,47 @@ function App() {
 
       {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
-      {introOpen && <Modal onClose={() => setIntroOpen(false)}><div className="w-full max-w-2xl text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50"><Play className="fill-emerald-600 text-emerald-600" size={28}/></div><h2 className="mt-6 text-3xl font-black text-[#0b1736]">Welcome to SkillForge</h2><p className="mx-auto mt-4 max-w-lg text-slate-500">Practical IT and technology learning with structured lessons, hands-on projects, quizzes and certificates.</p><button onClick={()=>{setIntroOpen(false);scrollToSection("courses")}} className="mt-7 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></Modal>}
+      {introOpen && (
+        <Modal onClose={() => setIntroOpen(false)}>
+          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-black shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[#0d1422] px-5 py-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">SkillForge</p>
+                <h2 className="mt-1 text-lg font-bold text-white">Welcome to SkillForge</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIntroOpen(false)}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                aria-label="Close intro video"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <video
+              className="block aspect-video w-full bg-black object-contain"
+              src="/skillforge-intro.mp4"
+              controls
+              autoPlay
+              playsInline
+              preload="metadata"
+            />
+            <div className="flex flex-col gap-3 bg-[#0d1422] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-400">Learn. Build. Grow.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIntroOpen(false);
+                  scrollToSection("courses");
+                }}
+                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+              >
+                Explore Courses
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
       </div>
     </>
   );
