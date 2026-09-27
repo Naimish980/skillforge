@@ -7,6 +7,63 @@ import {
 
 const router = Router();
 
+/* =====================================================
+   ADMIN ACCESS HELPER
+===================================================== */
+
+async function verifyAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<boolean> {
+  const userId = req.userId;
+
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      message: "Authenticated user not found",
+    });
+
+    return false;
+  }
+
+  const adminResult = await pool.query(
+    `
+    SELECT id, name, email, role
+    FROM users
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [userId],
+  );
+
+  if (adminResult.rows.length === 0) {
+    res.status(401).json({
+      success: false,
+      message: "User not found",
+    });
+
+    return false;
+  }
+
+  const admin = adminResult.rows[0];
+
+  if (admin.role !== "admin") {
+    res.status(403).json({
+      success: false,
+      message: "Admin access required",
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+/* =====================================================
+   ADMIN DASHBOARD
+   GET /api/admin/dashboard
+===================================================== */
+
 router.get(
   "/dashboard",
   authenticateToken,
@@ -15,16 +72,14 @@ router.get(
     res: Response,
   ) => {
     try {
-      const userId = req.userId;
+      const isAdmin = await verifyAdmin(req, res);
 
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: "Authenticated user not found",
-        });
+      if (!isAdmin) {
+        return;
       }
 
-      // Check whether logged-in user is an admin
+      const userId = req.userId;
+
       const adminResult = await pool.query(
         `
         SELECT id, name, email, role
@@ -35,23 +90,9 @@ router.get(
         [userId],
       );
 
-      if (adminResult.rows.length === 0) {
-        return res.status(401).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
       const admin = adminResult.rows[0];
 
-      if (admin.role !== "admin") {
-        return res.status(403).json({
-          success: false,
-          message: "Admin access required",
-        });
-      }
-
-      // Total students
+      /* Total students */
       const studentsResult = await pool.query(
         `
         SELECT COUNT(*)::int AS total
@@ -60,7 +101,7 @@ router.get(
         `,
       );
 
-      // Total enrollments
+      /* Total enrollments */
       const enrollmentsResult = await pool.query(
         `
         SELECT COUNT(*)::int AS total
@@ -68,7 +109,7 @@ router.get(
         `,
       );
 
-      // Total successful payments
+      /* Total successful payments */
       const paymentsResult = await pool.query(
         `
         SELECT COUNT(*)::int AS total
@@ -77,7 +118,7 @@ router.get(
         `,
       );
 
-      // Total revenue in paise
+      /* Total revenue */
       const revenueResult = await pool.query(
         `
         SELECT COALESCE(SUM(amount), 0)::bigint AS total
@@ -95,18 +136,25 @@ router.get(
 
       return res.status(200).json({
         success: true,
+
         admin: {
           id: admin.id,
           name: admin.name,
           email: admin.email,
         },
+
         stats: {
-          students: studentsResult.rows[0].total,
+          students:
+            studentsResult.rows[0].total,
+
           enrollments:
             enrollmentsResult.rows[0].total,
+
           successfulPayments:
             paymentsResult.rows[0].total,
-          revenue: revenueInRupees,
+
+          revenue:
+            revenueInRupees,
         },
       });
     } catch (error) {
@@ -119,6 +167,79 @@ router.get(
         success: false,
         message:
           "Unable to load admin dashboard",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   GET ALL STUDENTS
+   GET /api/admin/students
+===================================================== */
+
+router.get(
+  "/students",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const studentsResult = await pool.query(
+        `
+        SELECT
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.created_at,
+
+          COUNT(e.id)::int AS enrollment_count,
+
+          COALESCE(
+            ARRAY_AGG(e.course_id)
+            FILTER (WHERE e.course_id IS NOT NULL),
+            '{}'
+          ) AS enrolled_course_ids
+
+        FROM users u
+
+        LEFT JOIN enrollments e
+          ON e.user_id = u.id
+
+        WHERE u.role = 'student'
+
+        GROUP BY
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.created_at
+
+        ORDER BY u.created_at DESC
+        `,
+      );
+
+      return res.status(200).json({
+        success: true,
+        students: studentsResult.rows,
+      });
+    } catch (error) {
+      console.error(
+        "Get admin students error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to load students",
       });
     }
   },
