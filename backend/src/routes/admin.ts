@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { pool } from "../db";
 import {
   AuthenticatedRequest,
@@ -58,6 +58,376 @@ async function verifyAdmin(
 
   return true;
 }
+
+
+/* =====================================================
+   PUBLIC COURSE CATALOG
+   GET /api/admin/public-courses
+
+   Public read-only catalog endpoint. No authentication is
+   required because only course metadata is returned.
+===================================================== */
+
+router.get(
+  "/public-courses",
+  async (_req: Request, res: Response) => {
+    try {
+      const coursesResult = await pool.query(
+        `
+        SELECT
+          c.id,
+          c.title,
+          c.description,
+          c.category,
+          c.level,
+          c.price,
+          c.thumbnail,
+          c.is_published,
+          c.created_at,
+          c.updated_at,
+
+          (
+            SELECT COUNT(*)::int
+            FROM lectures l
+            INNER JOIN modules m2
+              ON m2.id = l.module_id
+            WHERE m2.course_id = c.id
+          ) AS lecture_count,
+
+          (
+            SELECT COALESCE(SUM(l2.duration), 0)::int
+            FROM lectures l2
+            INNER JOIN modules m3
+              ON m3.id = l2.module_id
+            WHERE m3.course_id = c.id
+          ) AS duration_minutes,
+
+          (
+            SELECT COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', m.id,
+                  'title', m.title,
+                  'description', m.description,
+                  'module_order', m.module_order
+                )
+                ORDER BY m.module_order ASC, m.id ASC
+              ),
+              '[]'::json
+            )
+            FROM modules m
+            WHERE m.course_id = c.id
+          ) AS modules
+
+        FROM courses c
+        ORDER BY c.created_at DESC, c.id DESC
+        `,
+      );
+
+      const knownSlugs: Record<string, string> = {
+        "Linux Administration": "linux",
+        "AWS Cloud Fundamentals": "aws",
+        "Networking Fundamentals": "networking",
+        "Windows Administration": "windows",
+        "Cyber Security Essentials": "security",
+        "System Administration": "sysadmin",
+      };
+
+      const slugify = (title: string, id: number) => {
+        const base = title
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+
+        if (knownSlugs[title]) {
+          return knownSlugs[title];
+        }
+
+        return `${base || "course"}-${id}`;
+      };
+
+      const emojiForCourse = (title: string, category: string | null) => {
+        const value = `${title} ${category ?? ""}`.toLowerCase();
+
+        if (value.includes("linux")) return "🐧";
+        if (value.includes("aws") || value.includes("cloud")) return "☁️";
+        if (value.includes("network")) return "🌐";
+        if (value.includes("windows")) return "🪟";
+        if (value.includes("security")) return "🛡️";
+        if (value.includes("system")) return "⚙️";
+        return "📚";
+      };
+
+      const formatDuration = (minutes: number) => {
+        if (!Number.isFinite(minutes) || minutes <= 0) {
+          return "Self-paced";
+        }
+
+        if (minutes >= 60) {
+          const hours = Math.floor(minutes / 60);
+          const remaining = minutes % 60;
+          return remaining > 0
+            ? `${hours}h ${remaining}m`
+            : `${hours}+ Hours`;
+        }
+
+        return `${minutes} min`;
+      };
+
+      const courses = coursesResult.rows.map((course) => ({
+        id: slugify(String(course.title), Number(course.id)),
+        dbId: Number(course.id),
+        emoji: emojiForCourse(
+          String(course.title),
+          course.category ? String(course.category) : null,
+        ),
+        title: String(course.title),
+        description: course.description
+          ? String(course.description)
+          : "Practical, structured learning from SkillForge.",
+        lessons: Number(course.lecture_count) || 0,
+        duration: formatDuration(Number(course.duration_minutes) || 0),
+        category: course.category
+          ? String(course.category)
+          : "IT & Tech",
+        level: course.level
+          ? String(course.level)
+          : "Beginner",
+        price: Number(course.price) || 0,
+        thumbnail: course.thumbnail
+          ? String(course.thumbnail)
+          : null,
+        isPublished: Boolean(course.is_published),
+        modules: Array.isArray(course.modules)
+          ? course.modules.map((module: {
+              id: number;
+              title: string;
+              description: string | null;
+              module_order: number;
+            }) => String(module.title))
+          : [],
+      }));
+
+      return res.status(200).json({
+        success: true,
+        courses,
+      });
+    } catch (error) {
+      console.error("Public course catalog error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load course catalog",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   PUBLIC COURSE CONTENT
+   GET /api/admin/public-courses/:courseId/content
+
+   Public read-only content endpoint used by the student
+   course player. No authentication is required.
+===================================================== */
+
+router.get(
+  "/public-courses/:courseId/content",
+  async (req: Request, res: Response) => {
+    try {
+      const courseId = Number(req.params.courseId);
+
+      if (!Number.isInteger(courseId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const courseResult = await pool.query(
+        `
+        SELECT
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          thumbnail,
+          is_published
+        FROM courses
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [courseId],
+      );
+
+      if (courseResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      const modulesResult = await pool.query(
+        `
+        SELECT
+          m.id,
+          m.title,
+          m.description,
+          m.module_order
+        FROM modules m
+        WHERE m.course_id = $1
+        ORDER BY m.module_order ASC, m.id ASC
+        `,
+        [courseId],
+      );
+
+      const lecturesResult = await pool.query(
+        `
+        SELECT
+          l.id,
+          l.module_id,
+          l.title,
+          l.description,
+          l.video_url,
+          l.lecture_order,
+          l.duration,
+          l.is_free
+        FROM lectures l
+        INNER JOIN modules m
+          ON m.id = l.module_id
+        WHERE m.course_id = $1
+        ORDER BY
+          m.module_order ASC,
+          m.id ASC,
+          l.lecture_order ASC,
+          l.id ASC
+        `,
+        [courseId],
+      );
+
+      const quizzesResult = await pool.query(
+        `
+        SELECT
+          q.id,
+          q.lecture_id,
+          q.question,
+          q.options,
+          q.correct_answer
+        FROM quizzes q
+        INNER JOIN lectures l
+          ON l.id = q.lecture_id
+        INNER JOIN modules m
+          ON m.id = l.module_id
+        WHERE m.course_id = $1
+        ORDER BY q.id ASC
+        `,
+        [courseId],
+      );
+
+      const quizzesByLecture = new Map<number, Array<{
+        id: number;
+        question: string;
+        options: unknown;
+        correct_answer: string;
+      }>>();
+
+      for (const quiz of quizzesResult.rows) {
+        const lectureId = Number(quiz.lecture_id);
+        const existing = quizzesByLecture.get(lectureId) ?? [];
+
+        existing.push({
+          id: Number(quiz.id),
+          question: String(quiz.question),
+          options: quiz.options,
+          correct_answer: String(quiz.correct_answer),
+        });
+
+        quizzesByLecture.set(lectureId, existing);
+      }
+
+      const lecturesByModule = new Map<number, Array<{
+        id: number;
+        title: string;
+        description: string | null;
+        videoUrl: string;
+        lectureOrder: number;
+        duration: number;
+        isFree: boolean;
+        questions: Array<{
+          id: number;
+          question: string;
+          options: unknown;
+          correct_answer: string;
+        }>;
+      }>>();
+
+      for (const lecture of lecturesResult.rows) {
+        const moduleId = Number(lecture.module_id);
+        const existing = lecturesByModule.get(moduleId) ?? [];
+
+        existing.push({
+          id: Number(lecture.id),
+          title: String(lecture.title),
+          description: lecture.description
+            ? String(lecture.description)
+            : null,
+          videoUrl: lecture.video_url
+            ? String(lecture.video_url)
+            : "",
+          lectureOrder: Number(lecture.lecture_order) || 1,
+          duration: Number(lecture.duration) || 0,
+          isFree: Boolean(lecture.is_free),
+          questions: quizzesByLecture.get(Number(lecture.id)) ?? [],
+        });
+
+        lecturesByModule.set(moduleId, existing);
+      }
+
+      const modules = modulesResult.rows.map((module) => ({
+        id: Number(module.id),
+        title: String(module.title),
+        description: module.description
+          ? String(module.description)
+          : null,
+        moduleOrder: Number(module.module_order) || 1,
+        lectures: lecturesByModule.get(Number(module.id)) ?? [],
+      }));
+
+      return res.status(200).json({
+        success: true,
+        course: {
+          id: Number(courseResult.rows[0].id),
+          title: String(courseResult.rows[0].title),
+          description: courseResult.rows[0].description
+            ? String(courseResult.rows[0].description)
+            : null,
+          category: courseResult.rows[0].category
+            ? String(courseResult.rows[0].category)
+            : null,
+          level: courseResult.rows[0].level
+            ? String(courseResult.rows[0].level)
+            : null,
+          price: Number(courseResult.rows[0].price) || 0,
+          thumbnail: courseResult.rows[0].thumbnail
+            ? String(courseResult.rows[0].thumbnail)
+            : null,
+          isPublished: Boolean(courseResult.rows[0].is_published),
+        },
+        modules,
+      });
+    } catch (error) {
+      console.error("Public course content error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load course content",
+      });
+    }
+  },
+);
 
 /* =====================================================
    ADMIN DASHBOARD
