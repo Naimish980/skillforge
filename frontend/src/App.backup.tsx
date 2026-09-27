@@ -1006,7 +1006,15 @@ function App() {
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode((prev) => !prev)}
         onBack={() => {
-          window.history.back();
+          // Course Player -> Course Overview (never close the course).
+          setLearningCourse(null);
+          setSelectedCourse(learningCourse);
+          window.history.replaceState(
+            { courseId: learningCourse.id },
+            "",
+            `#course=${encodeURIComponent(learningCourse.id)}`,
+          );
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       />
     );
@@ -1281,7 +1289,7 @@ function App() {
 
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
-        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Networking Fundamentals is ₹1 for testing; other individual courses are ₹799 and the 2-course combo is ₹1,499 with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
+        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Individual courses are ₹799 and the 2-course combo is ₹1,499 with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
 
         <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
 
@@ -2254,7 +2262,7 @@ function CourseOverviewPage({
                 ) : (
                   <>
                     <div className="mt-3 flex items-end gap-2">
-                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">{course.id === "networking" ? "₹1" : "₹799"}</span>
+                      <span className="text-4xl font-black text-[#0b1736] dark:text-white">₹799</span>
                       <span className="pb-1 text-sm text-slate-400">one-time</span>
                     </div>
 
@@ -2269,7 +2277,7 @@ function CourseOverviewPage({
                       className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <CreditCard size={18} />
-                      {paymentLoading ? "Processing..." : user ? `Buy Course — ${course.id === "networking" ? "₹1" : "₹799"}` : "Login to Purchase"}
+                      {paymentLoading ? "Processing..." : user ? "Buy Course — ₹799" : "Login to Purchase"}
                     </button>
 
                     {!user && (
@@ -2508,7 +2516,7 @@ function CourseOverviewPage({
                   disabled={paymentLoading || !user}
                   className="shrink-0 rounded-xl bg-emerald-600 px-7 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {paymentLoading ? "Processing..." : user ? `Unlock Course — ${course.id === "networking" ? "₹1" : "₹799"}` : "Login to Purchase"}
+                  {paymentLoading ? "Processing..." : user ? "Unlock Course — ₹799" : "Login to Purchase"}
                 </button>
               )}
             </div>
@@ -4030,7 +4038,7 @@ function Course({
               Purchased
             </span>
           ) : (
-            <span className="text-xl font-black text-[#0b1736]">{course.id === "networking" ? "₹1" : "₹799"}</span>
+            <span className="text-xl font-black text-[#0b1736]">₹799</span>
           )}
 
           <span className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition ${
