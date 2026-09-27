@@ -1118,7 +1118,6 @@ function App() {
         enrolled={enrolledCourseIds.includes(learningCourse.id)}
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode((prev) => !prev)}
-        onPurchase={handlePurchase}
         onBack={() => {
           window.history.back();
         }}
@@ -2914,14 +2913,12 @@ function CoursePlayer({
   darkMode,
   onToggleTheme,
   onBack,
-  onPurchase,
 }: {
   course: Course;
   enrolled: boolean;
   darkMode: boolean;
   onToggleTheme: () => void;
   onBack: () => void;
-  onPurchase: (courseIds: string[]) => void;
 }) {
   const [modules, setModules] = useState<CourseModule[]>(
     course.id === "security" ? securityModules : [],
@@ -3070,6 +3067,17 @@ function CoursePlayer({
     setInfoTab("description");
   }, [course.id, lecture?.id]);
 
+  const goToPurchase = () => {
+    onBack();
+
+    window.setTimeout(() => {
+      document.getElementById("course-purchase")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 250);
+  };
+
   const canAccessLecture = (item: Lecture) => enrolled || item.isFree === true;
 
   const selectLecture = (moduleIndex: number, lectureIndex: number) => {
@@ -3077,7 +3085,7 @@ function CoursePlayer({
     if (!item) return;
 
     if (!canAccessLecture(item)) {
-      alert("This lecture is locked. Purchase the course to unlock all lectures.");
+      goToPurchase();
       return;
     }
 
@@ -3317,7 +3325,7 @@ html.dark .skillforge-course-player header {
                   </p>
                   <button
                     type="button"
-                    onClick={() => onPurchase([course.id])}
+                    onClick={goToPurchase}
                     className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
                   >
                     <CreditCard size={17} /> Unlock Course — ₹799
@@ -3345,7 +3353,7 @@ html.dark .skillforge-course-player header {
                 {lectureLocked ? (
                   <button
                     type="button"
-                    onClick={() => onPurchase([course.id])}
+                    onClick={goToPurchase}
                     className="shrink-0 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
                   >
                     Unlock Lecture
