@@ -74,6 +74,7 @@ type Lecture = {
   videoUrl: string;
   questions: QuizQuestion[];
   resources?: LectureResource[];
+  isFree?: boolean;
 };
 
 type CourseModule = {
@@ -1006,7 +1007,8 @@ function App() {
   };
 
   const openLearning = (course: Course) => {
-    if (!user || !enrolledCourseIds.includes(course.id)) {
+    if (!user) {
+      setAuthMode("login");
       return;
     }
 
@@ -1113,8 +1115,10 @@ function App() {
     return (
       <CoursePlayer
         course={learningCourse}
+        enrolled={enrolledCourseIds.includes(learningCourse.id)}
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode((prev) => !prev)}
+        onPurchase={handlePurchase}
         onBack={() => {
           window.history.back();
         }}
@@ -2384,9 +2388,18 @@ function CourseOverviewPage({
 
                     {!user && (
                       <p className="mt-3 text-center text-xs text-slate-400">
-                        Login is required only for purchase and course access.
+                        Login is required before opening free demo lectures or purchasing the course.
                       </p>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={onStart}
+                      disabled={!user}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 py-3 font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                    >
+                      <PlayCircle size={17} /> Watch Free Lectures
+                    </button>
 
                     {comboOptions.length > 0 && (
                       <div className="mt-6 border-t border-slate-100 pt-5 dark:border-slate-800">
@@ -2897,20 +2910,144 @@ function SkillForgeVideoPlayer({
 
 function CoursePlayer({
   course,
+  enrolled,
   darkMode,
   onToggleTheme,
   onBack,
+  onPurchase,
 }: {
   course: Course;
+  enrolled: boolean;
   darkMode: boolean;
   onToggleTheme: () => void;
   onBack: () => void;
+  onPurchase: (courseIds: string[]) => void;
 }) {
-  const modules = course.id === "security" ? securityModules : [];
+  const [modules, setModules] = useState<CourseModule[]>(
+    course.id === "security" ? securityModules : [],
+  );
+  const [contentLoading, setContentLoading] = useState(true);
   const [activeModuleIndex, setActiveModuleIndex] = useState(0);
   const [activeLectureIndex, setActiveLectureIndex] = useState(0);
   const [quizOpen, setQuizOpen] = useState(false);
   const [infoTab, setInfoTab] = useState<"description" | "resources">("description");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCourseContent = async () => {
+      setContentLoading(true);
+
+      try {
+        const catalogResponse = await fetch(`${API_BASE_URL}/api/admin/public-courses`);
+        const catalogData = await catalogResponse.json();
+
+        if (!catalogResponse.ok || !catalogData.success || !Array.isArray(catalogData.courses)) {
+          throw new Error("Unable to load course catalog");
+        }
+
+        const catalogCourse = catalogData.courses.find(
+          (item: { id?: string; dbId?: number }) => item.id === course.id,
+        );
+
+        if (!catalogCourse?.dbId) {
+          if (!cancelled) setContentLoading(false);
+          return;
+        }
+
+        const contentResponse = await fetch(
+          `${API_BASE_URL}/api/admin/public-courses/${catalogCourse.dbId}/content`,
+        );
+        const contentData = await contentResponse.json();
+
+        if (!contentResponse.ok || !contentData.success || !Array.isArray(contentData.modules)) {
+          throw new Error("Unable to load course content");
+        }
+
+        const dbModules: CourseModule[] = contentData.modules
+          .map((module: {
+            id: number;
+            title: string;
+            description?: string | null;
+            lectures?: Array<{
+              id: number;
+              title: string;
+              description?: string | null;
+              videoUrl?: string;
+              lectureOrder?: number;
+              duration?: number;
+              isFree?: boolean;
+              questions?: Array<{
+                id: number;
+                question: string;
+                options: unknown;
+                correct_answer: string;
+              }>;
+            }>;
+          }) => {
+            const dbLectures = Array.isArray(module.lectures) ? module.lectures : [];
+
+            const lectures: Lecture[] = dbLectures
+              .sort((a, b) => Number(a.lectureOrder ?? 0) - Number(b.lectureOrder ?? 0))
+              .map((item) => {
+                const questions: QuizQuestion[] = (item.questions ?? []).map((question) => {
+                  const options = Array.isArray(question.options)
+                    ? question.options.map((option) => String(option))
+                    : [];
+                  const rawAnswer = String(question.correct_answer ?? "");
+                  const numericAnswer = Number(rawAnswer);
+                  const answer = Number.isInteger(numericAnswer) && numericAnswer >= 0 && numericAnswer < options.length
+                    ? numericAnswer
+                    : Math.max(0, options.findIndex((option) => option === rawAnswer));
+
+                  return {
+                    question: String(question.question),
+                    options,
+                    answer,
+                    explanation: "Review the lecture material for the concept tested in this question.",
+                  };
+                });
+
+                const durationMinutes = Number(item.duration ?? 0);
+
+                return {
+                  id: String(item.id),
+                  title: String(item.title),
+                  duration: durationMinutes > 0 ? `${durationMinutes} min` : "Self-paced",
+                  videoUrl: item.videoUrl ? String(item.videoUrl) : "",
+                  questions,
+                  isFree: Boolean(item.isFree),
+                };
+              });
+
+            return {
+              id: String(module.id),
+              title: String(module.title),
+              duration: lectures.length
+                ? `${lectures.length} lecture${lectures.length === 1 ? "" : "s"}`
+                : "Self-paced",
+              lectures,
+            };
+          })
+          .filter((module: CourseModule) => module.lectures.length > 0);
+
+        if (!cancelled && dbModules.length > 0) {
+          setModules(dbModules);
+          setActiveModuleIndex(0);
+          setActiveLectureIndex(0);
+        }
+      } catch (error) {
+        console.error("Course content loading error:", error);
+      } finally {
+        if (!cancelled) setContentLoading(false);
+      }
+    };
+
+    void loadCourseContent();
+    return () => {
+      cancelled = true;
+    };
+  }, [course.id]);
 
   const activeModule = modules[activeModuleIndex];
   const lecture = activeModule?.lectures[activeLectureIndex];
@@ -2933,7 +3070,17 @@ function CoursePlayer({
     setInfoTab("description");
   }, [course.id, lecture?.id]);
 
+  const canAccessLecture = (item: Lecture) => enrolled || item.isFree === true;
+
   const selectLecture = (moduleIndex: number, lectureIndex: number) => {
+    const item = modules[moduleIndex]?.lectures[lectureIndex];
+    if (!item) return;
+
+    if (!canAccessLecture(item)) {
+      alert("This lecture is locked. Purchase the course to unlock all lectures.");
+      return;
+    }
+
     setActiveModuleIndex(moduleIndex);
     setActiveLectureIndex(lectureIndex);
     setQuizOpen(false);
@@ -2979,6 +3126,27 @@ function CoursePlayer({
   const currentLectureNumber = Math.max(1, allLectures.findIndex((item) => item.id === lecture?.id) + 1);
   const totalLectures = Math.max(course.lessons, allLectures.length);
   const localCourseProgress = getLocalCourseProgress(course);
+  const lectureLocked = !!lecture && !canAccessLecture(lecture);
+
+  if (contentLoading && !modules.length) {
+    return (
+      <div className="min-h-screen bg-[#07111f] text-white">
+        <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1736]/95 backdrop-blur-xl">
+          <div className="flex h-16 items-center justify-between px-5 lg:px-8">
+            <button onClick={onBack} className="flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-emerald-400">
+              <ArrowLeft size={18} /> Back to Course
+            </button>
+            <div className="text-lg font-black">Skill<span className="text-emerald-400">Forge</span></div>
+          </div>
+        </header>
+        <main className="mx-auto max-w-5xl px-5 py-16 text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-emerald-500/20 border-t-emerald-400" />
+          <h1 className="mt-6 text-2xl font-black">Loading course content...</h1>
+          <p className="mt-2 text-sm text-slate-400">Checking the latest lectures and access settings.</p>
+        </main>
+      </div>
+    );
+  }
 
   if (!modules.length || !lecture) {
     return (
@@ -3136,16 +3304,36 @@ html.dark .skillforge-course-player header {
               </div>
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-xl">
-              <SkillForgeVideoPlayer
-                key={lecture.id}
-                src={lecture.id === "lecture-1" ? R2_LECTURE_1_URL : lecture.id === "lecture-2" ? R2_LECTURE_2_URL : lecture.videoUrl}
-                title={lecture.title}
-                lectureNumber={activeLectureIndex + 1}
-                moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
-                autoPlay
-                onEnded={markLectureComplete}
-              />
+            <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-xl">
+              {lectureLocked ? (
+                <div className="flex aspect-video flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-[#0b1736] to-slate-950 px-6 text-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300">
+                    <Lock size={34} />
+                  </div>
+                  <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-amber-300">Paid Lecture</p>
+                  <h3 className="mt-2 text-xl font-black text-white sm:text-2xl">This lecture is locked</h3>
+                  <p className="mt-2 max-w-lg text-sm leading-6 text-slate-400">
+                    Purchase this course to unlock this lecture and all other paid lectures. Free lectures remain available without purchasing.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onPurchase([course.id])}
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
+                  >
+                    <CreditCard size={17} /> Unlock Course — ₹799
+                  </button>
+                </div>
+              ) : (
+                <SkillForgeVideoPlayer
+                  key={lecture.id}
+                  src={lecture.id === "lecture-1" ? R2_LECTURE_1_URL : lecture.id === "lecture-2" ? R2_LECTURE_2_URL : lecture.videoUrl}
+                  title={lecture.title}
+                  lectureNumber={activeLectureIndex + 1}
+                  moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
+                  autoPlay
+                  onEnded={markLectureComplete}
+                />
+              )}
             </section>
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -3154,9 +3342,19 @@ html.dark .skillforge-course-player header {
                   <h3 className="text-lg font-black text-[#0b1736]">{lecture.title}</h3>
                   <p className="mt-1 text-xs text-slate-500">{lecture.duration} · {activeModule.title} · Lecture {activeLectureIndex + 1}</p>
                 </div>
-                <button onClick={markLectureComplete} className={`shrink-0 rounded-xl px-5 py-3 text-sm font-black transition ${videoMarkedComplete ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
-                  {videoMarkedComplete ? "✓ Lecture Completed · Open Quiz" : "Mark as Complete"}
-                </button>
+                {lectureLocked ? (
+                  <button
+                    type="button"
+                    onClick={() => onPurchase([course.id])}
+                    className="shrink-0 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+                  >
+                    Unlock Lecture
+                  </button>
+                ) : (
+                  <button onClick={markLectureComplete} className={`shrink-0 rounded-xl px-5 py-3 text-sm font-black transition ${videoMarkedComplete ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+                    {videoMarkedComplete ? "✓ Lecture Completed · Open Quiz" : "Mark as Complete"}
+                  </button>
+                )}
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
@@ -3240,10 +3438,16 @@ html.dark .skillforge-course-player header {
                           const itemKey = `skillforge_lecture_progress_${course.id}_${item.id}`;
                           const completed = localStorage.getItem(`${itemKey}_video`) === "true";
                           return (
-                            <button key={item.id} onClick={() => selectLecture(moduleIndex, lectureIndex)} className={`mb-1 flex w-full items-start gap-3 rounded-xl p-3 text-left transition last:mb-0 ${active ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100" : "text-slate-600 hover:bg-white"}`}>
-                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-black">{completed ? <CheckCircle2 size={15} className="text-emerald-500" /> : lectureIndex + 1}</span>
-                              <span className="min-w-0 flex-1"><span className="block text-xs font-bold leading-5">{item.title}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400"><Clock3 size={11} />{item.duration}</span></span>
-                              {active && <PlayCircle size={16} className="mt-1 shrink-0 text-emerald-500" />}
+                            <button key={item.id} onClick={() => selectLecture(moduleIndex, lectureIndex)} className={`mb-1 flex w-full items-start gap-3 rounded-xl p-3 text-left transition last:mb-0 ${active ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100" : "text-slate-600 hover:bg-white"} ${!canAccessLecture(item) ? "opacity-80" : ""}`}>
+                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-black">
+                                {completed ? <CheckCircle2 size={15} className="text-emerald-500" /> : !canAccessLecture(item) ? <Lock size={13} className="text-slate-400" /> : lectureIndex + 1}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-xs font-bold leading-5">{item.title}</span>
+                                <span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400"><Clock3 size={11} />{item.duration} · {canAccessLecture(item) ? (item.isFree ? "Free" : "Unlocked") : "Paid"}</span>
+                              </span>
+                              {active && !lectureLocked && <PlayCircle size={16} className="mt-1 shrink-0 text-emerald-500" />}
+                              {active && lectureLocked && <Lock size={15} className="mt-1 shrink-0 text-amber-500" />}
                             </button>
                           );
                         })}
