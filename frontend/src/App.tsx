@@ -942,7 +942,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handlePurchase = async (courseIds: string[]) => {
+  const handlePurchase = async (courseId: string) => {
     const token = localStorage.getItem("skillforge_token");
 
     if (!user || !token) {
@@ -950,19 +950,15 @@ function App() {
       return;
     }
 
-    const uniqueCourseIds = [...new Set(courseIds)];
+    const normalizedCourseId = String(courseId).trim();
 
-    if (uniqueCourseIds.length !== 1 && uniqueCourseIds.length !== 2) {
-      alert("Please select one course or exactly two courses.");
+    if (!normalizedCourseId) {
+      alert("Course ID is required.");
       return;
     }
 
-    const alreadyEnrolled = uniqueCourseIds.filter((id) =>
-      enrolledCourseIds.includes(id),
-    );
-
-    if (alreadyEnrolled.length > 0) {
-      alert("You are already enrolled in one of the selected courses.");
+    if (enrolledCourseIds.includes(normalizedCourseId)) {
+      alert("You are already enrolled in this course.");
       return;
     }
 
@@ -976,8 +972,6 @@ function App() {
         return;
       }
 
-      const type = uniqueCourseIds.length === 1 ? "course" : "combo";
-
       const createOrderResponse = await fetch(
         `${API_BASE_URL}/api/payment/create-order`,
         {
@@ -986,11 +980,10 @@ function App() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(
-            type === "course"
-              ? { type, courseId: uniqueCourseIds[0] }
-              : { type, courseIds: uniqueCourseIds },
-          ),
+          body: JSON.stringify({
+            type: "course",
+            courseId: normalizedCourseId,
+          }),
         },
       );
 
@@ -1002,15 +995,14 @@ function App() {
       }
 
       await new Promise<void>((resolve) => {
+        const selected = courses.find((course) => course.id === normalizedCourseId);
+
         const razorpay = new window.Razorpay!({
           key: orderData.keyId,
           amount: orderData.order.amount,
           currency: orderData.order.currency,
           name: "SkillForge",
-          description:
-            type === "course"
-              ? `${courses.find((course) => course.id === uniqueCourseIds[0])?.title ?? "Course"} - SkillForge`
-              : "SkillForge 2 Course Combo",
+          description: `${selected?.title ?? "Course"} - SkillForge`,
           order_id: orderData.order.id,
           prefill: {
             name: user.name,
@@ -1048,7 +1040,7 @@ function App() {
                 ? verifyData.enrolledCourseIds.filter(
                     (id: unknown): id is string => typeof id === "string",
                   )
-                : uniqueCourseIds;
+                : [normalizedCourseId];
 
               setEnrolledCourseIds((current) => {
                 const merged = [...new Set([...current, ...verifiedIds])];
@@ -1059,11 +1051,7 @@ function App() {
                 return merged;
               });
 
-              alert(
-                type === "course"
-                  ? "Payment successful! Your course is now unlocked."
-                  : "Payment successful! Both courses are now unlocked.",
-              );
+              alert("Payment successful! Your course is now unlocked.");
             } catch (error) {
               console.error("Payment verification error:", error);
               alert(
@@ -1216,7 +1204,6 @@ function App() {
         course={selectedCourse}
         user={user}
         enrolled={enrolledCourseIds.includes(selectedCourse.id)}
-        enrolledCourseIds={enrolledCourseIds}
         paymentLoading={paymentLoading}
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode((prev) => !prev)}
@@ -1485,7 +1472,7 @@ function App() {
 
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
-        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. The 2-course combo is ₹1,499 with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
+        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
 
         <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
 
@@ -2116,7 +2103,6 @@ function CourseOverviewPage({
   course,
   user,
   enrolled,
-  enrolledCourseIds,
   paymentLoading,
   darkMode,
   onToggleTheme,
@@ -2127,20 +2113,13 @@ function CourseOverviewPage({
   course: Course;
   user: User | null;
   enrolled: boolean;
-  enrolledCourseIds: string[];
   paymentLoading: boolean;
   darkMode: boolean;
   onToggleTheme: () => void;
-  onPurchase: (courseIds: string[]) => void;
+  onPurchase: (courseId: string) => void;
   onBack: () => void;
   onStart: () => void;
 }) {
-  const [comboCourseId, setComboCourseId] = useState("");
-
-  const comboOptions = courses.filter(
-    (item) => item.id !== course.id && !enrolledCourseIds.includes(item.id),
-  );
-
   const overviewContent: Record<
     string,
     {
@@ -2468,7 +2447,7 @@ function CourseOverviewPage({
 
                     <button
                       type="button"
-                      onClick={() => onPurchase([course.id])}
+                      onClick={() => onPurchase(course.id)}
                       disabled={paymentLoading || !user}
                       className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -2491,37 +2470,6 @@ function CourseOverviewPage({
                       <PlayCircle size={17} /> Watch Free Lectures
                     </button>
 
-                    {comboOptions.length > 0 && (
-                      <div className="mt-6 border-t border-slate-100 pt-5 dark:border-slate-800">
-                        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-                          2 Course Combo
-                        </p>
-                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                          Choose another course and get both for ₹1,499.
-                        </p>
-                        <select
-                          value={comboCourseId}
-                          onChange={(e) => setComboCourseId(e.target.value)}
-                          disabled={paymentLoading || !user}
-                          className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-400 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                        >
-                          <option value="">Choose second course</option>
-                          {comboOptions.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.emoji} {item.title}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => onPurchase([course.id, comboCourseId])}
-                          disabled={paymentLoading || !user || !comboCourseId}
-                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 py-3 font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                        >
-                          <CreditCard size={17} /> Buy Combo — ₹1,499
-                        </button>
-                      </div>
-                    )}
                   </>
                 )}
               </aside>
@@ -2717,7 +2665,7 @@ function CourseOverviewPage({
               ) : (
                 <button
                   type="button"
-                  onClick={() => onPurchase([course.id])}
+                  onClick={() => onPurchase(course.id)}
                   disabled={paymentLoading || !user}
                   className="shrink-0 rounded-xl bg-emerald-600 px-7 py-4 font-black text-white shadow-lg shadow-emerald-600/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
