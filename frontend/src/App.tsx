@@ -768,16 +768,7 @@ function App() {
       <DashboardPage
         user={user}
         enrolledCourseIds={enrolledCourseIds}
-        darkMode={darkMode}
-        onToggleTheme={() => setDarkMode((prev) => !prev)}
-        onBack={() => {
-          setDashboardOpen(false);
-          setSelectedCourse(null);
-          setLearningCourse(null);
-          const cleanUrl = `${window.location.pathname}${window.location.search}`;
-          window.history.replaceState(null, "", cleanUrl);
-          window.scrollTo({ top: 0, behavior: "auto" });
-        }}
+        onBack={() => window.history.back()}
         onCourse={openCourse}
         onLearn={openLearning}
         onLogout={handleLogout}
@@ -1035,7 +1026,30 @@ function App() {
 
         <section id="courses" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
           <div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Popular Courses</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Start Learning Today</h2><p className="mt-2 text-sm text-slate-500">Beginner-friendly courses focused on practical skills.</p></div><button onClick={() => setSelectedCategory("All")} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
-          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredCourses.slice(0,8).map((course,index)=><Course key={course.id} course={course} onClick={() => openCourse(course)} badge={index===0?"Bestseller":index===1?"Most Popular":index===2?"Beginner Friendly":index===3?"New":undefined}/>)}</div>
+          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredCourses.slice(0,8).map((course,index)=>{
+            const isPurchased = enrolledCourseIds.includes(course.id);
+            return (
+              <Course
+                key={course.id}
+                course={course}
+                enrolled={isPurchased}
+                onClick={() => isPurchased ? openLearning(course) : openCourse(course)}
+                badge={
+                  isPurchased
+                    ? "Purchased"
+                    : index===0
+                      ? "Bestseller"
+                      : index===1
+                        ? "Most Popular"
+                        : index===2
+                          ? "Beginner Friendly"
+                          : index===3
+                            ? "New"
+                            : undefined
+                }
+              />
+            );
+          })}</div>
         </section>
 
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
@@ -1049,47 +1063,7 @@ function App() {
 
       {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
-      {introOpen && (
-        <Modal onClose={() => setIntroOpen(false)}>
-          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-black shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 bg-[#0d1422] px-5 py-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">SkillForge</p>
-                <h2 className="mt-1 text-lg font-bold text-white">Welcome to SkillForge</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIntroOpen(false)}
-                className="rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
-                aria-label="Close intro video"
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <video
-              className="block aspect-video w-full bg-black object-contain"
-              src="/skillforge-intro.mp4"
-              controls
-              autoPlay
-              playsInline
-              preload="metadata"
-            />
-            <div className="flex flex-col gap-3 bg-[#0d1422] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-slate-400">Learn. Build. Grow.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setIntroOpen(false);
-                  scrollToSection("courses");
-                }}
-                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
-              >
-                Explore Courses
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      {introOpen && <Modal onClose={() => setIntroOpen(false)}><div className="w-full max-w-2xl text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50"><Play className="fill-emerald-600 text-emerald-600" size={28}/></div><h2 className="mt-6 text-3xl font-black text-[#0b1736]">Welcome to SkillForge</h2><p className="mx-auto mt-4 max-w-lg text-slate-500">Practical IT and technology learning with structured lessons, hands-on projects, quizzes and certificates.</p><button onClick={()=>{setIntroOpen(false);scrollToSection("courses")}} className="mt-7 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></Modal>}
       </div>
     </>
   );
@@ -1101,8 +1075,6 @@ function App() {
 function DashboardPage({
   user,
   enrolledCourseIds,
-  darkMode,
-  onToggleTheme,
   onBack,
   onCourse,
   onLearn,
@@ -1110,8 +1082,6 @@ function DashboardPage({
 }: {
   user: User | null;
   enrolledCourseIds: string[];
-  darkMode: boolean;
-  onToggleTheme: () => void;
   onBack: () => void;
   onCourse: (course: Course) => void;
   onLearn: (course: Course) => void;
@@ -1186,19 +1156,13 @@ function DashboardPage({
   const [activeTab, setActiveTab] = useState<"dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support">("dashboard");
 
   return (
-    <>
-      <div className={`dashboard-shell min-h-screen transition-colors duration-300 ${darkMode ? "dashboard-dark bg-[#070b14] text-slate-100" : "bg-[#f7faf8] text-[#0b1736]"}`}>
-      <header className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors ${darkMode ? "border-[#263449] bg-[#0d1422]/95" : "border-slate-200 bg-white/95"}`}>
+    <div className="min-h-screen bg-[#f7faf8] text-[#0b1736]">
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-[1380px] items-center justify-between px-5 lg:px-8">
           <button
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onBack();
-            }}
+            onClick={onBack}
             className="flex items-center gap-3"
             type="button"
-            title="Back to Home"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
               <BookOpen size={21} />
@@ -1207,29 +1171,14 @@ function DashboardPage({
               <div className="text-xl font-black">
                 Skill<span className="text-emerald-600">Forge</span>
               </div>
-              <div className={`flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.24em] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-                <ArrowLeft size={11} />
-                Back to Home · Student Dashboard
+              <div className="text-[8px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Student Dashboard
               </div>
             </div>
           </button>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onToggleTheme();
-              }}
-              onMouseDown={(event) => event.stopPropagation()}
-              className={`relative z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition ${darkMode ? "border-slate-700 bg-slate-900 text-slate-100 hover:border-emerald-400" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600"}`}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              title={darkMode ? "Light Mode" : "Dark Mode"}
-            >
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <div className={`hidden rounded-full border px-4 py-2 text-sm font-semibold sm:block ${darkMode ? "border-slate-700 bg-slate-900 text-slate-200" : "border-slate-200 bg-white text-slate-700"}`}>
+            <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 sm:block">
               Hi, <span className="text-emerald-600">{user?.name ?? "Student"}</span>
             </div>
             <button
@@ -1250,12 +1199,12 @@ function DashboardPage({
             <p className="px-3 pb-3 pt-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
               Learning
             </p>
-            <DashboardNav darkMode={darkMode} icon={<LayoutDashboard size={17} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
-            <DashboardNav darkMode={darkMode} icon={<BookOpen size={17} />} label="My Courses" active={activeTab === "courses"} onClick={() => setActiveTab("courses")} />
-            <DashboardNav darkMode={darkMode} icon={<BarChart3 size={17} />} label="My Progress" active={activeTab === "progress"} onClick={() => setActiveTab("progress")} />
-            <DashboardNav darkMode={darkMode} icon={<Award size={17} />} label="Certificates" active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} />
-            <DashboardNav darkMode={darkMode} icon={<ReceiptText size={17} />} label="Purchase History" active={activeTab === "purchases"} onClick={() => setActiveTab("purchases")} />
-            <DashboardNav darkMode={darkMode} icon={<Headphones size={17} />} label="Support" active={activeTab === "support"} onClick={() => setActiveTab("support")} />
+            <DashboardNav icon={<LayoutDashboard size={17} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+            <DashboardNav icon={<BookOpen size={17} />} label="My Courses" active={activeTab === "courses"} onClick={() => setActiveTab("courses")} />
+            <DashboardNav icon={<BarChart3 size={17} />} label="My Progress" active={activeTab === "progress"} onClick={() => setActiveTab("progress")} />
+            <DashboardNav icon={<Award size={17} />} label="Certificates" active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} />
+            <DashboardNav icon={<ReceiptText size={17} />} label="Purchase History" active={activeTab === "purchases"} onClick={() => setActiveTab("purchases")} />
+            <DashboardNav icon={<Headphones size={17} />} label="Support" active={activeTab === "support"} onClick={() => setActiveTab("support")} />
           </div>
         </aside>
 
@@ -1448,8 +1397,7 @@ function DashboardPage({
           )}
         </main>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -1538,13 +1486,11 @@ function DashboardNav({
   label,
   active = false,
   onClick,
-  darkMode = false,
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
   onClick: () => void;
-  darkMode?: boolean;
 }) {
   return (
     <button
@@ -1552,12 +1498,8 @@ function DashboardNav({
       onClick={onClick}
       className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
         active
-          ? darkMode
-            ? "bg-emerald-500/10 text-emerald-400"
-            : "bg-emerald-50 text-emerald-700"
-          : darkMode
-            ? "text-slate-400 hover:bg-[#172033] hover:text-slate-100"
-            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+          ? "bg-emerald-50 text-emerald-700"
+          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
       }`}
     >
       {icon}
@@ -2844,10 +2786,12 @@ function Course({
   course,
   onClick,
   badge,
+  enrolled = false,
 }: {
   course: Course;
   onClick: () => void;
   badge?: string;
+  enrolled?: boolean;
 }) {
   const covers: Record<string,string> = {
     aws: "from-slate-950 via-cyan-950 to-emerald-900",
@@ -2869,7 +2813,25 @@ function Course({
         <p className="mt-2 min-h-[44px] text-xs leading-5 text-slate-500">{course.description}</p>
         <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-3 text-[11px] text-slate-500"><span>▣ {course.lessons} Lessons</span><span>◷ {course.duration}</span></div>
         <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-500"><span>★</span><span className="text-slate-500">4.8 (120)</span></div>
-        <div className="mt-4 flex items-center justify-between"><span className="text-xl font-black text-[#0b1736]">₹799</span><span className="flex items-center gap-2 rounded-xl border border-emerald-300 px-4 py-2 text-xs font-bold text-emerald-700 transition group-hover:bg-emerald-600 group-hover:text-white">View Course <ArrowRight size={14}/></span></div>
+        <div className="mt-4 flex items-center justify-between">
+          {enrolled ? (
+            <span className="flex items-center gap-2 text-base font-black text-emerald-600">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100">✓</span>
+              Purchased
+            </span>
+          ) : (
+            <span className="text-xl font-black text-[#0b1736]">₹799</span>
+          )}
+
+          <span className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition ${
+            enrolled
+              ? "border-emerald-300 bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white"
+              : "border-emerald-300 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white"
+          }`}>
+            {enrolled ? "Continue Learning" : "View Course"}
+            <ArrowRight size={14}/>
+          </span>
+        </div>
       </div>
     </button>
   );
