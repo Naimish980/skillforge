@@ -21,6 +21,116 @@ const razorpay = new Razorpay({
   key_secret: keySecret,
 });
 
+/*
+  Student-facing course IDs intentionally remain stable slugs.
+
+  Existing courses:
+    Linux Administration      -> linux
+    AWS Cloud Fundamentals    -> aws
+    Networking Fundamentals   -> networking
+    Windows Administration    -> windows
+    Cyber Security Essentials -> security
+    System Administration     -> sysadmin
+
+  New courses use the public catalog format:
+    <slugified-title>-<database-id>
+*/
+
+const knownSlugs: Record<string, string> = {
+  "Linux Administration": "linux",
+  "AWS Cloud Fundamentals": "aws",
+  "Networking Fundamentals": "networking",
+  "Windows Administration": "windows",
+  "Cyber Security Essentials": "security",
+  "System Administration": "sysadmin",
+};
+
+const slugify = (title: string, id: number) => {
+  const known = knownSlugs[title];
+
+  if (known) {
+    return known;
+  }
+
+  const base = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${base || "course"}-${id}`;
+};
+
+async function getCourseByPublicId(publicCourseId: string) {
+  const normalizedId = String(publicCourseId).trim();
+
+  const knownTitle = Object.entries(knownSlugs).find(
+    ([, slug]) => slug === normalizedId,
+  )?.[0];
+
+  if (knownTitle) {
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        title,
+        price,
+        is_published
+      FROM courses
+      WHERE title = $1
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [knownTitle],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  const match = normalizedId.match(/^(.*)-(\d+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const dbId = Number(match[2]);
+
+  if (!Number.isInteger(dbId) || dbId <= 0) {
+    return null;
+  }
+
+  const result = await pool.query(
+    `
+    SELECT
+      id,
+      title,
+      price,
+      is_published
+    FROM courses
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [dbId],
+  );
+
+  const course = result.rows[0];
+
+  if (!course) {
+    return null;
+  }
+
+  const expectedPublicId = slugify(
+    String(course.title),
+    Number(course.id),
+  );
+
+  if (expectedPublicId !== normalizedId) {
+    return null;
+  }
+
+  return course;
+};
+
 /* =====================================================
    GET USER ENROLLMENTS
    GET /api/payment/enrollments
@@ -146,11 +256,49 @@ router.post(
         }
 
         /* ---------------------------------------------
-           COURSE PRICE
-           All individual courses = ₹799
+           COURSE PRICE FROM DATABASE
+           Admin Portal -> courses.price -> Razorpay
         --------------------------------------------- */
 
-        amount = 79900; // ₹799 in paise
+        const course = await getCourseByPublicId(
+          normalizedCourseId,
+        );
+
+        if (!course) {
+          return res.status(404).json({
+            success: false,
+            message: "Course not found",
+          });
+        }
+
+        if (!course.is_published) {
+          return res.status(400).json({
+            success: false,
+            message: "This course is not currently available for purchase",
+          });
+        }
+
+        const coursePrice = Number(course.price);
+
+        if (
+          !Number.isFinite(coursePrice) ||
+          coursePrice < 0 ||
+          !Number.isInteger(coursePrice)
+        ) {
+          return res.status(500).json({
+            success: false,
+            message: "Invalid course price configured by SkillForge admin",
+          });
+        }
+
+        if (coursePrice === 0) {
+          return res.status(400).json({
+            success: false,
+            message: "This course is free and does not require payment",
+          });
+        }
+
+        amount = coursePrice * 100;
 
         receipt = `course_${normalizedCourseId}_${Date.now()}`;
       }
@@ -230,7 +378,8 @@ router.post(
         }
 
         /* ---------------------------------------------
-           Combo price = ₹1499
+           Combo price remains ₹1499 for now.
+           Individual course pricing is fully Admin/DB driven.
         --------------------------------------------- */
 
         amount = 149900;
@@ -441,6 +590,12 @@ router.post(
         return res.status(200).json({
           success: true,
           message: "Payment was already verified",
+          enrolledCourseIds:
+            paymentOrder.payment_type === "course"
+              ? [String(paymentOrder.course_id)]
+              : Array.isArray(paymentOrder.course_ids)
+                ? paymentOrder.course_ids.map((id: string) => String(id))
+                : [],
         });
       }
 
