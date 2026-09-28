@@ -960,6 +960,85 @@ const mapCertificateRow = (row: any) => ({
 });
 
 /* =====================================================
+   CERTIFICATE COMPLETION CHECK
+
+   A certificate may only be issued when every lecture in
+   every module of the current course has a passed quiz and
+   a completed_at timestamp for this student.
+
+   This check intentionally reads the live module/lecture
+   tables, so lectures added later automatically become part
+   of the certificate requirement. Already-issued certificates
+   are returned before this check and therefore remain valid.
+===================================================== */
+
+async function getCertificateCompletionStatus(
+  userId: number,
+  courseDbId: number,
+  publicCourseId: string,
+) {
+  const result = await pool.query(
+    `
+    SELECT
+      COUNT(DISTINCT m.id)::int AS total_modules,
+      COUNT(DISTINCT l.id)::int AS total_lectures,
+      COUNT(DISTINCT m.id) FILTER (
+        WHERE EXISTS (
+          SELECT 1
+          FROM lectures module_lecture
+          WHERE module_lecture.module_id = m.id
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM lectures incomplete_lecture
+          WHERE incomplete_lecture.module_id = m.id
+            AND NOT EXISTS (
+              SELECT 1
+              FROM lecture_progress lp
+              WHERE lp.user_id = $1
+                AND lp.module_id = CAST(m.id AS text)
+                AND lp.lecture_id = CAST(incomplete_lecture.id AS text)
+                AND lp.course_id = ANY($3::text[])
+                AND lp.passed = TRUE
+                AND lp.completed_at IS NOT NULL
+            )
+        )
+      )::int AS completed_modules,
+      COUNT(DISTINCT l.id) FILTER (
+        WHERE EXISTS (
+          SELECT 1
+          FROM lecture_progress lp
+          WHERE lp.user_id = $1
+            AND lp.module_id = CAST(m.id AS text)
+            AND lp.lecture_id = CAST(l.id AS text)
+            AND lp.course_id = ANY($3::text[])
+            AND lp.passed = TRUE
+            AND lp.completed_at IS NOT NULL
+        )
+      )::int AS completed_lectures
+    FROM modules m
+    LEFT JOIN lectures l
+      ON l.module_id = m.id
+    WHERE m.course_id = $2
+    `,
+    [
+      userId,
+      courseDbId,
+      [publicCourseId, String(courseDbId)],
+    ],
+  );
+
+  const row = result.rows[0] ?? {};
+
+  return {
+    totalModules: Number(row.total_modules) || 0,
+    completedModules: Number(row.completed_modules) || 0,
+    totalLectures: Number(row.total_lectures) || 0,
+    completedLectures: Number(row.completed_lectures) || 0,
+  };
+}
+
+/* =====================================================
    ISSUE / GET EXISTING CERTIFICATE
 ===================================================== */
 
@@ -1057,6 +1136,31 @@ router.post(
           certificate: mapCertificateRow(
             existingResult.rows[0],
           ),
+        });
+      }
+
+      const completion =
+        await getCertificateCompletionStatus(
+          Number(userId),
+          Number(course.id),
+          normalizedCourseId,
+        );
+
+      if (
+        completion.totalLectures === 0 ||
+        completion.totalModules === 0 ||
+        completion.completedLectures !== completion.totalLectures ||
+        completion.completedModules !== completion.totalModules
+      ) {
+        return res.status(403).json({
+          success: false,
+          certificateLocked: true,
+          message:
+            "Complete all lectures in all modules before requesting your certificate",
+          totalModules: completion.totalModules,
+          completedModules: completion.completedModules,
+          totalLectures: completion.totalLectures,
+          completedLectures: completion.completedLectures,
         });
       }
 
