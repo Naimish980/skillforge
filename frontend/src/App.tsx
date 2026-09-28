@@ -2625,45 +2625,171 @@ function DashboardTabContent({
           )}
 
           {certificateCourse && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setCertificateCourse(null); }}>
-              <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm sm:p-6"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setCertificateCourse(null);
+              }}
+            >
+              <div className="w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-700 bg-[#07111f] shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-700/80 px-5 py-4 sm:px-7">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">SkillForge Certificate</p>
-                    <h2 className="mt-1 text-lg font-black text-slate-900">{certificateCourse.title}</h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">SkillForge Certificate</p>
+                    <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Certificate of Completion</h2>
                   </div>
-                  <button type="button" onClick={() => setCertificateCourse(null)} className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:text-slate-900"><X size={18}/></button>
+                  <button
+                    type="button"
+                    onClick={() => setCertificateCourse(null)}
+                    className="rounded-xl border border-slate-600 bg-slate-900/70 p-2 text-slate-300 transition hover:border-emerald-400 hover:text-white"
+                  >
+                    <X size={18}/>
+                  </button>
                 </div>
 
-                <div className="bg-slate-100 p-4 sm:p-8">
-                  <div className="mx-auto aspect-[1.414/1] w-full max-w-4xl border-[10px] border-slate-900 bg-white p-2 shadow-xl">
-                    <div className="relative flex h-full flex-col items-center justify-center border-2 border-emerald-500 px-6 text-center sm:px-12">
-                      <div className="absolute left-3 top-3 h-12 w-12 border-l-2 border-t-2 border-emerald-500 sm:h-16 sm:w-16"/>
-                      <div className="absolute right-3 top-3 h-12 w-12 border-r-2 border-t-2 border-emerald-500 sm:h-16 sm:w-16"/>
-                      <div className="absolute bottom-3 left-3 h-12 w-12 border-b-2 border-l-2 border-emerald-500 sm:h-16 sm:w-16"/>
-                      <div className="absolute bottom-3 right-3 h-12 w-12 border-b-2 border-r-2 border-emerald-500 sm:h-16 sm:w-16"/>
-                      <div className="text-2xl font-black text-slate-900 sm:text-4xl">Skill<span className="text-emerald-600">Forge</span></div>
-                      <p className="mt-2 text-[8px] font-black uppercase tracking-[0.25em] text-slate-500 sm:text-xs">Certificate of Completion</p>
-                      <h3 className="mt-3 text-xl font-black tracking-wide text-slate-900 sm:mt-5 sm:text-4xl">Certificate of Achievement</h3>
-                      <p className="mt-4 text-xs text-slate-500 sm:mt-7 sm:text-sm">This certificate is proudly presented to</p>
-                      <p className="mt-2 font-serif text-2xl font-bold text-emerald-700 sm:text-4xl">{userName}</p>
-                      <div className="mt-1 h-px w-2/3 bg-slate-300"/>
-                      <p className="mt-4 text-xs text-slate-500 sm:mt-6 sm:text-sm">for successfully completing the course</p>
-                      <p className="mt-2 text-base font-black text-slate-900 sm:text-2xl">{certificateCourse.title}</p>
-                      <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-3 sm:bottom-7 sm:left-10 sm:right-10">
-                        <div className="text-center"><div className="border-t border-slate-500 pt-1 text-[8px] text-slate-500 sm:text-xs"><strong className="text-slate-900">Naimish Singh</strong><br/>CEO, SkillForge</div></div>
-                        <div className="flex items-end gap-3">
-                          {certificateRecord && <div className="text-center"><img src={qrUrl(certificateRecord.certificateId)} alt="Certificate verification QR" className="h-16 w-16 rounded-lg border border-slate-200 bg-white p-1 sm:h-20 sm:w-20"/><p className="mt-1 text-[7px] font-black uppercase tracking-wider text-emerald-700 sm:text-[9px]">Scan to Verify</p></div>}
-                          <div className="text-right text-[7px] leading-4 text-slate-500 sm:text-xs sm:leading-5"><div><strong>Certificate ID:</strong> {certificateRecord?.certificateId ?? "—"}</div><div><strong>Issue Date:</strong> {certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div><div className="max-w-[220px] truncate text-emerald-700">skillforge-tau-three.vercel.app/verify</div></div>
+                <div className="grid max-h-[78vh] gap-0 overflow-y-auto lg:grid-cols-[1.55fr_.85fr]">
+                  <div className="bg-[#0b1627] p-3 sm:p-6 lg:p-8">
+                    <div className="relative mx-auto aspect-[1.414/1] w-full max-w-4xl overflow-hidden rounded-xl bg-[#fffdf7] shadow-2xl ring-1 ring-amber-300/30">
+                      <div className="absolute inset-0 border-[8px] border-[#07111f] sm:border-[10px]"/>
+                      <div className="absolute inset-[8px] border border-amber-500/80 sm:inset-[10px]"/>
+                      <div className="absolute inset-[15px] border border-emerald-500 sm:inset-[18px]"/>
+                      <div className="absolute -left-24 top-20 h-56 w-56 rotate-45 rounded-[45px] border-[22px] border-emerald-500/10"/>
+                      <div className="absolute -right-24 -bottom-28 h-72 w-72 rotate-45 rounded-[55px] border-[24px] border-amber-500/10"/>
+
+                      <div className="absolute left-5 top-5 h-12 w-12 border-l-2 border-t-2 border-emerald-500 sm:left-8 sm:top-8 sm:h-16 sm:w-16"/>
+                      <div className="absolute right-5 top-5 h-12 w-12 border-r-2 border-t-2 border-emerald-500 sm:right-8 sm:top-8 sm:h-16 sm:w-16"/>
+                      <div className="absolute bottom-5 left-5 h-12 w-12 border-b-2 border-l-2 border-emerald-500 sm:bottom-8 sm:left-8 sm:h-16 sm:w-16"/>
+                      <div className="absolute bottom-5 right-5 h-12 w-12 border-b-2 border-r-2 border-emerald-500 sm:bottom-8 sm:right-8 sm:h-16 sm:w-16"/>
+
+                      <div className="relative z-10 flex h-full flex-col items-center px-8 pb-5 pt-8 text-center sm:px-16 sm:pb-8 sm:pt-10">
+                        <div className="text-2xl font-black tracking-tight text-[#07111f] sm:text-4xl">Skill<span className="text-emerald-600">Forge</span></div>
+                        <p className="mt-1 text-[7px] font-black uppercase tracking-[0.28em] text-slate-500 sm:text-[10px]">Learn · Practice · Grow</p>
+
+                        <p className="mt-3 text-[7px] font-black uppercase tracking-[0.22em] text-slate-500 sm:mt-5 sm:text-[10px]">Certificate of Completion</p>
+                        <h3 className="mt-1 font-serif text-xl font-bold tracking-[0.06em] text-[#07111f] sm:mt-2 sm:text-4xl">CERTIFICATE</h3>
+                        <p className="mt-2 text-[8px] text-slate-500 sm:mt-3 sm:text-xs">This is to certify that</p>
+                        <p className="mt-1 font-serif text-xl font-bold text-amber-700 sm:text-3xl">{userName}</p>
+                        <div className="mt-1 h-px w-2/3 bg-amber-500/70"/>
+                        <p className="mt-2 text-[7px] text-slate-500 sm:mt-3 sm:text-xs">has successfully completed the course</p>
+                        <p className="mt-1 max-w-[80%] text-sm font-black text-[#07111f] sm:text-xl">{certificateCourse.title}</p>
+
+                        <div className="mt-3 grid w-[88%] grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
+                          <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 sm:px-3 sm:py-2">
+                            <p className="text-[6px] font-black uppercase tracking-wider text-slate-400 sm:text-[8px]">Category</p>
+                            <p className="mt-0.5 truncate text-[7px] font-bold text-slate-800 sm:text-[10px]">{certificateRecord?.courseCategory || "IT & Tech"}</p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 sm:px-3 sm:py-2">
+                            <p className="text-[6px] font-black uppercase tracking-wider text-slate-400 sm:text-[8px]">Level</p>
+                            <p className="mt-0.5 truncate text-[7px] font-bold text-slate-800 sm:text-[10px]">{certificateRecord?.courseLevel || "—"}</p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 sm:px-3 sm:py-2">
+                            <p className="text-[6px] font-black uppercase tracking-wider text-slate-400 sm:text-[8px]">Issue Date</p>
+                            <p className="mt-0.5 truncate text-[7px] font-bold text-slate-800 sm:text-[10px]">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</p>
+                          </div>
                         </div>
+
+                        <div className="mt-auto flex w-full items-end justify-between gap-3 pt-3 sm:pt-4">
+                          <div className="text-left">
+                            <div className="w-24 border-t border-slate-500 pt-1 sm:w-32">
+                              <p className="text-[7px] font-black text-slate-900 sm:text-[10px]">Naimish Singh</p>
+                              <p className="text-[6px] text-slate-500 sm:text-[8px]">CEO, SkillForge</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-end gap-3 sm:gap-5">
+                            {certificateRecord && (
+                              <div className="text-center">
+                                <div className="rounded-md border border-slate-200 bg-white p-1">
+                                  <img src={qrUrl(certificateRecord.certificateId)} alt="Certificate verification QR" className="h-14 w-14 sm:h-20 sm:w-20"/>
+                                </div>
+                                <p className="mt-1 text-[6px] font-black uppercase tracking-wider text-emerald-700 sm:text-[8px]">Scan to Verify</p>
+                              </div>
+                            )}
+                            <div className="text-right text-[6px] leading-4 text-slate-500 sm:text-[9px] sm:leading-5">
+                              <div><strong>Certificate ID:</strong> {certificateRecord?.certificateId ?? "—"}</div>
+                              <div><strong>Issue Date:</strong> {certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="absolute right-8 top-8 z-20 flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-500 bg-[#fffdf7] text-center text-[6px] font-black leading-3 text-amber-700 shadow sm:right-12 sm:top-12 sm:h-16 sm:w-16 sm:text-[8px]">
+                        SKILL<br/>FORGE<br/>VERIFIED
                       </div>
                     </div>
                   </div>
+
+                  <div className="border-t border-slate-700 bg-[#07111f] p-5 sm:p-7 lg:border-l lg:border-t-0">
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                          <Award size={22}/>
+                        </div>
+                        <div>
+                          <p className="font-black text-emerald-400">Certificate Ready</p>
+                          <p className="mt-0.5 text-xs text-slate-400">This certificate is issued by SkillForge.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Certificate Details</p>
+                      <div className="mt-3 space-y-3">
+                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                          <span className="text-xs text-slate-500">Student</span>
+                          <span className="text-right text-xs font-bold text-white">{userName}</span>
+                        </div>
+                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                          <span className="text-xs text-slate-500">Course</span>
+                          <span className="text-right text-xs font-bold text-white">{certificateCourse.title}</span>
+                        </div>
+                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                          <span className="text-xs text-slate-500">Certificate ID</span>
+                          <span className="text-right text-xs font-bold text-emerald-400">{certificateRecord?.certificateId || "—"}</span>
+                        </div>
+                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                          <span className="text-xs text-slate-500">Issue Date</span>
+                          <span className="text-right text-xs font-bold text-white">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">About This Course</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-400">{certificateRecord?.courseDescription || certificateCourse.description || "Successfully completed the course requirements on SkillForge."}</p>
+                    </div>
+
+                    {!!(certificateRecord?.moduleTitles?.length) && (
+                      <div className="mt-5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Key Modules</p>
+                        <div className="mt-3 space-y-2">
+                          {certificateRecord.moduleTitles.slice(0, 5).map((module, index) => (
+                            <div key={`${module}-${index}`} className="flex items-start gap-2 text-xs text-slate-300">
+                              <span className="mt-0.5 text-emerald-400">✓</span>
+                              <span>{module}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-col justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row">
-                  <button type="button" onClick={() => setCertificateCourse(null)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600">Close</button>
-                  <button type="button" onClick={() => { void printCertificate(certificateCourse); }} disabled={certificateLoading} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">Download / Print Certificate</button>
+                <div className="flex flex-col justify-end gap-3 border-t border-slate-700 bg-[#07111f] px-5 py-4 sm:flex-row sm:px-7">
+                  <button
+                    type="button"
+                    onClick={() => setCertificateCourse(null)}
+                    className="rounded-xl border border-slate-600 px-5 py-3 text-sm font-bold text-slate-300 transition hover:border-slate-400 hover:text-white"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { void printCertificate(certificateCourse); }}
+                    disabled={certificateLoading}
+                    className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 disabled:opacity-60"
+                  >
+                    {certificateLoading ? "Preparing…" : "Download / Print Certificate"}
+                  </button>
                 </div>
               </div>
             </div>
