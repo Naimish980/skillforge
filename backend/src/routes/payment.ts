@@ -819,4 +819,789 @@ router.post(
   },
 );
 
+
+/* =====================================================
+   CERTIFICATES
+   POST /api/payment/certificates/issue
+   GET  /api/payment/certificates/mine
+   GET  /api/payment/certificates/verify/:certificateId
+   POST /api/payment/certificates/:certificateId/download
+   GET  /api/payment/certificates/admin/all
+
+   Certificate IDs are persistent per user + course.
+   Download tracking records SkillForge's certificate
+   download/print action without changing the certificate UI.
+===================================================== */
+
+const ensureCertificatesTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS certificates (
+      id BIGSERIAL PRIMARY KEY,
+      certificate_id TEXT NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      course_id TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      course_title TEXT NOT NULL,
+      course_description TEXT,
+      course_category TEXT,
+      course_level TEXT,
+      lesson_count INTEGER NOT NULL DEFAULT 0,
+      module_titles TEXT[] NOT NULL DEFAULT '{}',
+      issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      download_count INTEGER NOT NULL DEFAULT 0,
+      first_downloaded_at TIMESTAMPTZ NULL,
+      last_downloaded_at TIMESTAMPTZ NULL,
+      UNIQUE (user_id, course_id)
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS course_description TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS course_category TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS course_level TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS lesson_count INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS module_titles TEXT[] NOT NULL DEFAULT '{}'
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS download_count INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS first_downloaded_at TIMESTAMPTZ NULL
+  `);
+
+  await pool.query(`
+    ALTER TABLE certificates
+    ADD COLUMN IF NOT EXISTS last_downloaded_at TIMESTAMPTZ NULL
+  `);
+};
+
+async function getCertificateCourseDetails(courseId: number) {
+  const result = await pool.query(
+    `
+    SELECT
+      c.id,
+      c.title,
+      c.description,
+      c.category,
+      c.level,
+      c.is_published,
+      (
+        SELECT COUNT(*)::int
+        FROM lectures l
+        INNER JOIN modules m
+          ON m.id = l.module_id
+        WHERE m.course_id = c.id
+      ) AS lesson_count,
+      COALESCE(
+        (
+          SELECT ARRAY_AGG(
+            m.title
+            ORDER BY m.module_order ASC, m.id ASC
+          )
+          FROM modules m
+          WHERE m.course_id = c.id
+        ),
+        ARRAY[]::text[]
+      ) AS module_titles
+    FROM courses c
+    WHERE c.id = $1
+    LIMIT 1
+    `,
+    [courseId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+const mapCertificateRow = (row: any) => ({
+  certificateId: String(row.certificate_id),
+  studentName: String(row.student_name),
+  courseId: String(row.course_id),
+  courseTitle: String(row.course_title),
+  courseDescription: row.course_description
+    ? String(row.course_description)
+    : null,
+  courseCategory: row.course_category
+    ? String(row.course_category)
+    : null,
+  courseLevel: row.course_level
+    ? String(row.course_level)
+    : null,
+  lessonCount: Number(row.lesson_count) || 0,
+  moduleTitles: Array.isArray(row.module_titles)
+    ? row.module_titles.map((item: unknown) => String(item))
+    : [],
+  issuedAt: row.issued_at,
+  downloadCount: Number(row.download_count) || 0,
+  firstDownloadedAt: row.first_downloaded_at ?? null,
+  lastDownloadedAt: row.last_downloaded_at ?? null,
+});
+
+/* =====================================================
+   ISSUE / GET EXISTING CERTIFICATE
+===================================================== */
+
+router.post(
+  "/certificates/issue",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      const normalizedCourseId = String(
+        req.body?.courseId ?? "",
+      ).trim();
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user not found",
+        });
+      }
+
+      if (!normalizedCourseId) {
+        return res.status(400).json({
+          success: false,
+          message: "Course ID is required",
+        });
+      }
+
+      const course = await getCourseByPublicId(
+        normalizedCourseId,
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      const enrollmentResult = await pool.query(
+        `
+        SELECT id
+        FROM enrollments
+        WHERE user_id = $1
+          AND course_id = ANY($2::text[])
+        LIMIT 1
+        `,
+        [
+          userId,
+          [
+            normalizedCourseId,
+            String(course.id),
+          ],
+        ],
+      );
+
+      if (enrollmentResult.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not enrolled in this course",
+        });
+      }
+
+      await ensureCertificatesTable();
+
+      const existingResult = await pool.query(
+        `
+        SELECT
+          certificate_id,
+          student_name,
+          course_id,
+          course_title,
+          course_description,
+          course_category,
+          course_level,
+          lesson_count,
+          module_titles,
+          issued_at,
+          download_count,
+          first_downloaded_at,
+          last_downloaded_at
+        FROM certificates
+        WHERE user_id = $1
+          AND course_id = $2
+        LIMIT 1
+        `,
+        [
+          userId,
+          String(course.id),
+        ],
+      );
+
+      if (existingResult.rows.length > 0) {
+        return res.status(200).json({
+          success: true,
+          certificate: mapCertificateRow(
+            existingResult.rows[0],
+          ),
+        });
+      }
+
+      const courseDetails =
+        await getCertificateCourseDetails(
+          Number(course.id),
+        );
+
+      if (!courseDetails) {
+        return res.status(404).json({
+          success: false,
+          message: "Course details not found",
+        });
+      }
+
+      const userResult = await pool.query(
+        `
+        SELECT name
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId],
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Student account not found",
+        });
+      }
+
+      const certificateId =
+        `SF-${new Date().getFullYear()}-${crypto
+          .randomBytes(5)
+          .toString("hex")
+          .toUpperCase()}`;
+
+      const studentName =
+        String(userResult.rows[0].name || "").trim() ||
+        "SkillForge Student";
+
+      const insertResult = await pool.query(
+        `
+        INSERT INTO certificates (
+          certificate_id,
+          user_id,
+          course_id,
+          student_name,
+          course_title,
+          course_description,
+          course_category,
+          course_level,
+          lesson_count,
+          module_titles
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+        )
+        ON CONFLICT (user_id, course_id)
+        DO NOTHING
+        RETURNING
+          certificate_id,
+          student_name,
+          course_id,
+          course_title,
+          course_description,
+          course_category,
+          course_level,
+          lesson_count,
+          module_titles,
+          issued_at,
+          download_count,
+          first_downloaded_at,
+          last_downloaded_at
+        `,
+        [
+          certificateId,
+          userId,
+          String(course.id),
+          studentName,
+          String(courseDetails.title),
+          courseDetails.description ?? null,
+          courseDetails.category ?? null,
+          courseDetails.level ?? null,
+          Number(courseDetails.lesson_count) || 0,
+          Array.isArray(courseDetails.module_titles)
+            ? courseDetails.module_titles
+            : [],
+        ],
+      );
+
+      if (insertResult.rows.length > 0) {
+        return res.status(201).json({
+          success: true,
+          certificate: mapCertificateRow(
+            insertResult.rows[0],
+          ),
+        });
+      }
+
+      // Another request may have created the same user/course
+      // certificate concurrently. Return that persistent record.
+      const concurrentResult = await pool.query(
+        `
+        SELECT
+          certificate_id,
+          student_name,
+          course_id,
+          course_title,
+          course_description,
+          course_category,
+          course_level,
+          lesson_count,
+          module_titles,
+          issued_at,
+          download_count,
+          first_downloaded_at,
+          last_downloaded_at
+        FROM certificates
+        WHERE user_id = $1
+          AND course_id = $2
+        LIMIT 1
+        `,
+        [
+          userId,
+          String(course.id),
+        ],
+      );
+
+      if (concurrentResult.rows.length === 0) {
+        return res.status(500).json({
+          success: false,
+          message: "Unable to create certificate",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        certificate: mapCertificateRow(
+          concurrentResult.rows[0],
+        ),
+      });
+    } catch (error) {
+      console.error(
+        "Issue certificate error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to create certificate",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   GET MY CERTIFICATES
+===================================================== */
+
+router.get(
+  "/certificates/mine",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user not found",
+        });
+      }
+
+      await ensureCertificatesTable();
+
+      const result = await pool.query(
+        `
+        SELECT
+          certificate_id,
+          student_name,
+          course_id,
+          course_title,
+          course_description,
+          course_category,
+          course_level,
+          lesson_count,
+          module_titles,
+          issued_at,
+          download_count,
+          first_downloaded_at,
+          last_downloaded_at
+        FROM certificates
+        WHERE user_id = $1
+        ORDER BY issued_at DESC
+        `,
+        [userId],
+      );
+
+      return res.status(200).json({
+        success: true,
+        certificates: result.rows.map(
+          mapCertificateRow,
+        ),
+      });
+    } catch (error) {
+      console.error(
+        "Get certificates error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load certificates",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   RECORD CERTIFICATE DOWNLOAD
+   POST /api/payment/certificates/:certificateId/download
+
+   This tracks SkillForge's Download/Print action.
+   The browser cannot tell the server whether a user
+   physically saved a file after the browser print dialog,
+   so this records the actual SkillForge download action.
+===================================================== */
+
+router.post(
+  "/certificates/:certificateId/download",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      const certificateId = String(
+        req.params.certificateId ?? "",
+      ).trim();
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user not found",
+        });
+      }
+
+      if (!certificateId) {
+        return res.status(400).json({
+          success: false,
+          message: "Certificate ID is required",
+        });
+      }
+
+      await ensureCertificatesTable();
+
+      const result = await pool.query(
+        `
+        UPDATE certificates
+        SET
+          download_count = COALESCE(download_count, 0) + 1,
+          first_downloaded_at =
+            COALESCE(first_downloaded_at, NOW()),
+          last_downloaded_at = NOW()
+        WHERE certificate_id = $1
+          AND user_id = $2
+        RETURNING
+          certificate_id,
+          download_count,
+          first_downloaded_at,
+          last_downloaded_at
+        `,
+        [certificateId, userId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Certificate not found",
+        });
+      }
+
+      const row = result.rows[0];
+
+      return res.status(200).json({
+        success: true,
+        certificate: {
+          certificateId: String(
+            row.certificate_id,
+          ),
+          downloadCount:
+            Number(row.download_count) || 0,
+          firstDownloadedAt:
+            row.first_downloaded_at ?? null,
+          lastDownloadedAt:
+            row.last_downloaded_at ?? null,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Track certificate download error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to record certificate download",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   PUBLIC CERTIFICATE VERIFICATION
+   GET /api/payment/certificates/verify/:certificateId
+
+   Login is intentionally NOT required.
+===================================================== */
+
+router.get(
+  "/certificates/verify/:certificateId",
+  async (req, res: Response) => {
+    try {
+      const certificateId = String(
+        req.params.certificateId ?? "",
+      ).trim();
+
+      if (!certificateId) {
+        return res.status(400).json({
+          success: false,
+          verified: false,
+          message: "Certificate ID is required",
+        });
+      }
+
+      await ensureCertificatesTable();
+
+      const result = await pool.query(
+        `
+        SELECT
+          certificate_id,
+          student_name,
+          course_id,
+          course_title,
+          course_description,
+          course_category,
+          course_level,
+          lesson_count,
+          module_titles,
+          issued_at
+        FROM certificates
+        WHERE certificate_id = $1
+        LIMIT 1
+        `,
+        [certificateId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: true,
+          verified: false,
+          message:
+            "Certificate not found. This certificate could not be verified by SkillForge.",
+        });
+      }
+
+      const row = result.rows[0];
+
+      return res.status(200).json({
+        success: true,
+        verified: true,
+        issuer: "SkillForge",
+        certificate: {
+          certificateId: String(
+            row.certificate_id,
+          ),
+          studentName: String(
+            row.student_name,
+          ),
+          courseId: String(row.course_id),
+          courseTitle: String(
+            row.course_title,
+          ),
+          courseDescription:
+            row.course_description
+              ? String(row.course_description)
+              : null,
+          courseCategory:
+            row.course_category
+              ? String(row.course_category)
+              : null,
+          courseLevel:
+            row.course_level
+              ? String(row.course_level)
+              : null,
+          lessonCount:
+            Number(row.lesson_count) || 0,
+          moduleTitles:
+            Array.isArray(row.module_titles)
+              ? row.module_titles.map(
+                  (item: unknown) =>
+                    String(item),
+                )
+              : [],
+          issuedAt: row.issued_at,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Verify certificate error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        verified: false,
+        message: "Unable to verify certificate",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   ADMIN CERTIFICATE LIST
+   GET /api/payment/certificates/admin/all
+
+   Admin-only endpoint. UI will be connected in the
+   next certificate implementation step.
+===================================================== */
+
+router.get(
+  "/certificates/admin/all",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user not found",
+        });
+      }
+
+      const adminResult = await pool.query(
+        `
+        SELECT role
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId],
+      );
+
+      if (
+        adminResult.rows.length === 0 ||
+        adminResult.rows[0].role !== "admin"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required",
+        });
+      }
+
+      await ensureCertificatesTable();
+
+      const result = await pool.query(
+        `
+        SELECT
+          c.certificate_id,
+          c.user_id,
+          c.student_name,
+          u.email AS student_email,
+          u.phone AS student_phone,
+          c.course_id,
+          c.course_title,
+          c.course_category,
+          c.course_level,
+          c.lesson_count,
+          c.issued_at,
+          c.download_count,
+          c.first_downloaded_at,
+          c.last_downloaded_at
+        FROM certificates c
+        LEFT JOIN users u
+          ON u.id = c.user_id
+        ORDER BY c.issued_at DESC
+        `,
+      );
+
+      return res.status(200).json({
+        success: true,
+        certificates: result.rows.map(
+          (row) => ({
+            certificateId: String(
+              row.certificate_id,
+            ),
+            userId: Number(row.user_id),
+            studentName: String(
+              row.student_name,
+            ),
+            studentEmail:
+              row.student_email
+                ? String(row.student_email)
+                : "",
+            studentPhone:
+              row.student_phone
+                ? String(row.student_phone)
+                : "",
+            courseId: String(row.course_id),
+            courseTitle: String(
+              row.course_title,
+            ),
+            courseCategory:
+              row.course_category
+                ? String(row.course_category)
+                : null,
+            courseLevel:
+              row.course_level
+                ? String(row.course_level)
+                : null,
+            lessonCount:
+              Number(row.lesson_count) || 0,
+            issuedAt: row.issued_at,
+            downloadCount:
+              Number(row.download_count) || 0,
+            firstDownloadedAt:
+              row.first_downloaded_at ?? null,
+            lastDownloadedAt:
+              row.last_downloaded_at ?? null,
+          }),
+        ),
+      });
+    } catch (error) {
+      console.error(
+        "Admin certificates error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load certificates",
+      });
+    }
+  },
+);
+
 export default router;
