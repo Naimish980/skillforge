@@ -382,21 +382,73 @@ router.post(
           });
         }
 
-        if (normalizedCourseIds.some((id) => !eligibleCourseIds.includes(id))) {
-          return res.status(400).json({
-            success: false,
-            message: "One or more selected courses are not included in this offer",
+        /*
+          IMPORTANT:
+          The Admin Portal stores course IDs in offers.course_ids.
+          The student frontend sends the public course ID/slug.
+
+          Example:
+            offer.course_ids -> ["12", "15", "18"]
+            selected course  -> "cloud-computing-12"
+
+          Therefore we must resolve every selected public ID first and
+          compare BOTH the database ID and public ID against the offer.
+        */
+        const resolvedOfferCourses: Array<{
+          publicId: string;
+          dbId: string;
+          isPublished: boolean;
+        }> = [];
+
+        for (const selectedId of normalizedCourseIds) {
+          const course = await getCourseByPublicId(selectedId);
+
+          if (!course || !course.is_published) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more selected courses are unavailable",
+            });
+          }
+
+          const publicId = String(selectedId).trim();
+          const dbId = String(course.id).trim();
+
+          if (
+            !eligibleCourseIds.includes(publicId) &&
+            !eligibleCourseIds.includes(dbId)
+          ) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more selected courses are not included in this offer",
+            });
+          }
+
+          resolvedOfferCourses.push({
+            publicId,
+            dbId,
+            isPublished: Boolean(course.is_published),
           });
         }
+
+        /*
+          Check existing enrollments using BOTH ID forms because older
+          individual purchases may have stored a public ID while some
+          older data may contain the database course ID.
+        */
+        const selectedPublicIds = resolvedOfferCourses.map((course) => course.publicId);
+        const selectedDbIds = resolvedOfferCourses.map((course) => course.dbId);
 
         const existingEnrollment = await pool.query(
           `
           SELECT course_id
           FROM enrollments
           WHERE user_id = $1
-            AND course_id = ANY($2::text[])
+            AND (
+              course_id = ANY($2::text[])
+              OR course_id = ANY($3::text[])
+            )
           `,
-          [userId, normalizedCourseIds],
+          [userId, selectedPublicIds, selectedDbIds],
         );
 
         if (existingEnrollment.rows.length > 0) {
@@ -407,15 +459,9 @@ router.post(
           });
         }
 
-        for (const selectedId of normalizedCourseIds) {
-          const course = await getCourseByPublicId(selectedId);
-          if (!course || !course.is_published) {
-            return res.status(400).json({
-              success: false,
-              message: "One or more selected courses are unavailable",
-            });
-          }
-        }
+        // Keep public IDs in the payment order so the existing frontend
+        // enrollment flow remains compatible.
+        normalizedCourseIds = selectedPublicIds;
 
         const offerPrice = Number(offer.price);
         if (!Number.isFinite(offerPrice) || offerPrice <= 0 || !Number.isInteger(offerPrice)) {
