@@ -2307,6 +2307,8 @@ function printCertificateDocument(record: CertificateRecord) {
     record.courseDescription ||
       `This certifies that the learner has successfully completed the ${record.courseTitle} course and demonstrated the required knowledge and practical skills.`
   );
+  const category = escapeHtml(record.courseCategory || "IT & Tech");
+  const level = escapeHtml(record.courseLevel || "—");
   const issueDate = escapeHtml(
     new Date(record.issuedAt).toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -2316,7 +2318,7 @@ function printCertificateDocument(record: CertificateRecord) {
   );
 
   const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=0&data=${encodeURIComponent(verification)}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=${encodeURIComponent(verification)}`;
   const printWindow = window.open("", "_blank", "width=1500,height=1000");
 
   if (!printWindow) {
@@ -2333,172 +2335,476 @@ function printCertificateDocument(record: CertificateRecord) {
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: 100%; min-height: 100%; }
+  html, body { margin:0; width:100%; height:100%; }
   body {
-    background: #e9edf2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background:#e9eef2;
     font-family: Inter, Arial, Helvetica, sans-serif;
-    color: #0b1736;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    color:#0b1736;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
+
   .page {
-    width: 297mm;
-    height: 210mm;
-    padding: 8mm;
-    background: #eef2f5;
+    width:297mm;
+    height:210mm;
+    padding:5mm;
+    margin:0 auto;
+    background:#eef2f5;
   }
+
   .certificate {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+    position:relative;
+    width:100%;
+    height:100%;
+    overflow:hidden;
     background:
-      radial-gradient(circle at 78% 18%, rgba(202,166,76,.07), transparent 22%),
-      linear-gradient(135deg, #fffefb 0%, #fffdf7 50%, #fffaf0 100%);
-    border: 2px solid #0b1736;
-    box-shadow: 0 10px 35px rgba(11,23,54,.18);
+      radial-gradient(circle at 50% 38%, rgba(255,255,255,.98) 0%, rgba(255,253,247,.98) 48%, rgba(255,248,232,1) 100%);
+    border:1.4px solid #0b1736;
   }
-  .frame-gold { position:absolute; inset:5mm; border:1.5px solid #caa64c; pointer-events:none; z-index:5; }
-  .frame-navy { position:absolute; inset:8mm; border:1px solid #0b1736; pointer-events:none; z-index:5; }
-  .wave {
+
+  .gold-frame {
     position:absolute;
-    width: 170mm;
-    height: 170mm;
-    border: 1px solid rgba(202,166,76,.10);
-    border-radius: 48%;
-    transform: rotate(28deg);
+    inset:4mm;
+    border:1.2px solid #d2a53a;
+    z-index:20;
+  }
+
+  .inner-frame {
+    position:absolute;
+    inset:8mm;
+    border:1px solid #0b1736;
+    z-index:20;
     pointer-events:none;
   }
-  .wave.one { left:-108mm; top:38mm; }
-  .wave.two { left:-94mm; top:30mm; width:155mm; height:155mm; }
-  .wave.three { right:-112mm; bottom:-35mm; width:170mm; height:170mm; }
 
-  .ribbon-left {
-    position:absolute; left:-33mm; top:-15mm; width:58mm; height:245mm;
-    background: linear-gradient(90deg, #053f32 0%, #08755a 42%, #0d4d3e 70%, #052f27 100%);
-    transform: rotate(35deg); opacity:.98;
-    box-shadow: 0 0 0 1px rgba(202,166,76,.45);
+  /* Large emerald ribbon panels — intentionally broad like the approved reference */
+  .green-left {
+    position:absolute;
+    left:-30mm;
+    top:-28mm;
+    width:86mm;
+    height:185mm;
+    background:linear-gradient(135deg,#063b30 0%,#08745a 48%,#0a4d3d 100%);
+    transform:rotate(35deg);
+    z-index:2;
   }
-  .ribbon-left:after {
-    content:""; position:absolute; left:12mm; top:-10mm; width:7mm; height:260mm;
-    background: linear-gradient(90deg, #d3a83f, #f5d777, #b58418);
-    box-shadow: 10mm 0 0 rgba(202,166,76,.22);
+
+  .green-left-2 {
+    position:absolute;
+    left:-4mm;
+    top:-25mm;
+    width:38mm;
+    height:190mm;
+    background:linear-gradient(90deg,#0c5d48,#168264);
+    transform:rotate(35deg);
+    z-index:3;
+    opacity:.72;
   }
-  .ribbon-right {
-    position:absolute; right:-37mm; top:-24mm; width:62mm; height:205mm;
-    background: linear-gradient(90deg, #06382e, #08765b 45%, #043126);
-    transform: rotate(-35deg); opacity:.98;
+
+  .gold-left {
+    position:absolute;
+    left:30mm;
+    top:-35mm;
+    width:8mm;
+    height:205mm;
+    background:linear-gradient(90deg,#a87912,#f4d36c,#c39122);
+    transform:rotate(35deg);
+    z-index:4;
   }
-  .ribbon-right:after {
-    content:""; position:absolute; right:13mm; top:-5mm; width:7mm; height:220mm;
-    background: linear-gradient(90deg, #b58418, #f5d777, #d3a83f);
+
+  .green-right {
+    position:absolute;
+    right:-32mm;
+    top:-30mm;
+    width:86mm;
+    height:184mm;
+    background:linear-gradient(135deg,#063a2f 0%,#08755b 52%,#06362c 100%);
+    transform:rotate(-35deg);
+    z-index:2;
   }
-  .gold-swoosh-left {
-    position:absolute; left:-25mm; bottom:-57mm; width:190mm; height:62mm;
-    border: 8mm solid #d6ad4a; border-right:0; border-radius:50%;
-    transform: rotate(26deg); opacity:.95;
+
+  .green-right-2 {
+    position:absolute;
+    right:2mm;
+    top:-25mm;
+    width:38mm;
+    height:190mm;
+    background:linear-gradient(90deg,#168264,#0b5b46);
+    transform:rotate(-35deg);
+    z-index:3;
+    opacity:.72;
   }
-  .gold-swoosh-left:after {
-    content:""; position:absolute; left:5mm; top:6mm; width:175mm; height:46mm;
-    border: 2mm solid #f1d26d; border-right:0; border-radius:50%;
+
+  .gold-right {
+    position:absolute;
+    right:31mm;
+    top:-35mm;
+    width:8mm;
+    height:205mm;
+    background:linear-gradient(90deg,#c39122,#f4d36c,#a87912);
+    transform:rotate(-35deg);
+    z-index:4;
   }
-  .gold-swoosh-right {
-    position:absolute; right:-35mm; top:-28mm; width:100mm; height:75mm;
-    border: 6mm solid #d3a83f; border-left:0; border-bottom:0; border-radius:0 50% 0 0;
-    transform: rotate(8deg);
+
+  .bottom-gold {
+    position:absolute;
+    left:-22mm;
+    bottom:-31mm;
+    width:150mm;
+    height:50mm;
+    border:7mm solid #d2aa42;
+    border-right:0;
+    border-bottom:0;
+    border-radius:70% 0 0 0;
+    transform:rotate(16deg);
+    z-index:3;
+    opacity:.92;
   }
+
+  .bottom-gold:after {
+    content:"";
+    position:absolute;
+    left:8mm;
+    top:7mm;
+    width:135mm;
+    height:40mm;
+    border:2mm solid #f1d16a;
+    border-right:0;
+    border-bottom:0;
+    border-radius:70% 0 0 0;
+  }
+
+  .soft-wave {
+    position:absolute;
+    width:115mm;
+    height:115mm;
+    border:1px solid rgba(210,165,58,.11);
+    border-radius:50%;
+    z-index:1;
+  }
+  .soft-wave.left { left:-70mm; bottom:-30mm; }
+  .soft-wave.right { right:-70mm; bottom:-30mm; }
 
   .content {
     position:relative;
     z-index:10;
     height:100%;
-    padding:14mm 18mm 12mm;
-    display:flex;
-    flex-direction:column;
+    padding:12mm 16mm 10mm;
   }
-  .topbar { display:flex; align-items:flex-start; justify-content:space-between; }
-  .brand { font-size:28px; font-weight:950; letter-spacing:-1.5px; color:#0b1736; }
+
+  .top {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+  }
+
+  .brand {
+    font-size:26px;
+    line-height:1;
+    font-weight:950;
+    letter-spacing:-1.7px;
+    color:#0b1736;
+  }
   .brand span { color:#10a875; }
-  .tag { margin-top:1.5mm; font-size:7.5px; font-weight:800; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
-  .motto { margin-top:2mm; margin-right:9mm; text-align:left; font-size:7px; font-weight:800; line-height:1.6; letter-spacing:2px; color:#475569; text-transform:uppercase; }
-  .motto-line { width:13mm; height:1px; background:#caa64c; margin-top:2mm; }
+
+  .tag {
+    margin-top:2mm;
+    font-size:7px;
+    font-weight:800;
+    letter-spacing:2.8px;
+    color:#64748b;
+    text-transform:uppercase;
+  }
+
+  .top-right {
+    display:flex;
+    align-items:flex-start;
+    gap:9mm;
+  }
+
+  .motto {
+    margin-top:1mm;
+    width:36mm;
+    font-size:6.5px;
+    line-height:1.65;
+    font-weight:900;
+    letter-spacing:1.8px;
+    color:#475569;
+    text-transform:uppercase;
+  }
+
+  .motto-line {
+    width:12mm;
+    height:1px;
+    margin-top:2mm;
+    background:#caa044;
+  }
 
   .seal {
-    width:30mm; height:30mm; border-radius:50%;
-    border:2px solid #caa64c;
-    background: radial-gradient(circle, #fffef8 0%, #fff8df 100%);
-    box-shadow: inset 0 0 0 2px rgba(202,166,76,.18), 0 2px 8px rgba(11,23,54,.12);
-    display:flex; align-items:center; justify-content:center; text-align:center;
-    color:#a97913; font-size:7px; font-weight:950; line-height:1.35; letter-spacing:.8px;
+    width:29mm;
+    height:29mm;
+    border-radius:50%;
+    border:1.5px solid #c99a28;
+    background:#fffaf0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color:#a87913;
+    font-size:6.3px;
+    line-height:1.45;
+    font-weight:950;
+    letter-spacing:.5px;
+    box-shadow:0 2px 8px rgba(11,23,54,.08);
   }
 
-  .hero { text-align:center; margin-top:8mm; }
-  .eyebrow { font-size:10px; font-weight:900; letter-spacing:4px; color:#64748b; text-transform:uppercase; }
-  .heading { margin:2mm 0 0; font-family:Georgia, "Times New Roman", serif; font-size:36px; line-height:1; letter-spacing:4px; color:#0b1736; }
-  .rule { width:30mm; height:1px; margin:3mm auto 0; background:#caa64c; }
-  .presented { margin-top:2.5mm; color:#64748b; font-size:10px; }
-  .student { margin-top:2mm; font-family:Georgia, "Times New Roman", serif; font-size:30px; line-height:1.1; font-weight:700; color:#a97913; }
-  .student-line { width:105mm; margin:2mm auto 0; border-top:1px solid #caa64c; }
-  .course-label { margin-top:4mm; color:#475569; font-size:9px; letter-spacing:.4px; }
-  .course { margin-top:1.5mm; font-size:21px; line-height:1.15; font-weight:950; color:#0b1736; }
-  .description { max-width:180mm; margin:3mm auto 0; text-align:center; color:#475569; font-size:8.5px; line-height:1.55; }
+  .hero {
+    position:absolute;
+    left:34mm;
+    right:34mm;
+    top:44mm;
+    text-align:center;
+  }
 
-  .bottom {
-    margin-top:auto;
+  .eyebrow {
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:3.7px;
+    color:#5d7595;
+    text-transform:uppercase;
+  }
+
+  .heading {
+    margin-top:2mm;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:36px;
+    line-height:1;
+    letter-spacing:4px;
+    color:#081634;
+  }
+
+  .presented {
+    margin-top:4mm;
+    font-size:9px;
+    color:#64748b;
+  }
+
+  .student {
+    margin-top:2.5mm;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:28px;
+    line-height:1.05;
+    font-weight:700;
+    color:#ad7914;
+  }
+
+  .student-line {
+    width:92mm;
+    margin:2mm auto 0;
+    border-top:1px solid #caa044;
+  }
+
+  .course-label {
+    margin-top:4mm;
+    font-size:8px;
+    color:#52647b;
+  }
+
+  .course {
+    margin-top:1.5mm;
+    font-size:18px;
+    line-height:1.15;
+    font-weight:950;
+    color:#071638;
+  }
+
+  .description {
+    width:125mm;
+    margin:4mm auto 0;
+    font-size:8px;
+    line-height:1.55;
+    color:#42536a;
+  }
+
+  .facts {
+    position:absolute;
+    left:35mm;
+    right:35mm;
+    top:113mm;
     display:grid;
-    grid-template-columns: 1fr 1.15fr 1fr;
-    align-items:end;
-    gap:8mm;
+    grid-template-columns:repeat(3,1fr);
+    gap:4mm;
   }
-  .detail-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4mm; margin-bottom:4mm; }
-  .detail { border-top:1px solid #d8dee7; padding-top:2.5mm; }
-  .detail-label { font-size:6.5px; font-weight:900; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
-  .detail-value { margin-top:1mm; font-size:8.5px; font-weight:900; color:#0b1736; }
 
-  .signature { text-align:center; padding-bottom:1mm; }
-  .signature-mark { font-family:"Brush Script MT", "Segoe Script", cursive; font-size:17px; color:#1f2937; margin-bottom:-1mm; }
-  .signature-line { width:43mm; margin:0 auto 1.5mm; border-top:1px solid #475569; }
-  .signature strong { font-size:8.5px; }
-  .signature span { display:block; margin-top:1mm; color:#64748b; font-size:7px; }
+  .fact {
+    min-height:16mm;
+    padding:3mm 4mm;
+    border:1px solid #e1e7ee;
+    border-radius:2mm;
+    background:rgba(248,250,252,.86);
+  }
 
-  .qr-area { text-align:center; }
-  .qr-frame { display:inline-flex; padding:2mm; background:#fff; border:1px solid #caa64c; border-radius:2mm; }
-  .qr { width:31mm; height:31mm; display:block; }
-  .qr-caption { margin-top:1.5mm; font-size:6.5px; font-weight:950; color:#00885f; letter-spacing:1.5px; }
+  .fact-label {
+    font-size:6.5px;
+    font-weight:900;
+    letter-spacing:1.2px;
+    color:#8b9bb0;
+    text-transform:uppercase;
+  }
 
-  .credential { text-align:right; padding-bottom:1mm; }
-  .credential-label { font-size:6.5px; font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
-  .credential-id { margin-top:1mm; font-size:8px; font-weight:950; color:#0b1736; word-break:break-all; }
-  .issued-by { margin-top:3mm; font-size:6.5px; font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
-  .issuer { margin-top:1mm; font-size:8px; font-weight:950; color:#0b1736; }
-  .footer-note { position:absolute; right:17mm; bottom:10mm; font-size:6px; font-weight:800; letter-spacing:2px; color:#64748b; text-transform:uppercase; }
+  .fact-value {
+    margin-top:1.2mm;
+    font-size:8.5px;
+    font-weight:900;
+    color:#10213e;
+  }
+
+  .signature {
+    position:absolute;
+    left:38mm;
+    bottom:14mm;
+    width:48mm;
+    text-align:center;
+  }
+
+  .signature-mark {
+    font-family:"Brush Script MT","Segoe Script",cursive;
+    font-size:16px;
+    color:#101b31;
+    transform:rotate(-3deg);
+  }
+
+  .signature-line {
+    border-top:1px solid #7d8998;
+    margin-top:-1mm;
+  }
+
+  .signature strong {
+    display:block;
+    margin-top:2mm;
+    font-size:8px;
+    color:#0b1736;
+  }
+
+  .signature span {
+    display:block;
+    margin-top:1mm;
+    font-size:6.5px;
+    color:#68778a;
+  }
+
+  .qr-area {
+    position:absolute;
+    right:43mm;
+    bottom:13mm;
+    width:35mm;
+    text-align:center;
+  }
+
+  .qr-frame {
+    width:32mm;
+    height:32mm;
+    padding:1.8mm;
+    margin:auto;
+    border:1px solid #d5a53b;
+    border-radius:2.5mm;
+    background:#fff;
+  }
+
+  .qr {
+    width:100%;
+    height:100%;
+    display:block;
+  }
+
+  .qr-caption {
+    margin-top:2mm;
+    font-size:6.5px;
+    font-weight:950;
+    letter-spacing:1.6px;
+    color:#008d63;
+  }
+
+  .credential {
+    position:absolute;
+    right:18mm;
+    bottom:13mm;
+    width:31mm;
+    text-align:right;
+  }
+
+  .credential-label,
+  .issued-label {
+    font-size:5.5px;
+    font-weight:950;
+    letter-spacing:1.4px;
+    color:#91a0b5;
+    text-transform:uppercase;
+  }
+
+  .credential-id {
+    margin-top:1mm;
+    font-size:6.8px;
+    font-weight:950;
+    color:#10213e;
+    white-space:nowrap;
+  }
+
+  .issued-label { margin-top:3mm; }
+
+  .issuer {
+    margin-top:1mm;
+    font-size:7px;
+    font-weight:900;
+    color:#10213e;
+  }
+
+  .footer-note {
+    position:absolute;
+    right:18mm;
+    bottom:6mm;
+    font-size:6px;
+    font-weight:900;
+    letter-spacing:1.5px;
+    color:#68778a;
+    text-transform:uppercase;
+  }
 
   @media print {
     html,body { background:#fff; }
     .page { padding:0; }
-    .certificate { box-shadow:none; }
+    .certificate { border:1.4px solid #0b1736; }
   }
 </style>
 </head>
 <body>
 <div class="page">
   <div class="certificate">
-    <div class="frame-gold"></div><div class="frame-navy"></div>
-    <div class="wave one"></div><div class="wave two"></div><div class="wave three"></div>
-    <div class="ribbon-left"></div><div class="ribbon-right"></div>
-    <div class="gold-swoosh-left"></div><div class="gold-swoosh-right"></div>
+    <div class="soft-wave left"></div>
+    <div class="soft-wave right"></div>
+    <div class="green-left"></div>
+    <div class="green-left-2"></div>
+    <div class="gold-left"></div>
+    <div class="green-right"></div>
+    <div class="green-right-2"></div>
+    <div class="gold-right"></div>
+    <div class="bottom-gold"></div>
+    <div class="gold-frame"></div>
+    <div class="inner-frame"></div>
 
     <div class="content">
-      <div class="topbar">
+      <div class="top">
         <div>
           <div class="brand">Skill<span>Forge</span></div>
           <div class="tag">Learn · Practice · Grow</div>
         </div>
-        <div style="display:flex;gap:10mm;align-items:flex-start">
-          <div class="motto">Empowering<br/>Learners For<br/>A Brighter Tomorrow<div class="motto-line"></div></div>
+        <div class="top-right">
+          <div class="motto">
+            Empowering<br/>
+            Learners For<br/>
+            A Brighter Tomorrow
+            <div class="motto-line"></div>
+          </div>
           <div class="seal">SKILLFORGE<br/>VERIFIED</div>
         </div>
       </div>
@@ -2506,7 +2812,6 @@ function printCertificateDocument(record: CertificateRecord) {
       <div class="hero">
         <div class="eyebrow">Certificate of Completion</div>
         <div class="heading">CERTIFICATE</div>
-        <div class="rule"></div>
         <div class="presented">This certificate is proudly presented to</div>
         <div class="student">${student}</div>
         <div class="student-line"></div>
@@ -2515,28 +2820,42 @@ function printCertificateDocument(record: CertificateRecord) {
         <div class="description">${description}</div>
       </div>
 
-      <div class="bottom">
-        <div class="signature">
-          <div class="signature-mark">Naimish Singh</div>
-          <div class="signature-line"></div>
-          <strong>Naimish Singh</strong>
-          <span>CEO, SkillForge</span>
+      <div class="facts">
+        <div class="fact">
+          <div class="fact-label">Course Category</div>
+          <div class="fact-value">${category}</div>
         </div>
-
-        <div class="qr-area">
-          <div class="qr-frame"><img class="qr" src="${qr}" alt="Certificate verification QR" /></div>
-          <div class="qr-caption">SCAN TO VERIFY</div>
+        <div class="fact">
+          <div class="fact-label">Course Level</div>
+          <div class="fact-value">${level}</div>
         </div>
-
-        <div class="credential">
-          <div class="credential-label">Credential ID</div>
-          <div class="credential-id">${id}</div>
-          <div class="issued-by">Issued By</div>
-          <div class="issuer">SkillForge</div>
-          <div class="issued-by">Issue Date</div>
-          <div class="issuer">${issueDate}</div>
+        <div class="fact">
+          <div class="fact-label">Issue Date</div>
+          <div class="fact-value">${issueDate}</div>
         </div>
       </div>
+
+      <div class="signature">
+        <div class="signature-mark">Naimish Singh</div>
+        <div class="signature-line"></div>
+        <strong>Naimish Singh</strong>
+        <span>CEO, SkillForge</span>
+      </div>
+
+      <div class="qr-area">
+        <div class="qr-frame">
+          <img class="qr" src="${qr}" alt="Certificate verification QR" />
+        </div>
+        <div class="qr-caption">SCAN TO VERIFY</div>
+      </div>
+
+      <div class="credential">
+        <div class="credential-label">Credential ID</div>
+        <div class="credential-id">${id}</div>
+        <div class="issued-label">Issued By</div>
+        <div class="issuer">SkillForge</div>
+      </div>
+
       <div class="footer-note">Skills Today · Better Tomorrow</div>
     </div>
   </div>
@@ -2870,73 +3189,144 @@ function DashboardTabContent({
                 </div>
 
                 <div className="grid max-h-[78vh] gap-0 overflow-y-auto lg:grid-cols-[1.55fr_.85fr]">
-                  <div className="bg-[#0b1627] p-3 sm:p-6 lg:p-8">
-                    <div className="relative mx-auto aspect-[1.414/1] w-full max-w-4xl overflow-hidden rounded-xl bg-[#fffdf7] shadow-2xl ring-1 ring-amber-300/30">
-                      <div className="absolute inset-0 border-[8px] border-[#07111f] sm:border-[10px]"/>
-                      <div className="absolute inset-[8px] border border-amber-500/80 sm:inset-[10px]"/>
-                      <div className="absolute inset-[15px] border border-emerald-500 sm:inset-[18px]"/>
-                      <div className="absolute -left-24 top-20 h-56 w-56 rotate-45 rounded-[45px] border-[22px] border-emerald-500/10"/>
-                      <div className="absolute -right-24 -bottom-28 h-72 w-72 rotate-45 rounded-[55px] border-[24px] border-amber-500/10"/>
+                  <div className="bg-[#07111f] p-3 sm:p-6 lg:p-8">
+                    <style>{`
+                      .sf-preview {
+                        position: relative;
+                        width: 100%;
+                        aspect-ratio: 297 / 210;
+                        overflow: hidden;
+                        border: 2px solid #0b1736;
+                        background:
+                          radial-gradient(circle at 78% 18%, rgba(202,166,76,.08), transparent 22%),
+                          linear-gradient(135deg, #fffefb 0%, #fffdf7 50%, #fffaf0 100%);
+                        color: #0b1736;
+                        box-shadow: 0 20px 45px rgba(0,0,0,.28);
+                      }
+                      .sf-preview .frame-gold { position:absolute; inset:2.2%; border:1.5px solid #caa64c; pointer-events:none; z-index:5; }
+                      .sf-preview .frame-navy { position:absolute; inset:3.4%; border:1px solid #0b1736; pointer-events:none; z-index:5; }
+                      .sf-preview .wave { position:absolute; width:58%; height:82%; border:1px solid rgba(202,166,76,.10); border-radius:48%; transform:rotate(28deg); pointer-events:none; }
+                      .sf-preview .wave.one { left:-34%; top:18%; }
+                      .sf-preview .wave.two { left:-30%; top:14%; width:53%; height:74%; }
+                      .sf-preview .wave.three { right:-38%; bottom:-18%; width:58%; height:82%; }
+                      .sf-preview .ribbon-left { position:absolute; left:-11%; top:-8%; width:20%; height:117%; background:linear-gradient(90deg,#053f32,#08755a 42%,#0d4d3e 70%,#052f27); transform:rotate(35deg); }
+                      .sf-preview .ribbon-left:after { content:""; position:absolute; left:21%; top:-5%; width:12%; height:125%; background:linear-gradient(90deg,#d3a83f,#f5d777,#b58418); }
+                      .sf-preview .ribbon-right { position:absolute; right:-13%; top:-12%; width:21%; height:98%; background:linear-gradient(90deg,#06382e,#08765b 45%,#043126); transform:rotate(-35deg); }
+                      .sf-preview .ribbon-right:after { content:""; position:absolute; right:21%; top:-3%; width:12%; height:106%; background:linear-gradient(90deg,#b58418,#f5d777,#d3a83f); }
+                      .sf-preview .swoosh-left { position:absolute; left:-8%; bottom:-28%; width:64%; height:30%; border:1.8vw solid #d6ad4a; border-right:0; border-radius:50%; transform:rotate(26deg); }
+                      .sf-preview .swoosh-left:after { content:""; position:absolute; left:3%; top:9%; width:92%; height:74%; border:0.45vw solid #f1d26d; border-right:0; border-radius:50%; }
+                      .sf-preview .swoosh-right { position:absolute; right:-12%; top:-14%; width:34%; height:36%; border:1.5vw solid #d3a83f; border-left:0; border-bottom:0; border-radius:0 50% 0 0; transform:rotate(8deg); }
+                      .sf-preview .content { position:relative; z-index:10; height:100%; padding:7.5% 8.5% 6.5%; display:flex; flex-direction:column; }
+                      .sf-preview .topbar { display:flex; align-items:flex-start; justify-content:space-between; }
+                      .sf-preview .brand { font-size:clamp(18px,3.1vw,34px); font-weight:950; letter-spacing:-1.5px; line-height:1; color:#0b1736; }
+                      .sf-preview .brand span { color:#10a875; }
+                      .sf-preview .tag { margin-top:1.5%; font-size:clamp(5px,.75vw,9px); font-weight:800; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
+                      .sf-preview .motto { margin-right:7%; text-align:left; font-size:clamp(4px,.62vw,7px); font-weight:800; line-height:1.6; letter-spacing:2px; color:#475569; text-transform:uppercase; }
+                      .sf-preview .motto-line { width:13mm; max-width:65%; height:1px; background:#caa64c; margin-top:5%; }
+                      .sf-preview .seal { width:clamp(38px,7vw,82px); height:clamp(38px,7vw,82px); flex:none; border-radius:50%; border:2px solid #caa64c; background:radial-gradient(circle,#fffef8,#fff8df); box-shadow:inset 0 0 0 2px rgba(202,166,76,.18),0 2px 8px rgba(11,23,54,.12); display:flex; align-items:center; justify-content:center; text-align:center; color:#a97913; font-size:clamp(5px,.7vw,8px); font-weight:950; line-height:1.35; letter-spacing:.7px; }
+                      .sf-preview .hero { text-align:center; margin-top:4%; }
+                      .sf-preview .eyebrow { font-size:clamp(6px,.82vw,10px); font-weight:900; letter-spacing:4px; color:#64748b; text-transform:uppercase; }
+                      .sf-preview .heading { margin:1.2% 0 0; font-family:Georgia,"Times New Roman",serif; font-size:clamp(22px,4.2vw,48px); line-height:1; letter-spacing:4px; color:#0b1736; }
+                      .sf-preview .rule { width:11%; height:1px; margin:1.5% auto 0; background:#caa64c; }
+                      .sf-preview .presented { margin-top:1.2%; color:#64748b; font-size:clamp(6px,.8vw,10px); }
+                      .sf-preview .student { margin-top:.8%; font-family:Georgia,"Times New Roman",serif; font-size:clamp(18px,3.2vw,34px); line-height:1.1; font-weight:700; color:#a97913; }
+                      .sf-preview .student-line { width:36%; margin:1% auto 0; border-top:1px solid #caa64c; }
+                      .sf-preview .course-label { margin-top:2%; color:#475569; font-size:clamp(6px,.72vw,9px); }
+                      .sf-preview .course { margin-top:.8%; max-width:80%; margin-left:auto; margin-right:auto; font-size:clamp(12px,2.1vw,24px); line-height:1.15; font-weight:950; color:#0b1736; }
+                      .sf-preview .description { max-width:72%; margin:1.5% auto 0; text-align:center; color:#475569; font-size:clamp(5px,.7vw,8.5px); line-height:1.45; }
+                      .sf-preview .bottom { margin-top:auto; display:grid; grid-template-columns:1fr 1.1fr 1fr; align-items:end; gap:4%; }
+                      .sf-preview .signature { text-align:center; padding-bottom:1%; }
+                      .sf-preview .signature-mark { font-family:"Brush Script MT","Segoe Script",cursive; font-size:clamp(10px,1.4vw,18px); color:#1f2937; margin-bottom:-1%; }
+                      .sf-preview .signature-line { width:70%; margin:0 auto 2%; border-top:1px solid #475569; }
+                      .sf-preview .signature strong { font-size:clamp(6px,.72vw,9px); }
+                      .sf-preview .signature span { display:block; margin-top:1%; color:#64748b; font-size:clamp(5px,.58vw,7px); }
+                      .sf-preview .qr-area { text-align:center; }
+                      .sf-preview .qr-frame { display:inline-flex; padding:1.5%; background:#fff; border:1px solid #caa64c; border-radius:3px; }
+                      .sf-preview .qr { width:clamp(48px,8.8vw,105px); height:clamp(48px,8.8vw,105px); display:block; }
+                      .sf-preview .qr-caption { margin-top:1.5%; font-size:clamp(5px,.62vw,7px); font-weight:950; color:#00885f; letter-spacing:1.5px; }
+                      .sf-preview .credential { text-align:right; padding-bottom:1%; }
+                      .sf-preview .credential-label { font-size:clamp(5px,.58vw,7px); font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
+                      .sf-preview .credential-id { margin-top:1%; font-size:clamp(5px,.72vw,8.5px); font-weight:950; color:#0b1736; word-break:break-all; }
+                      .sf-preview .issued-by { margin-top:3%; font-size:clamp(5px,.58vw,7px); font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
+                      .sf-preview .issuer { margin-top:1%; font-size:clamp(6px,.72vw,8.5px); font-weight:950; color:#0b1736; }
+                      .sf-preview .footer-note { position:absolute; right:8.5%; bottom:5%; font-size:clamp(4px,.52vw,6px); font-weight:800; letter-spacing:2px; color:#64748b; text-transform:uppercase; }
+                    `}</style>
 
-                      <div className="absolute left-5 top-5 h-12 w-12 border-l-2 border-t-2 border-emerald-500 sm:left-8 sm:top-8 sm:h-16 sm:w-16"/>
-                      <div className="absolute right-5 top-5 h-12 w-12 border-r-2 border-t-2 border-emerald-500 sm:right-8 sm:top-8 sm:h-16 sm:w-16"/>
-                      <div className="absolute bottom-5 left-5 h-12 w-12 border-b-2 border-l-2 border-emerald-500 sm:bottom-8 sm:left-8 sm:h-16 sm:w-16"/>
-                      <div className="absolute bottom-5 right-5 h-12 w-12 border-b-2 border-r-2 border-emerald-500 sm:bottom-8 sm:right-8 sm:h-16 sm:w-16"/>
+                    <div className="sf-preview">
+                      <div className="frame-gold"/>
+                      <div className="frame-navy"/>
+                      <div className="wave one"/>
+                      <div className="wave two"/>
+                      <div className="wave three"/>
+                      <div className="ribbon-left"/>
+                      <div className="ribbon-right"/>
+                      <div className="swoosh-left"/>
+                      <div className="swoosh-right"/>
 
-                      <div className="relative z-10 flex h-full flex-col items-center px-8 pb-5 pt-8 text-center sm:px-16 sm:pb-8 sm:pt-10">
-                        <div className="text-2xl font-black tracking-tight text-[#07111f] sm:text-4xl">Skill<span className="text-emerald-600">Forge</span></div>
-                        <p className="mt-1 text-[7px] font-black uppercase tracking-[0.28em] text-slate-500 sm:text-[10px]">Learn · Practice · Grow</p>
-
-                        <p className="mt-3 text-[7px] font-black uppercase tracking-[0.22em] text-slate-500 sm:mt-5 sm:text-[10px]">Certificate of Completion</p>
-                        <h3 className="mt-1 font-serif text-xl font-bold tracking-[0.06em] text-[#07111f] sm:mt-2 sm:text-4xl">CERTIFICATE</h3>
-                        <p className="mt-2 text-[8px] text-slate-500 sm:mt-3 sm:text-xs">This is to certify that</p>
-                        <p className="mt-1 font-serif text-xl font-bold text-amber-700 sm:text-3xl">{userName}</p>
-                        <div className="mt-1 h-px w-2/3 bg-amber-500/70"/>
-                        <p className="mt-2 text-[7px] text-slate-500 sm:mt-3 sm:text-xs">has successfully completed the course</p>
-                        <p className="mt-1 max-w-[80%] text-sm font-black text-[#07111f] sm:text-xl">{certificateCourse.title}</p>
-
-                        <div className="mt-3 grid w-[88%] grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
-                          <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 sm:px-3 sm:py-2">
-                            <p className="text-[6px] font-black uppercase tracking-wider text-slate-400 sm:text-[8px]">Category</p>
-                            <p className="mt-0.5 truncate text-[7px] font-bold text-slate-800 sm:text-[10px]">{certificateRecord?.courseCategory || "IT & Tech"}</p>
+                      <div className="content">
+                        <div className="topbar">
+                          <div>
+                            <div className="brand">Skill<span>Forge</span></div>
+                            <div className="tag">Learn · Practice · Grow</div>
                           </div>
-                          <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 sm:px-3 sm:py-2">
-                            <p className="text-[6px] font-black uppercase tracking-wider text-slate-400 sm:text-[8px]">Level</p>
-                            <p className="mt-0.5 truncate text-[7px] font-bold text-slate-800 sm:text-[10px]">{certificateRecord?.courseLevel || "—"}</p>
-                          </div>
-                          <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 sm:px-3 sm:py-2">
-                            <p className="text-[6px] font-black uppercase tracking-wider text-slate-400 sm:text-[8px]">Issue Date</p>
-                            <p className="mt-0.5 truncate text-[7px] font-bold text-slate-800 sm:text-[10px]">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</p>
+                          <div className="flex items-start gap-3 sm:gap-6">
+                            <div className="motto hidden sm:block">
+                              Empowering<br/>Learners For<br/>A Brighter Tomorrow
+                              <div className="motto-line"/>
+                            </div>
+                            <div className="seal">SKILLFORGE<br/>VERIFIED</div>
                           </div>
                         </div>
 
-                        <div className="mt-auto flex w-full items-end justify-between gap-3 pt-3 sm:pt-4">
-                          <div className="text-left">
-                            <div className="w-24 border-t border-slate-500 pt-1 sm:w-32">
-                              <p className="text-[7px] font-black text-slate-900 sm:text-[10px]">Naimish Singh</p>
-                              <p className="text-[6px] text-slate-500 sm:text-[8px]">CEO, SkillForge</p>
-                            </div>
+                        <div className="hero">
+                          <div className="eyebrow">Certificate of Completion</div>
+                          <div className="heading">CERTIFICATE</div>
+                          <div className="rule"/>
+                          <div className="presented">This certificate is proudly presented to</div>
+                          <div className="student">{userName}</div>
+                          <div className="student-line"/>
+                          <div className="course-label">for successfully completing the course</div>
+                          <div className="course">{certificateCourse.title}</div>
+                          <div className="description">
+                            {certificateRecord?.courseDescription ||
+                              "This certifies that the learner has successfully completed the course and demonstrated the required knowledge and practical skills."}
+                          </div>
+                        </div>
+
+                        <div className="bottom">
+                          <div className="signature">
+                            <div className="signature-mark">Naimish Singh</div>
+                            <div className="signature-line"/>
+                            <strong>Naimish Singh</strong>
+                            <span>CEO, SkillForge</span>
                           </div>
 
-                          <div className="flex items-end gap-3 sm:gap-5">
+                          <div className="qr-area">
                             {certificateRecord && (
-                              <div className="text-center">
-                                <div className="rounded-md border border-slate-200 bg-white p-1">
-                                  <img src={qrUrl(certificateRecord.certificateId)} alt="Certificate verification QR" className="h-14 w-14 sm:h-20 sm:w-20"/>
+                              <>
+                                <div className="qr-frame">
+                                  <img
+                                    src={qrUrl(certificateRecord.certificateId)}
+                                    alt="Certificate verification QR"
+                                    className="qr"
+                                  />
                                 </div>
-                                <p className="mt-1 text-[6px] font-black uppercase tracking-wider text-emerald-700 sm:text-[8px]">Scan to Verify</p>
-                              </div>
+                                <div className="qr-caption">SCAN TO VERIFY</div>
+                              </>
                             )}
-                            <div className="text-right text-[6px] leading-4 text-slate-500 sm:text-[9px] sm:leading-5">
-                              <div><strong>Certificate ID:</strong> {certificateRecord?.certificateId ?? "—"}</div>
-                              <div><strong>Issue Date:</strong> {certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div>
-                            </div>
+                          </div>
+
+                          <div className="credential">
+                            <div className="credential-label">Credential ID</div>
+                            <div className="credential-id">{certificateRecord?.certificateId || "—"}</div>
+                            <div className="issued-by">Issued By</div>
+                            <div className="issuer">SkillForge</div>
+                            <div className="issued-by">Issue Date</div>
+                            <div className="issuer">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="absolute right-8 top-8 z-20 flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-500 bg-[#fffdf7] text-center text-[6px] font-black leading-3 text-amber-700 shadow sm:right-12 sm:top-12 sm:h-16 sm:w-16 sm:text-[8px]">
-                        SKILL<br/>FORGE<br/>VERIFIED
+                        <div className="footer-note">Skills Today · Better Tomorrow</div>
                       </div>
                     </div>
                   </div>
