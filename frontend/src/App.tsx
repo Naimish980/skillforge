@@ -2303,23 +2303,16 @@ function printCertificateDocument(record: CertificateRecord) {
   const id = escapeHtml(record.certificateId);
   const student = escapeHtml(record.studentName);
   const title = escapeHtml(record.courseTitle);
-  const description = escapeHtml(
-    record.courseDescription ||
-      `This certifies that the learner has successfully completed the ${record.courseTitle} course and demonstrated the required knowledge and practical skills.`
-  );
+  const description = escapeHtml(record.courseDescription || "Learn practical concepts, core knowledge and skills through this SkillForge course.");
   const category = escapeHtml(record.courseCategory || "IT & Tech");
   const level = escapeHtml(record.courseLevel || "—");
-  const issueDate = escapeHtml(
-    new Date(record.issuedAt).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    })
-  );
+  const issueDate = escapeHtml(new Date(record.issuedAt).toLocaleDateString("en-IN", {
+    day: "2-digit", month: "long", year: "numeric",
+  }));
 
   const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=${encodeURIComponent(verification)}`;
-  const printWindow = window.open("", "_blank", "width=1500,height=1000");
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(verification)}`;
+  const printWindow = window.open("", "_blank", "width=1600,height=1100");
 
   if (!printWindow) {
     alert("Please allow pop-ups to download your certificate.");
@@ -2335,534 +2328,127 @@ function printCertificateDocument(record: CertificateRecord) {
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; }
-  html, body { margin:0; width:100%; height:100%; }
+  html,body { margin:0; width:100%; min-height:100%; }
   body {
-    background:#e9eef2;
-    font-family: Inter, Arial, Helvetica, sans-serif;
-    color:#0b1736;
+    background:#eef2f1;
+    font-family:Inter,Arial,Helvetica,sans-serif;
+    color:#07152c;
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
-
-  .page {
-    width:297mm;
-    height:210mm;
-    padding:5mm;
-    margin:0 auto;
-    background:#eef2f5;
-  }
-
+  .page { width:297mm; height:210mm; padding:4mm; margin:0 auto; background:#eef2f1; }
   .certificate {
-    position:relative;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:
-      radial-gradient(circle at 50% 38%, rgba(255,255,255,.98) 0%, rgba(255,253,247,.98) 48%, rgba(255,248,232,1) 100%);
-    border:1.4px solid #0b1736;
+    position:relative; width:100%; height:100%; overflow:hidden;
+    background:linear-gradient(135deg,#fffdf7 0%,#fffaf0 52%,#fffdf8 100%);
+    border:2px solid #08172d;
   }
-
-  .gold-frame {
-    position:absolute;
-    inset:4mm;
-    border:1.2px solid #d2a53a;
-    z-index:20;
-  }
-
-  .inner-frame {
-    position:absolute;
-    inset:8mm;
-    border:1px solid #0b1736;
-    z-index:20;
-    pointer-events:none;
-  }
-
-  /* Large emerald ribbon panels — intentionally broad like the approved reference */
+  .inner-frame { position:absolute; inset:4.5mm; border:1px solid #cda63d; z-index:20; pointer-events:none; }
+  .inner-frame2 { position:absolute; inset:8mm; border:1px solid rgba(8,23,45,.9); z-index:20; pointer-events:none; }
   .green-left {
-    position:absolute;
-    left:-30mm;
-    top:-28mm;
-    width:86mm;
-    height:185mm;
-    background:linear-gradient(135deg,#063b30 0%,#08745a 48%,#0a4d3d 100%);
-    transform:rotate(35deg);
-    z-index:2;
+    position:absolute; left:-29mm; top:-28mm; width:92mm; height:258mm;
+    background:linear-gradient(135deg,#032e25,#075844 48%,#063d32);
+    transform:rotate(35deg); z-index:1;
   }
-
-  .green-left-2 {
-    position:absolute;
-    left:-4mm;
-    top:-25mm;
-    width:38mm;
-    height:190mm;
-    background:linear-gradient(90deg,#0c5d48,#168264);
-    transform:rotate(35deg);
-    z-index:3;
-    opacity:.72;
+  .green-left:after {
+    content:""; position:absolute; width:11mm; height:270mm; left:45mm; top:-8mm;
+    background:linear-gradient(90deg,#9b6c0d,#f8d56b,#c18b18,#f5d777,#9a6a0c);
+    box-shadow:18mm 0 0 rgba(31,126,99,.45);
   }
-
-  .gold-left {
-    position:absolute;
-    left:30mm;
-    top:-35mm;
-    width:8mm;
-    height:205mm;
-    background:linear-gradient(90deg,#a87912,#f4d36c,#c39122);
-    transform:rotate(35deg);
-    z-index:4;
-  }
-
   .green-right {
-    position:absolute;
-    right:-32mm;
-    top:-30mm;
-    width:86mm;
-    height:184mm;
-    background:linear-gradient(135deg,#063a2f 0%,#08755b 52%,#06362c 100%);
-    transform:rotate(-35deg);
-    z-index:2;
+    position:absolute; right:-35mm; top:-30mm; width:92mm; height:250mm;
+    background:linear-gradient(135deg,#063c31,#08775b 55%,#032b24);
+    transform:rotate(-35deg); z-index:1;
   }
-
-  .green-right-2 {
-    position:absolute;
-    right:2mm;
-    top:-25mm;
-    width:38mm;
-    height:190mm;
-    background:linear-gradient(90deg,#168264,#0b5b46);
-    transform:rotate(-35deg);
-    z-index:3;
-    opacity:.72;
+  .green-right:after {
+    content:""; position:absolute; width:11mm; height:260mm; right:43mm; top:-5mm;
+    background:linear-gradient(90deg,#9b6c0d,#f8d56b,#c18b18,#f5d777,#9a6a0c);
   }
-
-  .gold-right {
-    position:absolute;
-    right:31mm;
-    top:-35mm;
-    width:8mm;
-    height:205mm;
-    background:linear-gradient(90deg,#c39122,#f4d36c,#a87912);
-    transform:rotate(-35deg);
-    z-index:4;
-  }
-
-  .bottom-gold {
-    position:absolute;
-    left:-22mm;
-    bottom:-31mm;
-    width:150mm;
-    height:50mm;
-    border:7mm solid #d2aa42;
-    border-right:0;
-    border-bottom:0;
-    border-radius:70% 0 0 0;
-    transform:rotate(16deg);
-    z-index:3;
-    opacity:.92;
-  }
-
-  .bottom-gold:after {
-    content:"";
-    position:absolute;
-    left:8mm;
-    top:7mm;
-    width:135mm;
-    height:40mm;
-    border:2mm solid #f1d16a;
-    border-right:0;
-    border-bottom:0;
-    border-radius:70% 0 0 0;
-  }
-
-  .soft-wave {
-    position:absolute;
-    width:115mm;
-    height:115mm;
-    border:1px solid rgba(210,165,58,.11);
-    border-radius:50%;
-    z-index:1;
-  }
-  .soft-wave.left { left:-70mm; bottom:-30mm; }
-  .soft-wave.right { right:-70mm; bottom:-30mm; }
-
-  .content {
-    position:relative;
-    z-index:10;
-    height:100%;
-    padding:12mm 16mm 10mm;
-  }
-
-  .top {
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-  }
-
-  .brand {
-    font-size:26px;
-    line-height:1;
-    font-weight:950;
-    letter-spacing:-1.7px;
-    color:#0b1736;
-  }
-  .brand span { color:#10a875; }
-
-  .tag {
-    margin-top:2mm;
-    font-size:7px;
-    font-weight:800;
-    letter-spacing:2.8px;
-    color:#64748b;
-    text-transform:uppercase;
-  }
-
-  .top-right {
-    display:flex;
-    align-items:flex-start;
-    gap:9mm;
-  }
-
-  .motto {
-    margin-top:1mm;
-    width:36mm;
-    font-size:6.5px;
-    line-height:1.65;
-    font-weight:900;
-    letter-spacing:1.8px;
-    color:#475569;
-    text-transform:uppercase;
-  }
-
-  .motto-line {
-    width:12mm;
-    height:1px;
-    margin-top:2mm;
-    background:#caa044;
-  }
-
-  .seal {
-    width:29mm;
-    height:29mm;
-    border-radius:50%;
-    border:1.5px solid #c99a28;
-    background:#fffaf0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    color:#a87913;
-    font-size:6.3px;
-    line-height:1.45;
-    font-weight:950;
-    letter-spacing:.5px;
-    box-shadow:0 2px 8px rgba(11,23,54,.08);
-  }
-
-  .hero {
-    position:absolute;
-    left:34mm;
-    right:34mm;
-    top:44mm;
-    text-align:center;
-  }
-
-  .eyebrow {
-    font-size:9px;
-    font-weight:900;
-    letter-spacing:3.7px;
-    color:#5d7595;
-    text-transform:uppercase;
-  }
-
-  .heading {
-    margin-top:2mm;
-    font-family:Georgia,"Times New Roman",serif;
-    font-size:36px;
-    line-height:1;
-    letter-spacing:4px;
-    color:#081634;
-  }
-
-  .presented {
-    margin-top:4mm;
-    font-size:9px;
-    color:#64748b;
-  }
-
-  .student {
-    margin-top:2.5mm;
-    font-family:Georgia,"Times New Roman",serif;
-    font-size:28px;
-    line-height:1.05;
-    font-weight:700;
-    color:#ad7914;
-  }
-
-  .student-line {
-    width:92mm;
-    margin:2mm auto 0;
-    border-top:1px solid #caa044;
-  }
-
-  .course-label {
-    margin-top:4mm;
-    font-size:8px;
-    color:#52647b;
-  }
-
-  .course {
-    margin-top:1.5mm;
-    font-size:18px;
-    line-height:1.15;
-    font-weight:950;
-    color:#071638;
-  }
-
-  .description {
-    width:125mm;
-    margin:4mm auto 0;
-    font-size:8px;
-    line-height:1.55;
-    color:#42536a;
-  }
-
-  .facts {
-    position:absolute;
-    left:35mm;
-    right:35mm;
-    top:113mm;
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:4mm;
-  }
-
-  .fact {
-    min-height:16mm;
-    padding:3mm 4mm;
-    border:1px solid #e1e7ee;
-    border-radius:2mm;
-    background:rgba(248,250,252,.86);
-  }
-
-  .fact-label {
-    font-size:6.5px;
-    font-weight:900;
-    letter-spacing:1.2px;
-    color:#8b9bb0;
-    text-transform:uppercase;
-  }
-
-  .fact-value {
-    margin-top:1.2mm;
-    font-size:8.5px;
-    font-weight:900;
-    color:#10213e;
-  }
-
-  .signature {
-    position:absolute;
-    left:38mm;
-    bottom:14mm;
-    width:48mm;
-    text-align:center;
-  }
-
-  .signature-mark {
-    font-family:"Brush Script MT","Segoe Script",cursive;
-    font-size:16px;
-    color:#101b31;
-    transform:rotate(-3deg);
-  }
-
-  .signature-line {
-    border-top:1px solid #7d8998;
-    margin-top:-1mm;
-  }
-
-  .signature strong {
-    display:block;
-    margin-top:2mm;
-    font-size:8px;
-    color:#0b1736;
-  }
-
-  .signature span {
-    display:block;
-    margin-top:1mm;
-    font-size:6.5px;
-    color:#68778a;
-  }
-
-  .qr-area {
-    position:absolute;
-    right:43mm;
-    bottom:13mm;
-    width:35mm;
-    text-align:center;
-  }
-
-  .qr-frame {
-    width:32mm;
-    height:32mm;
-    padding:1.8mm;
-    margin:auto;
-    border:1px solid #d5a53b;
-    border-radius:2.5mm;
-    background:#fff;
-  }
-
-  .qr {
-    width:100%;
-    height:100%;
-    display:block;
-  }
-
-  .qr-caption {
-    margin-top:2mm;
-    font-size:6.5px;
-    font-weight:950;
-    letter-spacing:1.6px;
-    color:#008d63;
-  }
-
-  .credential {
-    position:absolute;
-    right:18mm;
-    bottom:13mm;
-    width:31mm;
-    text-align:right;
-  }
-
-  .credential-label,
-  .issued-label {
-    font-size:5.5px;
-    font-weight:950;
-    letter-spacing:1.4px;
-    color:#91a0b5;
-    text-transform:uppercase;
-  }
-
-  .credential-id {
-    margin-top:1mm;
-    font-size:6.8px;
-    font-weight:950;
-    color:#10213e;
-    white-space:nowrap;
-  }
-
-  .issued-label { margin-top:3mm; }
-
-  .issuer {
-    margin-top:1mm;
-    font-size:7px;
-    font-weight:900;
-    color:#10213e;
-  }
-
-  .footer-note {
-    position:absolute;
-    right:18mm;
-    bottom:6mm;
-    font-size:6px;
-    font-weight:900;
-    letter-spacing:1.5px;
-    color:#68778a;
-    text-transform:uppercase;
-  }
-
-  @media print {
-    html,body { background:#fff; }
-    .page { padding:0; }
-    .certificate { border:1.4px solid #0b1736; }
-  }
+  .curve-left,.curve-right { position:absolute; border:1px solid rgba(194,142,33,.18); border-radius:50%; z-index:2; }
+  .curve-left { width:150mm; height:170mm; left:-113mm; bottom:-83mm; }
+  .curve-left:after { content:""; position:absolute; inset:11mm; border:1px solid rgba(194,142,33,.12); border-radius:50%; }
+  .curve-right { width:155mm; height:175mm; right:-112mm; bottom:-77mm; }
+  .curve-right:after { content:""; position:absolute; inset:12mm; border:1px solid rgba(194,142,33,.12); border-radius:50%; }
+  .watermark { position:absolute; left:78mm; top:62mm; width:135mm; height:92mm; opacity:.055; border:12mm solid #0b7659; border-radius:45%; transform:rotate(25deg); z-index:2; }
+  .content { position:relative; z-index:10; height:100%; padding:13mm 18mm 10mm; display:flex; flex-direction:column; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; }
+  .brand { font-size:27px; font-weight:950; letter-spacing:-1.6px; color:#07152c; }
+  .brand span { color:#079b70; }
+  .tag { margin-top:1mm; font-size:7px; font-weight:900; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
+  .right-top { display:flex; align-items:flex-start; gap:9mm; }
+  .motto { margin-top:1mm; color:#334155; font-size:7px; line-height:1.65; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
+  .motto-line { width:12mm; height:1px; background:#cda63d; margin-top:2mm; }
+  .seal { width:32mm; height:32mm; border-radius:50%; border:1.5px solid #cda63d; background:#fffaf0; box-shadow:inset 0 0 0 2px #ead59a; display:flex; align-items:center; justify-content:center; text-align:center; color:#9a6b0e; font-size:6.7px; font-weight:950; letter-spacing:1px; line-height:1.35; }
+  .hero { text-align:center; margin-top:7mm; }
+  .eyebrow { font-size:9px; font-weight:950; letter-spacing:4px; color:#52677f; text-transform:uppercase; }
+  .heading { margin-top:1.5mm; font-family:Georgia,"Times New Roman",serif; font-size:35px; line-height:1; letter-spacing:5px; color:#07152c; }
+  .gold-rule { width:48mm; height:1px; margin:3mm auto 0; background:#cda63d; position:relative; }
+  .gold-rule:after { content:"◆"; position:absolute; left:50%; top:-4px; transform:translateX(-50%); color:#cda63d; font-size:7px; background:#fffdf7; padding:0 2mm; }
+  .presented { margin-top:2.5mm; font-size:10px; color:#52677f; }
+  .student { margin-top:1.5mm; font:700 30px Georgia,"Times New Roman",serif; color:#b27a0f; }
+  .student-rule { width:110mm; height:1px; margin:2mm auto 0; background:#cda63d; }
+  .course-label { margin-top:3.5mm; font-size:8.5px; color:#52677f; }
+  .course { margin-top:1mm; font-size:20px; font-weight:950; color:#07152c; }
+  .description { margin:2mm auto 0; max-width:190mm; font-size:8px; color:#52677f; line-height:1.5; }
+  .details { display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; margin-top:5mm; }
+  .detail { min-height:17mm; border:1px solid #dfd0a9; border-radius:3mm; background:rgba(255,255,255,.68); padding:3mm 4mm; display:flex; align-items:center; gap:4mm; }
+  .detail-icon { width:8mm; height:8mm; border:1px solid #cda63d; color:#b17a12; display:flex; align-items:center; justify-content:center; border-radius:2mm; font-size:12px; font-weight:900; flex:0 0 auto; }
+  .detail-label { font-size:6px; font-weight:950; letter-spacing:1.5px; color:#73839a; text-transform:uppercase; }
+  .detail-value { margin-top:1mm; font-size:8.5px; font-weight:950; color:#07152c; }
+  .bottom { margin-top:auto; display:grid; grid-template-columns:1.05fr .85fr 1fr; align-items:end; gap:9mm; padding-bottom:2mm; }
+  .signature { text-align:center; }
+  .signature-mark { font:italic 21px "Brush Script MT","Segoe Script",cursive; color:#0d243c; }
+  .signature-line { width:49mm; border-top:1px solid #0d243c; margin:0 auto 1mm; }
+  .signature strong { font-size:8px; }
+  .signature span { display:block; margin-top:1mm; font-size:7px; color:#64748b; }
+  .qr-area { text-align:center; }
+  .qr-frame { display:inline-flex; padding:2mm; border:1px solid #cda63d; border-radius:3mm; background:#fff; }
+  .qr { width:30mm; height:30mm; display:block; }
+  .qr-caption { margin-top:1.2mm; font-size:6.5px; letter-spacing:2px; font-weight:950; color:#006e52; }
+  .credential { border-left:1px solid #cda63d; padding-left:8mm; text-align:left; }
+  .credential-label { font-size:6px; font-weight:950; letter-spacing:1.6px; color:#718096; text-transform:uppercase; }
+  .credential-id { margin-top:1mm; font-size:8px; font-weight:950; color:#07152c; word-break:break-all; }
+  .issued-label { margin-top:2.5mm; font-size:6px; font-weight:950; letter-spacing:1.6px; color:#718096; text-transform:uppercase; }
+  .issuer { margin-top:1mm; font-size:8px; font-weight:950; color:#07152c; }
+  .footer { position:absolute; bottom:7mm; left:50%; transform:translateX(-50%); font-size:6px; font-weight:900; letter-spacing:2.5px; color:#52677f; text-transform:uppercase; white-space:nowrap; }
+  @media print { html,body{background:#fff;} .page{padding:0;} .certificate{border:0;} }
 </style>
 </head>
 <body>
-<div class="page">
-  <div class="certificate">
-    <div class="soft-wave left"></div>
-    <div class="soft-wave right"></div>
-    <div class="green-left"></div>
-    <div class="green-left-2"></div>
-    <div class="gold-left"></div>
-    <div class="green-right"></div>
-    <div class="green-right-2"></div>
-    <div class="gold-right"></div>
-    <div class="bottom-gold"></div>
-    <div class="gold-frame"></div>
-    <div class="inner-frame"></div>
-
-    <div class="content">
-      <div class="top">
-        <div>
-          <div class="brand">Skill<span>Forge</span></div>
-          <div class="tag">Learn · Practice · Grow</div>
-        </div>
-        <div class="top-right">
-          <div class="motto">
-            Empowering<br/>
-            Learners For<br/>
-            A Brighter Tomorrow
-            <div class="motto-line"></div>
-          </div>
-          <div class="seal">SKILLFORGE<br/>VERIFIED</div>
-        </div>
-      </div>
-
-      <div class="hero">
-        <div class="eyebrow">Certificate of Completion</div>
-        <div class="heading">CERTIFICATE</div>
-        <div class="presented">This certificate is proudly presented to</div>
-        <div class="student">${student}</div>
-        <div class="student-line"></div>
-        <div class="course-label">for successfully completing the course</div>
-        <div class="course">${title}</div>
-        <div class="description">${description}</div>
-      </div>
-
-      <div class="facts">
-        <div class="fact">
-          <div class="fact-label">Course Category</div>
-          <div class="fact-value">${category}</div>
-        </div>
-        <div class="fact">
-          <div class="fact-label">Course Level</div>
-          <div class="fact-value">${level}</div>
-        </div>
-        <div class="fact">
-          <div class="fact-label">Issue Date</div>
-          <div class="fact-value">${issueDate}</div>
-        </div>
-      </div>
-
-      <div class="signature">
-        <div class="signature-mark">Naimish Singh</div>
-        <div class="signature-line"></div>
-        <strong>Naimish Singh</strong>
-        <span>CEO, SkillForge</span>
-      </div>
-
-      <div class="qr-area">
-        <div class="qr-frame">
-          <img class="qr" src="${qr}" alt="Certificate verification QR" />
-        </div>
-        <div class="qr-caption">SCAN TO VERIFY</div>
-      </div>
-
-      <div class="credential">
-        <div class="credential-label">Credential ID</div>
-        <div class="credential-id">${id}</div>
-        <div class="issued-label">Issued By</div>
-        <div class="issuer">SkillForge</div>
-      </div>
-
-      <div class="footer-note">Skills Today · Better Tomorrow</div>
+<div class="page"><div class="certificate">
+  <div class="inner-frame"></div><div class="inner-frame2"></div>
+  <div class="green-left"></div><div class="green-right"></div>
+  <div class="curve-left"></div><div class="curve-right"></div><div class="watermark"></div>
+  <div class="content">
+    <div class="top">
+      <div><div class="brand">Skill<span>Forge</span></div><div class="tag">Learn · Practice · Grow</div></div>
+      <div class="right-top"><div class="motto">Empowering<br/>Learners For<br/>A Brighter Tomorrow<div class="motto-line"></div></div><div class="seal">✦<br/>SKILLFORGE<br/>VERIFIED<br/>✦</div></div>
     </div>
+    <div class="hero">
+      <div class="eyebrow">Certificate of Completion</div>
+      <div class="heading">CERTIFICATE</div>
+      <div class="gold-rule"></div>
+      <div class="presented">This certificate is proudly presented to</div>
+      <div class="student">${student}</div>
+      <div class="student-rule"></div>
+      <div class="course-label">for successfully completing the course</div>
+      <div class="course">${title}</div>
+      <div class="description">${description}</div>
+    </div>
+    <div class="details">
+      <div class="detail"><div class="detail-icon">▤</div><div><div class="detail-label">Course Category</div><div class="detail-value">${category}</div></div></div>
+      <div class="detail"><div class="detail-icon">↗</div><div><div class="detail-label">Course Level</div><div class="detail-value">${level}</div></div></div>
+      <div class="detail"><div class="detail-icon">▣</div><div><div class="detail-label">Issue Date</div><div class="detail-value">${issueDate}</div></div></div>
+    </div>
+    <div class="bottom">
+      <div class="signature"><div class="signature-mark">Naimish Singh</div><div class="signature-line"></div><strong>Naimish Singh</strong><span>CEO, SkillForge</span></div>
+      <div class="qr-area"><div class="qr-frame"><img class="qr" src="${qr}" alt="Certificate verification QR" /></div><div class="qr-caption">SCAN TO VERIFY</div></div>
+      <div class="credential"><div class="credential-label">Credential ID</div><div class="credential-id">${id}</div><div class="issued-label">Issued By</div><div class="issuer">SkillForge</div><div class="issued-label">Issue Date</div><div class="issuer">${issueDate}</div></div>
+    </div>
+    <div class="footer">Skills Today · Better Tomorrow</div>
   </div>
-</div>
+</div></div>
 <script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
-</body>
-</html>`);
+</body></html>`);
   printWindow.document.close();
 }
 
@@ -5828,7 +5414,6 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
 
   useEffect(() => {
     let cancelled = false;
-
     const verify = async () => {
       if (!certificateId) {
         setLoading(false);
@@ -5836,23 +5421,17 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
         setError("Certificate ID is required.");
         return;
       }
-
       try {
         setLoading(true);
         setError("");
-        const response = await fetch(
-          `${API_BASE_URL}/api/payment/certificates/verify/${encodeURIComponent(certificateId)}`,
-        );
+        const response = await fetch(`${API_BASE_URL}/api/payment/certificates/verify/${encodeURIComponent(certificateId)}`);
         const data = await response.json().catch(() => null);
-
         if (cancelled) return;
-
         if (!response.ok || !data?.verified || !data?.certificate) {
           setCertificate(null);
           setError(data?.message || "This certificate could not be verified by SkillForge.");
           return;
         }
-
         setCertificate(data.certificate as CertificateRecord);
       } catch (error) {
         console.error("Certificate verification error:", error);
@@ -5864,41 +5443,33 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
         if (!cancelled) setLoading(false);
       }
     };
-
     void verify();
     return () => { cancelled = true; };
   }, [certificateId]);
 
   const issueDate = certificate
-    ? new Date(certificate.issuedAt).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      })
+    ? new Date(certificate.issuedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })
+    : "";
+  const modules = certificate?.moduleTitles?.slice(0, 5) || [];
+  const verificationUrl = certificate
+    ? `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(certificate.certificateId)}`
+    : "";
+  const verificationQr = certificate
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(verificationUrl)}`
     : "";
 
-  const modules = (certificate?.moduleTitles ?? []).slice(0, 6);
-
   return (
-    <div className="min-h-screen bg-[#06111f] text-white">
-      <header className="border-b border-white/10 bg-[#06101c]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1380px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <div className="text-2xl font-black tracking-tight sm:text-3xl">Skill<span className="text-emerald-400">Forge</span></div>
-          <div className="hidden items-center gap-7 text-sm font-semibold text-slate-300 md:flex">
-            <a href={`${SKILLFORGE_PUBLIC_URL}/`} className="hover:text-white">Home</a>
-            <a href={`${SKILLFORGE_PUBLIC_URL}/#courses`} className="hover:text-white">Courses</a>
-            <a href={`${SKILLFORGE_PUBLIC_URL}/#about`} className="hover:text-white">About</a>
-            <span className="border-b-2 border-emerald-400 pb-1 text-emerald-400">Verify Certificate</span>
-            <a href={`${SKILLFORGE_PUBLIC_URL}/#contact`} className="hover:text-white">Contact</a>
-          </div>
-          <a href={`${SKILLFORGE_PUBLIC_URL}/#courses`} className="rounded-xl border border-emerald-400 px-4 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-400 hover:text-slate-950">
-            Explore Courses <ArrowRight className="ml-1 inline" size={15}/>
-          </a>
+    <div className="min-h-screen bg-[#06121d] text-white">
+      <header className="border-b border-white/10 bg-[#071827]/95 px-5 py-5 sm:px-8">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between">
+          <a href={SKILLFORGE_PUBLIC_URL} className="text-3xl font-black tracking-tight">Skill<span className="text-emerald-400">Forge</span></a>
+          <span className="hidden text-xs font-black uppercase tracking-[0.28em] text-slate-500 sm:block">Certificate Verification</span>
         </div>
       </header>
 
-      <main className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-14">
-        <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
+      <main className="relative overflow-hidden px-4 py-8 sm:px-7 sm:py-12">
+        <div className="pointer-events-none absolute -left-32 top-20 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-32 top-40 h-96 w-96 rounded-full bg-amber-400/5 blur-3xl" />
         <div className="relative mx-auto max-w-[1380px]">
           {loading ? (
             <div className="mx-auto max-w-xl rounded-3xl border border-white/10 bg-white/[0.04] p-14 text-center shadow-2xl">
@@ -5907,113 +5478,83 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
             </div>
           ) : certificate ? (
             <>
-              <section className="mx-auto max-w-4xl text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400 text-slate-950 shadow-[0_0_45px_rgba(52,211,153,0.28)]">
-                  <CheckCircle2 size={36}/>
-                </div>
-                <p className="mt-5 text-xs font-black uppercase tracking-[0.25em] text-emerald-400">Certificate Verified</p>
-                <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">Congratulations!</h1>
-                <h2 className="mt-2 text-3xl font-black text-emerald-400 sm:text-4xl">Certificate Verified</h2>
-                <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">This certificate has been officially awarded to</p>
-                <p className="mt-1 text-3xl font-black sm:text-4xl">{certificate.studentName}</p>
-                <p className="mt-3 text-sm text-slate-400">for successfully completing the course</p>
-                <p className="mt-1 text-xl font-black text-emerald-300 sm:text-2xl">{certificate.courseTitle}</p>
+              <section className="mx-auto max-w-5xl text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400 text-slate-950 shadow-[0_0_45px_rgba(52,211,153,0.25)]"><CheckCircle2 size={34}/></div>
+                <p className="mt-5 text-xs font-black uppercase tracking-[0.28em] text-emerald-400">SkillForge Certificate</p>
+                <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-6xl">Congratulations!</h1>
+                <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">This certificate has been officially awarded by SkillForge and verified against our certificate records.</p>
               </section>
 
-              <section className="mt-10 overflow-hidden rounded-3xl border border-white/10 bg-[#0b1728]/90 shadow-2xl">
-                <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
-                  <div className="p-5 sm:p-8">
-                    <div className="rounded-2xl bg-[#f8fafc] p-3 shadow-xl sm:p-4">
-                      <div className="relative overflow-hidden rounded-xl border border-[#d6b15a] bg-[#fffdf7] px-5 py-8 text-center text-slate-900 sm:px-10 sm:py-10">
-                        <div className="pointer-events-none absolute -left-24 -top-24 h-52 w-52 rotate-45 border-[18px] border-emerald-700/10" />
-                        <div className="pointer-events-none absolute -bottom-28 -right-24 h-60 w-60 rotate-45 border-[20px] border-amber-500/10" />
-                        <div className="text-2xl font-black tracking-tight sm:text-3xl">Skill<span className="text-emerald-600">Forge</span></div>
-                        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Learn · Practice · Grow</p>
-                        <div className="mx-auto mt-8 max-w-2xl">
-                          <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">Certificate</p>
-                          <h3 className="mt-1 text-3xl font-black sm:text-4xl">OF COMPLETION</h3>
-                          <p className="mt-7 text-sm text-slate-500">This is to certify that</p>
-                          <p className="mt-2 text-3xl font-black text-amber-700 sm:text-4xl">{certificate.studentName}</p>
-                          <div className="mx-auto mt-2 h-px max-w-md bg-amber-600/40" />
-                          <p className="mt-6 text-sm text-slate-500">has successfully completed the course</p>
-                          <p className="mt-2 text-xl font-black sm:text-2xl">{certificate.courseTitle}</p>
-                          {certificate.courseDescription && <p className="mx-auto mt-4 max-w-2xl text-xs leading-5 text-slate-500">{certificate.courseDescription}</p>}
+              <section className="mt-9 overflow-hidden rounded-[30px] border border-emerald-500/15 bg-[#0a1826] shadow-2xl">
+                <div className="grid lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,.7fr)]">
+                  <div className="p-3 sm:p-5 lg:p-7">
+                    <div className="relative overflow-hidden rounded-[22px] border border-[#d2a63e] bg-[#fffdf7] text-slate-900 shadow-[0_20px_60px_rgba(0,0,0,.28)]">
+                      <div className="pointer-events-none absolute inset-2 border border-[#d2a63e]/70" />
+                      <div className="pointer-events-none absolute inset-5 border border-[#07152c]/80" />
+                      <div className="pointer-events-none absolute -left-28 -top-20 h-[520px] w-56 rotate-[35deg] bg-gradient-to-b from-[#063d31] via-[#08775b] to-[#032c25]" />
+                      <div className="pointer-events-none absolute -right-28 -top-20 h-[520px] w-56 -rotate-[35deg] bg-gradient-to-b from-[#063d31] via-[#08775b] to-[#032c25]" />
+                      <div className="pointer-events-none absolute left-0 top-0 h-full w-3 bg-gradient-to-b from-[#c18a16] via-[#f6d46c] to-[#a06f0b] opacity-90" />
+                      <div className="pointer-events-none absolute right-0 top-0 h-full w-3 bg-gradient-to-b from-[#c18a16] via-[#f6d46c] to-[#a06f0b] opacity-90" />
+                      <div className="relative z-10 px-7 pb-7 pt-8 sm:px-12 sm:pb-10 sm:pt-10">
+                        <div className="flex items-start justify-between gap-6">
+                          <div>
+                            <div className="text-3xl font-black tracking-tight">Skill<span className="text-emerald-600">Forge</span></div>
+                            <p className="mt-1 text-[9px] font-black uppercase tracking-[0.28em] text-slate-500">Learn · Practice · Grow</p>
+                          </div>
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-[#cda63d] bg-[#fff8df] text-center text-[7px] font-black leading-3 text-[#9a6b0e] shadow-inner sm:h-20 sm:w-20 sm:text-[8px]">✦<br/>SKILLFORGE<br/>VERIFIED<br/>✦</div>
                         </div>
-                        <div className="mt-8 grid grid-cols-2 gap-4 border-t border-slate-200 pt-5 text-left sm:grid-cols-3">
-                          <div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Certificate ID</p><p className="mt-1 break-all text-xs font-black">{certificate.certificateId}</p></div>
-                          <div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Issue Date</p><p className="mt-1 text-xs font-black">{issueDate}</p></div>
-                          <div className="col-span-2 sm:col-span-1"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Issued By</p><p className="mt-1 text-xs font-black">Naimish Singh · CEO, SkillForge</p></div>
+                        <div className="mt-8 text-center sm:mt-10">
+                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Certificate of Completion</p>
+                          <h2 className="mt-1 font-serif text-4xl tracking-[0.08em] text-[#07152c] sm:text-6xl">CERTIFICATE</h2>
+                          <div className="mx-auto mt-3 h-px w-28 bg-[#cda63d]" />
+                          <p className="mt-4 text-sm text-slate-500">This certificate is proudly presented to</p>
+                          <p className="mt-1 font-serif text-3xl font-bold text-[#b27a0f] sm:text-4xl">{certificate.studentName}</p>
+                          <div className="mx-auto mt-2 h-px max-w-lg bg-[#cda63d]/70" />
+                          <p className="mt-5 text-xs text-slate-500">for successfully completing the course</p>
+                          <p className="mt-1 text-2xl font-black text-[#07152c] sm:text-3xl">{certificate.courseTitle}</p>
+                          {certificate.courseDescription && <p className="mx-auto mt-3 max-w-2xl text-xs leading-5 text-slate-500">{certificate.courseDescription}</p>}
                         </div>
+                        <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-xl border border-[#e3d5b4] bg-white/70 p-3"><p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-400">Course Category</p><p className="mt-1 text-sm font-black">{certificate.courseCategory || "IT & Tech"}</p></div>
+                          <div className="rounded-xl border border-[#e3d5b4] bg-white/70 p-3"><p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-400">Course Level</p><p className="mt-1 text-sm font-black">{certificate.courseLevel || "—"}</p></div>
+                          <div className="rounded-xl border border-[#e3d5b4] bg-white/70 p-3"><p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-400">Issue Date</p><p className="mt-1 text-sm font-black">{issueDate}</p></div>
+                        </div>
+                        <div className="mt-7 grid items-end gap-7 sm:grid-cols-[1fr_auto_1fr]">
+                          <div className="text-center"><div className="font-serif text-2xl italic text-[#10263d]">Naimish Singh</div><div className="mx-auto mt-1 h-px w-40 bg-slate-600"/><p className="mt-2 text-xs font-black">Naimish Singh</p><p className="text-[10px] text-slate-500">CEO, SkillForge</p></div>
+                          <div className="text-center"><div className="inline-flex rounded-xl border border-[#cda63d] bg-white p-1.5"><img src={verificationQr} alt="Certificate verification QR" className="h-28 w-28"/></div><p className="mt-2 text-[8px] font-black tracking-[0.25em] text-emerald-700">SCAN TO VERIFY</p></div>
+                          <div className="border-l border-[#cda63d] pl-5"><p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Credential ID</p><p className="mt-1 break-all text-sm font-black">{certificate.certificateId}</p><p className="mt-3 text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Issued By</p><p className="mt-1 text-sm font-black">SkillForge</p></div>
+                        </div>
+                        <p className="mt-6 text-center text-[8px] font-black uppercase tracking-[0.28em] text-slate-500">Skills Today · Better Tomorrow</p>
                       </div>
                     </div>
                   </div>
 
-                  <aside className="border-t border-white/10 p-5 sm:p-8 lg:border-l lg:border-t-0">
+                  <aside className="border-t border-white/10 bg-[#071522] p-6 sm:p-8 lg:border-l lg:border-t-0">
                     <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><CheckCircle2 size={25}/></div>
-                        <div><p className="text-lg font-black text-emerald-300">Certificate is Valid</p><p className="mt-1 text-xs text-emerald-100/70">Verified directly from SkillForge records and permanently stored.</p></div>
-                      </div>
+                      <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><CheckCircle2 size={25}/></div><div><p className="text-lg font-black text-emerald-300">Certificate is Valid</p><p className="mt-1 text-xs leading-5 text-emerald-100/70">Verified directly from SkillForge records.</p></div></div>
                     </div>
-
-                    <div className="mt-6 space-y-4 text-sm">
-                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Credential ID</p><p className="mt-1 break-all font-black text-white">{certificate.certificateId}</p></div>
-                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Student Name</p><p className="mt-1 font-bold text-slate-200">{certificate.studentName}</p></div>
-                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Course</p><p className="mt-1 font-bold text-slate-200">{certificate.courseTitle}</p></div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Category</p><p className="mt-1 font-bold text-slate-200">{certificate.courseCategory || "—"}</p></div>
-                        <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Level</p><p className="mt-1 font-bold text-slate-200">{certificate.courseLevel || "—"}</p></div>
-                      </div>
-                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Issue Date</p><p className="mt-1 font-bold text-slate-200">{issueDate}</p></div>
+                    <div className="mt-7 space-y-5">
+                      <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Congratulations</p><p className="mt-2 text-2xl font-black text-white">{certificate.studentName}</p><p className="mt-1 text-sm text-slate-400">has been awarded this certificate for successfully completing the course.</p></div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Credential ID</p><p className="mt-2 break-all font-black text-emerald-300">{certificate.certificateId}</p><p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Issue Date</p><p className="mt-2 font-bold text-white">{issueDate}</p></div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Course</p><p className="mt-2 text-lg font-black text-white">{certificate.courseTitle}</p><p className="mt-2 text-sm text-slate-400">{certificate.courseCategory || "IT & Tech"} · {certificate.courseLevel || "—"}</p></div>
                     </div>
-
-                    {certificate.courseDescription && (
-                      <div className="mt-7 border-t border-white/10 pt-6">
-                        <p className="font-black text-white">About This Course</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-400">{certificate.courseDescription}</p>
-                      </div>
-                    )}
-
-                    {modules.length > 0 && (
-                      <div className="mt-6 border-t border-white/10 pt-6">
-                        <p className="font-black text-white">Key Modules</p>
-                        <div className="mt-3 space-y-2">
-                          {modules.map((module) => <div key={module} className="flex items-start gap-2 text-sm text-slate-300"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-400" size={15}/><span>{module}</span></div>)}
-                        </div>
-                      </div>
-                    )}
+                    {certificate.courseDescription && <div className="mt-6 border-t border-white/10 pt-6"><p className="font-black text-white">About This Course</p><p className="mt-2 text-sm leading-6 text-slate-400">{certificate.courseDescription}</p></div>}
+                    {modules.length > 0 && <div className="mt-6 border-t border-white/10 pt-6"><p className="font-black text-white">Key Modules</p><div className="mt-3 space-y-2">{modules.map((module,index)=><div key={`${module}-${index}`} className="flex items-start gap-2 text-sm text-slate-300"><span className="mt-0.5 text-emerald-400">✓</span><span>{module}</span></div>)}</div></div>}
+                    <div className="mt-7 grid gap-3"><button type="button" onClick={() => printCertificateDocument(certificate)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-sm font-black text-slate-950 shadow-lg hover:bg-emerald-300"><ArrowRight className="rotate-90" size={17}/> Download Certificate</button><button type="button" onClick={() => { window.location.href = `${SKILLFORGE_PUBLIC_URL}/verify`; }} className="rounded-xl border border-emerald-400/60 px-6 py-3 text-sm font-black text-emerald-300 hover:bg-emerald-400/10">Verify Another Certificate</button></div>
                   </aside>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:justify-center sm:p-6">
-                  <button type="button" onClick={() => printCertificateDocument(certificate)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-7 py-3 text-sm font-black text-slate-950 shadow-lg hover:bg-emerald-300">
-                    <ArrowRight className="rotate-90" size={17}/> Download Certificate
-                  </button>
-                  <button type="button" onClick={() => { window.location.href = `${SKILLFORGE_PUBLIC_URL}/verify`; }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400 px-7 py-3 text-sm font-black text-emerald-300 hover:bg-emerald-400/10">
-                    Verify Another Certificate
-                  </button>
                 </div>
               </section>
             </>
           ) : (
-            <section className="mx-auto max-w-2xl rounded-3xl border border-red-400/20 bg-white p-10 text-center text-slate-900 shadow-2xl">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600"><X size={34}/></div>
-              <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-red-600">Verification Failed</p>
-              <h1 className="mt-2 text-3xl font-black">Certificate Not Found</h1>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">{error}</p>
-              {certificateId && <p className="mt-6 break-all rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Credential ID: {certificateId}</p>}
-              <a href={`${SKILLFORGE_PUBLIC_URL}/verify`} className="mt-6 inline-flex rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white">Verify Another Certificate</a>
-            </section>
+            <section className="mx-auto max-w-2xl rounded-3xl border border-red-400/20 bg-white p-10 text-center text-slate-900 shadow-2xl"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600"><X size={34}/></div><p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-red-600">Verification Failed</p><h1 className="mt-2 text-3xl font-black">Certificate Not Found</h1><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">{error}</p>{certificateId && <p className="mt-6 break-all rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Credential ID: {certificateId}</p>}<a href={`${SKILLFORGE_PUBLIC_URL}/verify`} className="mt-6 inline-flex rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white">Verify Another Certificate</a></section>
           )}
         </div>
       </main>
-
-      <footer className="border-t border-white/10 px-5 py-6 text-center text-xs text-slate-500">
-        SkillForge · Learn · Practice · Grow
-      </footer>
+      <footer className="border-t border-white/10 px-5 py-6 text-center text-xs text-slate-500">SkillForge · Learn · Practice · Grow</footer>
     </div>
   );
 }
+
 function App() {
   const params = new URLSearchParams(window.location.search);
   const certificateId = params.get("certificate");
