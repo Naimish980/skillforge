@@ -2303,12 +2303,21 @@ function printCertificateDocument(record: CertificateRecord) {
   const id = escapeHtml(record.certificateId);
   const student = escapeHtml(record.studentName);
   const title = escapeHtml(record.courseTitle);
-  const category = escapeHtml(record.courseCategory || "IT & Tech");
-  const level = escapeHtml(record.courseLevel || "—");
-  const issueDate = escapeHtml(new Date(record.issuedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }));
+  const description = escapeHtml(
+    record.courseDescription ||
+      `This certifies that the learner has successfully completed the ${record.courseTitle} course and demonstrated the required knowledge and practical skills.`
+  );
+  const issueDate = escapeHtml(
+    new Date(record.issuedAt).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+  );
+
   const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(verification)}`;
-  const printWindow = window.open("", "_blank", "width=1400,height=950");
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=0&data=${encodeURIComponent(verification)}`;
+  const printWindow = window.open("", "_blank", "width=1500,height=1000");
 
   if (!printWindow) {
     alert("Please allow pop-ups to download your certificate.");
@@ -2319,81 +2328,220 @@ function printCertificateDocument(record: CertificateRecord) {
 <html>
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SkillForge Certificate - ${id}</title>
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; }
-  html,body { margin:0; width:100%; height:100%; background:#eef2f7; }
-  body { display:flex; align-items:center; justify-content:center; font-family:Arial,Helvetica,sans-serif; color:#0b1736; }
-  .page { width:297mm; height:210mm; padding:10mm; background:#f8fafc; }
-  .certificate { position:relative; width:100%; height:100%; overflow:hidden; background:#fffdf8; border:2px solid #0b1736; box-shadow:0 8px 35px rgba(11,23,54,.18); }
-  .border1 { position:absolute; inset:5mm; border:1px solid #caa64c; pointer-events:none; }
-  .border2 { position:absolute; inset:8mm; border:1px solid #0b1736; pointer-events:none; }
-  .accent-left { position:absolute; left:-34mm; top:42mm; width:100mm; height:100mm; transform:rotate(45deg); border:14mm solid rgba(16,185,129,.08); }
-  .accent-right { position:absolute; right:-40mm; bottom:-45mm; width:125mm; height:125mm; transform:rotate(45deg); border:16mm solid rgba(202,166,76,.11); }
-  .content { position:relative; z-index:2; height:100%; padding:15mm 20mm 13mm; display:flex; flex-direction:column; }
-  .brand { font-size:28px; font-weight:900; letter-spacing:-1px; }
-  .brand span { color:#10b981; }
-  .tag { margin-top:2mm; font-size:8px; font-weight:800; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
-  .title { text-align:center; margin-top:5mm; }
-  .title small { font-size:11px; font-weight:800; letter-spacing:4px; color:#64748b; text-transform:uppercase; }
-  .title h1 { margin:2mm 0 0; font-family:Georgia,serif; font-size:35px; letter-spacing:3px; }
-  .title p { margin:2mm 0 0; color:#64748b; font-size:11px; }
-  .student { margin-top:4mm; text-align:center; font-family:Georgia,serif; font-size:31px; font-weight:700; color:#a97913; }
-  .student-line { width:105mm; margin:1mm auto 0; border-top:1px solid #caa64c; }
-  .course-wrap { text-align:center; margin-top:5mm; }
-  .course-label { color:#64748b; font-size:10px; }
-  .course { margin-top:1.5mm; font-size:22px; font-weight:900; }
-  .description { max-width:185mm; margin:2.5mm auto 0; text-align:center; color:#64748b; font-size:9px; line-height:1.5; }
-  .details { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4mm; margin-top:5mm; }
-  .detail { border:1px solid #e2e8f0; background:#f8fafc; padding:3mm; border-radius:2mm; }
-  .label { font-size:7px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; }
-  .value { margin-top:1mm; font-size:9px; font-weight:800; }
-  .modules { margin-top:4mm; text-align:center; }
-  .modules-title { font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:2px; color:#64748b; }
-  .module-list { display:flex; justify-content:center; flex-wrap:wrap; gap:2mm 5mm; margin-top:2mm; color:#334155; font-size:8px; }
-  .module-list span:before { content:"✓"; color:#10b981; font-weight:900; margin-right:1.5mm; }
-  .footer { margin-top:auto; display:grid; grid-template-columns:1fr 1fr 1fr; align-items:end; gap:8mm; }
-  .signature { text-align:center; }
-  .signature-line { width:42mm; margin:0 auto 2mm; border-top:1px solid #475569; }
-  .signature strong { font-size:9px; }
+  html, body { margin: 0; width: 100%; min-height: 100%; }
+  body {
+    background: #e9edf2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Inter, Arial, Helvetica, sans-serif;
+    color: #0b1736;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 297mm;
+    height: 210mm;
+    padding: 8mm;
+    background: #eef2f5;
+  }
+  .certificate {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 78% 18%, rgba(202,166,76,.07), transparent 22%),
+      linear-gradient(135deg, #fffefb 0%, #fffdf7 50%, #fffaf0 100%);
+    border: 2px solid #0b1736;
+    box-shadow: 0 10px 35px rgba(11,23,54,.18);
+  }
+  .frame-gold { position:absolute; inset:5mm; border:1.5px solid #caa64c; pointer-events:none; z-index:5; }
+  .frame-navy { position:absolute; inset:8mm; border:1px solid #0b1736; pointer-events:none; z-index:5; }
+  .wave {
+    position:absolute;
+    width: 170mm;
+    height: 170mm;
+    border: 1px solid rgba(202,166,76,.10);
+    border-radius: 48%;
+    transform: rotate(28deg);
+    pointer-events:none;
+  }
+  .wave.one { left:-108mm; top:38mm; }
+  .wave.two { left:-94mm; top:30mm; width:155mm; height:155mm; }
+  .wave.three { right:-112mm; bottom:-35mm; width:170mm; height:170mm; }
+
+  .ribbon-left {
+    position:absolute; left:-33mm; top:-15mm; width:58mm; height:245mm;
+    background: linear-gradient(90deg, #053f32 0%, #08755a 42%, #0d4d3e 70%, #052f27 100%);
+    transform: rotate(35deg); opacity:.98;
+    box-shadow: 0 0 0 1px rgba(202,166,76,.45);
+  }
+  .ribbon-left:after {
+    content:""; position:absolute; left:12mm; top:-10mm; width:7mm; height:260mm;
+    background: linear-gradient(90deg, #d3a83f, #f5d777, #b58418);
+    box-shadow: 10mm 0 0 rgba(202,166,76,.22);
+  }
+  .ribbon-right {
+    position:absolute; right:-37mm; top:-24mm; width:62mm; height:205mm;
+    background: linear-gradient(90deg, #06382e, #08765b 45%, #043126);
+    transform: rotate(-35deg); opacity:.98;
+  }
+  .ribbon-right:after {
+    content:""; position:absolute; right:13mm; top:-5mm; width:7mm; height:220mm;
+    background: linear-gradient(90deg, #b58418, #f5d777, #d3a83f);
+  }
+  .gold-swoosh-left {
+    position:absolute; left:-25mm; bottom:-57mm; width:190mm; height:62mm;
+    border: 8mm solid #d6ad4a; border-right:0; border-radius:50%;
+    transform: rotate(26deg); opacity:.95;
+  }
+  .gold-swoosh-left:after {
+    content:""; position:absolute; left:5mm; top:6mm; width:175mm; height:46mm;
+    border: 2mm solid #f1d26d; border-right:0; border-radius:50%;
+  }
+  .gold-swoosh-right {
+    position:absolute; right:-35mm; top:-28mm; width:100mm; height:75mm;
+    border: 6mm solid #d3a83f; border-left:0; border-bottom:0; border-radius:0 50% 0 0;
+    transform: rotate(8deg);
+  }
+
+  .content {
+    position:relative;
+    z-index:10;
+    height:100%;
+    padding:14mm 18mm 12mm;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar { display:flex; align-items:flex-start; justify-content:space-between; }
+  .brand { font-size:28px; font-weight:950; letter-spacing:-1.5px; color:#0b1736; }
+  .brand span { color:#10a875; }
+  .tag { margin-top:1.5mm; font-size:7.5px; font-weight:800; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
+  .motto { margin-top:2mm; margin-right:9mm; text-align:left; font-size:7px; font-weight:800; line-height:1.6; letter-spacing:2px; color:#475569; text-transform:uppercase; }
+  .motto-line { width:13mm; height:1px; background:#caa64c; margin-top:2mm; }
+
+  .seal {
+    width:30mm; height:30mm; border-radius:50%;
+    border:2px solid #caa64c;
+    background: radial-gradient(circle, #fffef8 0%, #fff8df 100%);
+    box-shadow: inset 0 0 0 2px rgba(202,166,76,.18), 0 2px 8px rgba(11,23,54,.12);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    color:#a97913; font-size:7px; font-weight:950; line-height:1.35; letter-spacing:.8px;
+  }
+
+  .hero { text-align:center; margin-top:8mm; }
+  .eyebrow { font-size:10px; font-weight:900; letter-spacing:4px; color:#64748b; text-transform:uppercase; }
+  .heading { margin:2mm 0 0; font-family:Georgia, "Times New Roman", serif; font-size:36px; line-height:1; letter-spacing:4px; color:#0b1736; }
+  .rule { width:30mm; height:1px; margin:3mm auto 0; background:#caa64c; }
+  .presented { margin-top:2.5mm; color:#64748b; font-size:10px; }
+  .student { margin-top:2mm; font-family:Georgia, "Times New Roman", serif; font-size:30px; line-height:1.1; font-weight:700; color:#a97913; }
+  .student-line { width:105mm; margin:2mm auto 0; border-top:1px solid #caa64c; }
+  .course-label { margin-top:4mm; color:#475569; font-size:9px; letter-spacing:.4px; }
+  .course { margin-top:1.5mm; font-size:21px; line-height:1.15; font-weight:950; color:#0b1736; }
+  .description { max-width:180mm; margin:3mm auto 0; text-align:center; color:#475569; font-size:8.5px; line-height:1.55; }
+
+  .bottom {
+    margin-top:auto;
+    display:grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    align-items:end;
+    gap:8mm;
+  }
+  .detail-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4mm; margin-bottom:4mm; }
+  .detail { border-top:1px solid #d8dee7; padding-top:2.5mm; }
+  .detail-label { font-size:6.5px; font-weight:900; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
+  .detail-value { margin-top:1mm; font-size:8.5px; font-weight:900; color:#0b1736; }
+
+  .signature { text-align:center; padding-bottom:1mm; }
+  .signature-mark { font-family:"Brush Script MT", "Segoe Script", cursive; font-size:17px; color:#1f2937; margin-bottom:-1mm; }
+  .signature-line { width:43mm; margin:0 auto 1.5mm; border-top:1px solid #475569; }
+  .signature strong { font-size:8.5px; }
   .signature span { display:block; margin-top:1mm; color:#64748b; font-size:7px; }
-  .qr-box { text-align:center; }
-  .qr { width:30mm; height:30mm; padding:1mm; background:white; border:1px solid #cbd5e1; }
-  .qr-caption { margin-top:1mm; font-size:7px; font-weight:900; color:#059669; letter-spacing:1px; }
-  .meta { text-align:right; }
-  .meta .label { margin-top:2mm; }
-  .meta .value { font-size:8px; }
-  .seal { position:absolute; right:16mm; top:18mm; width:24mm; height:24mm; border:2px solid #caa64c; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:7px; font-weight:900; color:#a97913; background:#fffdf8; }
-  @media print { html,body { background:#fff; } .page { padding:0; } .certificate { box-shadow:none; } }
+
+  .qr-area { text-align:center; }
+  .qr-frame { display:inline-flex; padding:2mm; background:#fff; border:1px solid #caa64c; border-radius:2mm; }
+  .qr { width:31mm; height:31mm; display:block; }
+  .qr-caption { margin-top:1.5mm; font-size:6.5px; font-weight:950; color:#00885f; letter-spacing:1.5px; }
+
+  .credential { text-align:right; padding-bottom:1mm; }
+  .credential-label { font-size:6.5px; font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
+  .credential-id { margin-top:1mm; font-size:8px; font-weight:950; color:#0b1736; word-break:break-all; }
+  .issued-by { margin-top:3mm; font-size:6.5px; font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
+  .issuer { margin-top:1mm; font-size:8px; font-weight:950; color:#0b1736; }
+  .footer-note { position:absolute; right:17mm; bottom:10mm; font-size:6px; font-weight:800; letter-spacing:2px; color:#64748b; text-transform:uppercase; }
+
+  @media print {
+    html,body { background:#fff; }
+    .page { padding:0; }
+    .certificate { box-shadow:none; }
+  }
 </style>
 </head>
 <body>
 <div class="page">
   <div class="certificate">
-    <div class="border1"></div><div class="border2"></div>
-    <div class="accent-left"></div><div class="accent-right"></div>
-    <div class="seal">SKILL<br/>FORGE<br/>VERIFIED</div>
+    <div class="frame-gold"></div><div class="frame-navy"></div>
+    <div class="wave one"></div><div class="wave two"></div><div class="wave three"></div>
+    <div class="ribbon-left"></div><div class="ribbon-right"></div>
+    <div class="gold-swoosh-left"></div><div class="gold-swoosh-right"></div>
+
     <div class="content">
-      <div><div class="brand">Skill<span>Forge</span></div><div class="tag">Learn · Practice · Grow</div></div>
-      <div class="title"><small>Certificate of Completion</small><h1>CERTIFICATE</h1><p>This certificate is proudly presented to</p></div>
-      <div class="student">${student}</div>
-      <div class="student-line"></div>
-      <div class="course-wrap"><div class="course-label">for successfully completing the course</div><div class="course">${title}</div></div>
-      <div class="details">
-        <div class="detail"><div class="label">Category</div><div class="value">${category}</div></div>
-        <div class="detail"><div class="label">Level</div><div class="value">${level}</div></div>
-        <div class="detail"><div class="label">Issue Date</div><div class="value">${issueDate}</div></div>
+      <div class="topbar">
+        <div>
+          <div class="brand">Skill<span>Forge</span></div>
+          <div class="tag">Learn · Practice · Grow</div>
+        </div>
+        <div style="display:flex;gap:10mm;align-items:flex-start">
+          <div class="motto">Empowering<br/>Learners For<br/>A Brighter Tomorrow<div class="motto-line"></div></div>
+          <div class="seal">SKILLFORGE<br/>VERIFIED</div>
+        </div>
       </div>
-      <div class="footer">
-        <div class="signature"><div class="signature-line"></div><strong>Naimish Singh</strong><span>CEO, SkillForge</span></div>
-        <div class="qr-box"><img class="qr" src="${qr}" alt="Certificate verification QR"/><div class="qr-caption">SCAN TO VERIFY</div></div>
-        <div class="meta"><div class="label">Credential ID</div><div class="value">${id}</div><div class="label">Issued By</div><div class="value">SkillForge</div></div>
+
+      <div class="hero">
+        <div class="eyebrow">Certificate of Completion</div>
+        <div class="heading">CERTIFICATE</div>
+        <div class="rule"></div>
+        <div class="presented">This certificate is proudly presented to</div>
+        <div class="student">${student}</div>
+        <div class="student-line"></div>
+        <div class="course-label">for successfully completing the course</div>
+        <div class="course">${title}</div>
+        <div class="description">${description}</div>
       </div>
+
+      <div class="bottom">
+        <div class="signature">
+          <div class="signature-mark">Naimish Singh</div>
+          <div class="signature-line"></div>
+          <strong>Naimish Singh</strong>
+          <span>CEO, SkillForge</span>
+        </div>
+
+        <div class="qr-area">
+          <div class="qr-frame"><img class="qr" src="${qr}" alt="Certificate verification QR" /></div>
+          <div class="qr-caption">SCAN TO VERIFY</div>
+        </div>
+
+        <div class="credential">
+          <div class="credential-label">Credential ID</div>
+          <div class="credential-id">${id}</div>
+          <div class="issued-by">Issued By</div>
+          <div class="issuer">SkillForge</div>
+          <div class="issued-by">Issue Date</div>
+          <div class="issuer">${issueDate}</div>
+        </div>
+      </div>
+      <div class="footer-note">Skills Today · Better Tomorrow</div>
     </div>
   </div>
 </div>
-<script>window.onload=function(){setTimeout(function(){window.print();},600);};</script>
+<script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
 </body>
 </html>`);
   printWindow.document.close();
