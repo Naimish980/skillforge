@@ -2293,26 +2293,40 @@ html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
 
 function printCertificateDocument(record: CertificateRecord) {
   const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
   }[char] || char));
 
   const id = escapeHtml(record.certificateId);
   const student = escapeHtml(record.studentName);
   const title = escapeHtml(record.courseTitle);
-  const description = escapeHtml(record.courseDescription || "Practical, structured learning from SkillForge.");
+  const description = escapeHtml(
+    record.courseDescription || "Practical, structured learning from SkillForge."
+  );
   const category = escapeHtml(record.courseCategory || "IT & Tech");
   const level = escapeHtml(record.courseLevel || "—");
-  const issueDate = escapeHtml(new Date(record.issuedAt).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "long", year: "numeric",
-  }));
-  const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(verification)}`;
-  const modules = (record.moduleTitles || []).slice(0, 4).map(escapeHtml);
-  const moduleHtml = modules.length
-    ? modules.map((module) => `<li>${module}</li>`).join("")
-    : `<li>Course curriculum completed through SkillForge</li>`;
+  const issueDate = escapeHtml(
+    new Date(record.issuedAt).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+  );
 
-  const printWindow = window.open("", "_blank", "width=1500,height=1000");
+  const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(
+    record.certificateId
+  )}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=${encodeURIComponent(
+    verification
+  )}`;
+
+  const baseUrl = String(import.meta.env.BASE_URL || "/");
+  const templateUrl = `${window.location.origin}${baseUrl}certificate-template.png`;
+
+  const printWindow = window.open("", "_blank", "width=1600,height=1100");
   if (!printWindow) {
     alert("Please allow pop-ups to download your certificate.");
     return;
@@ -2325,102 +2339,256 @@ function printCertificateDocument(record: CertificateRecord) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SkillForge Certificate - ${id}</title>
 <style>
-  @page { size: A4 landscape; margin: 0; }
+  @page { size: 15in 10in; margin: 0; }
+
   * { box-sizing: border-box; }
-  html, body { margin:0; width:100%; min-height:100%; }
-  body { background:#eef1ef; font-family: Arial, Helvetica, sans-serif; color:#10231d; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .page { width:297mm; height:210mm; padding:7mm; margin:0 auto; background:#eef1ef; }
-  .cert { position:relative; width:100%; height:100%; overflow:hidden; background:#fbf8ed; border:1.8mm solid #063f32; }
-  .inner { position:absolute; inset:4mm; border:0.55mm solid #c6a34b; }
-  .inner2 { position:absolute; inset:7mm; border:0.35mm solid #123f35; }
-  .left-band { position:absolute; left:-29mm; top:-30mm; width:82mm; height:285mm; transform:rotate(28deg); background:linear-gradient(90deg,#06372e,#0b765a 46%,#07503f); }
-  .left-band:after { content:""; position:absolute; right:7mm; top:0; width:1.4mm; height:100%; background:#d1ae55; opacity:.8; }
-  .right-band { position:absolute; right:-31mm; bottom:-32mm; width:78mm; height:285mm; transform:rotate(-28deg); background:linear-gradient(90deg,#07503f,#0b765a 48%,#06372e); }
-  .right-band:after { content:""; position:absolute; left:7mm; top:0; width:1.4mm; height:100%; background:#d1ae55; opacity:.8; }
-  .gold-arc { position:absolute; width:130mm; height:130mm; border:0.45mm solid rgba(197,163,75,.24); border-radius:50%; transform:rotate(22deg); }
-  .arc1 { left:-87mm; bottom:-62mm; }
-  .arc2 { right:-91mm; top:-63mm; }
-  .watermark { position:absolute; left:43%; top:47%; transform:translate(-50%,-50%); font-size:58mm; font-weight:900; letter-spacing:5mm; color:rgba(11,88,69,.035); white-space:nowrap; }
-  .content { position:absolute; inset:11mm 16mm 10mm 20mm; z-index:4; display:flex; flex-direction:column; }
-  .top { display:flex; align-items:flex-start; justify-content:space-between; }
-  .brand { font-size:10mm; font-weight:900; letter-spacing:-.6mm; color:#073f33; }
-  .brand span { color:#0a8b67; }
-  .tag { margin-top:1mm; font-size:2.3mm; font-weight:800; letter-spacing:1.4mm; color:#6c756f; text-transform:uppercase; }
-  .motto { text-align:right; margin-right:7mm; color:#657069; font-size:2.6mm; line-height:1.45; font-weight:800; letter-spacing:.45mm; text-transform:uppercase; }
-  .seal { width:23mm; height:23mm; border:1mm solid #c8a64e; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:2.3mm; line-height:1.25; font-weight:900; color:#0a5844; background:#fbf8ed; box-shadow:0 0 0 1mm #fbf8ed,0 0 0 1.3mm #c8a64e; }
-  .hero { flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:9mm; }
-  .eyebrow { color:#9c7b2d; font-size:3.2mm; letter-spacing:1.8mm; text-transform:uppercase; font-weight:900; }
-  .heading { margin-top:1mm; font-family:Georgia,serif; font-size:15mm; line-height:1; letter-spacing:1.4mm; color:#073f33; font-weight:900; }
-  .rule { width:58mm; height:.8mm; margin:3mm auto 4mm; background:linear-gradient(90deg,transparent,#c8a64e,transparent); }
-  .presented { font-family:Georgia,serif; color:#707a73; font-size:3.4mm; }
-  .student { margin-top:2mm; font-family:Georgia,serif; color:#b1882f; font-size:9mm; font-weight:700; letter-spacing:.3mm; }
-  .student-line { width:82mm; border-bottom:.35mm solid rgba(177,136,47,.65); margin-top:1mm; }
-  .course-label { margin-top:4mm; font-size:2.8mm; color:#727b75; text-transform:uppercase; letter-spacing:1.1mm; font-weight:800; }
-  .course { margin-top:1.5mm; font-size:7mm; color:#073f33; font-weight:900; letter-spacing:.2mm; }
-  .description { margin-top:2mm; max-width:165mm; color:#68716c; font-size:2.8mm; line-height:1.5; }
-  .details { display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; margin:4mm auto 0; width:145mm; }
-  .detail { border:.35mm solid #d9c78e; background:rgba(255,255,255,.58); padding:2.5mm 3mm; min-height:13mm; }
-  .detail-label { font-size:2mm; text-transform:uppercase; letter-spacing:.7mm; color:#8a7950; font-weight:900; }
-  .detail-value { margin-top:1mm; font-size:3mm; color:#173d33; font-weight:900; }
-  .bottom { display:grid; grid-template-columns:1fr 34mm 1.15fr; align-items:end; gap:8mm; margin-top:4mm; padding:0 5mm 1mm; }
-  .signature { text-align:left; }
-  .sig-name { font-family:cursive; font-size:6mm; color:#0b5a46; margin-bottom:-1mm; }
-  .sig-line { width:42mm; border-top:.35mm solid #4c5d55; }
-  .sig-title { margin-top:1.5mm; font-size:2.3mm; color:#626d67; font-weight:900; text-transform:uppercase; letter-spacing:.5mm; }
-  .qr-wrap { text-align:center; }
-  .qr-box { width:28mm; height:28mm; padding:1.5mm; background:#fff; border:.5mm solid #c8a64e; margin:auto; }
-  .qr { width:100%; height:100%; display:block; }
-  .qr-label { margin-top:1.2mm; font-size:2mm; color:#0a6049; letter-spacing:.7mm; font-weight:900; }
-  .credentials { text-align:left; border-left:.4mm solid rgba(200,166,78,.55); padding-left:5mm; }
-  .cred-label { font-size:2mm; text-transform:uppercase; letter-spacing:.7mm; color:#8a7950; font-weight:900; }
-  .cred-id { margin-top:1mm; font-size:2.9mm; font-weight:900; color:#173d33; word-break:break-all; }
-  .issuer { margin-top:1.5mm; font-size:2.5mm; color:#5f6963; font-weight:700; }
-  .footer { position:absolute; bottom:4mm; left:50%; transform:translateX(-50%); font-size:2.1mm; letter-spacing:1.1mm; color:#7e866f; font-weight:900; text-transform:uppercase; white-space:nowrap; }
-  .module-strip { position:absolute; left:13mm; bottom:12mm; width:45mm; color:#f4f1e5; z-index:6; }
-  .module-strip .title { font-size:2.5mm; font-weight:900; letter-spacing:1mm; text-transform:uppercase; }
-  .module-strip ul { margin:2mm 0 0; padding-left:4mm; font-size:2mm; line-height:1.55; }
-  .module-strip li { margin-bottom:.6mm; }
-  @media print { body{background:#fff;} .page{padding:0;} .cert{border-width:1.5mm;} }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: #fff;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #102129;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    position: relative;
+    width: 15in;
+    height: 10in;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f3e7;
+  }
+
+  .artwork {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    display: block;
+    z-index: 0;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+
+  .student {
+    position: absolute;
+    left: 27%;
+    top: 39.7%;
+    width: 46%;
+    text-align: center;
+    color: #ad7918;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 0.52in;
+    line-height: 1.05;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .course {
+    position: absolute;
+    left: 25%;
+    top: 51.4%;
+    width: 50%;
+    text-align: center;
+    color: #071b1b;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 0.40in;
+    line-height: 1.05;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .description {
+    position: absolute;
+    left: 27%;
+    top: 57.9%;
+    width: 46%;
+    text-align: center;
+    color: #3d5058;
+    font-size: 0.18in;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .category-value {
+    position: absolute;
+    left: 26.0%;
+    top: 68.2%;
+    width: 11.5%;
+    text-align: left;
+    color: #101e23;
+    font-size: 0.16in;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .level-value {
+    position: absolute;
+    left: 48.0%;
+    top: 68.2%;
+    width: 11.5%;
+    text-align: left;
+    color: #101e23;
+    font-size: 0.16in;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .date-value {
+    position: absolute;
+    left: 70.0%;
+    top: 68.2%;
+    width: 11.8%;
+    text-align: left;
+    color: #101e23;
+    font-size: 0.16in;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .signature-name {
+    position: absolute;
+    left: 17%;
+    top: 76.2%;
+    width: 20%;
+    text-align: center;
+    color: #111d22;
+    font-family: "Brush Script MT", "Segoe Script", cursive;
+    font-size: 0.40in;
+    line-height: 1;
+    font-style: italic;
+    white-space: nowrap;
+  }
+
+  .signature-person {
+    position: absolute;
+    left: 17%;
+    top: 86.0%;
+    width: 20%;
+    text-align: center;
+    color: #0d171a;
+    font-size: 0.17in;
+    line-height: 1.1;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .signature-role {
+    position: absolute;
+    left: 17%;
+    top: 88.0%;
+    width: 20%;
+    text-align: center;
+    color: #263d43;
+    font-size: 0.16in;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .qr {
+    position: absolute;
+    left: 62.8%;
+    top: 74.0%;
+    width: 9.0%;
+    aspect-ratio: 1;
+    padding: 0.07in;
+  }
+
+  .qr img {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .credential-id {
+    position: absolute;
+    left: 78.0%;
+    top: 79.1%;
+    width: 14.0%;
+    text-align: center;
+    color: #102129;
+    font-size: 0.17in;
+    line-height: 1.2;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  @media screen {
+    body {
+      background: #dfe4e1;
+      padding: 20px;
+    }
+
+    .page {
+      box-shadow: 0 12px 45px rgba(0,0,0,.18);
+    }
+  }
 </style>
 </head>
 <body>
-<div class="page"><div class="cert">
-  <div class="inner"></div><div class="inner2"></div>
-  <div class="left-band"></div><div class="right-band"></div>
-  <div class="gold-arc arc1"></div><div class="gold-arc arc2"></div><div class="watermark">SKILLFORGE</div>
-  <div class="module-strip"><div class="title">Learn · Practice · Grow</div><ul>${moduleHtml}</ul></div>
-  <div class="content">
-    <div class="top">
-      <div><div class="brand">Skill<span>Forge</span></div><div class="tag">Learn · Practice · Grow</div></div>
-      <div style="display:flex;align-items:flex-start;gap:6mm"><div class="motto">Empowering<br/>Learners For<br/>A Brighter Tomorrow</div><div class="seal">SKILLFORGE<br/>VERIFIED</div></div>
-    </div>
-    <div class="hero">
-      <div class="eyebrow">Certificate of Completion</div>
-      <div class="heading">CERTIFICATE</div>
-      <div class="rule"></div>
-      <div class="presented">This certificate is proudly presented to</div>
+  <div class="page">
+    <img class="artwork" src="${templateUrl}" alt="" />
+    <div class="overlay">
       <div class="student">${student}</div>
-      <div class="student-line"></div>
-      <div class="course-label">For successfully completing the course</div>
       <div class="course">${title}</div>
       <div class="description">${description}</div>
-      <div class="details">
-        <div class="detail"><div class="detail-label">Category</div><div class="detail-value">${category}</div></div>
-        <div class="detail"><div class="detail-label">Level</div><div class="detail-value">${level}</div></div>
-        <div class="detail"><div class="detail-label">Issue Date</div><div class="detail-value">${issueDate}</div></div>
+
+      <div class="category-value">${category}</div>
+      <div class="level-value">${level}</div>
+      <div class="date-value">${issueDate}</div>
+
+      <div class="signature-name">Naimish Singh</div>
+      <div class="signature-person">Naimish Singh</div>
+      <div class="signature-role">CEO, SkillForge</div>
+
+      <div class="qr">
+        <img src="${qr}" alt="Certificate verification QR code" />
       </div>
-    </div>
-    <div class="bottom">
-      <div class="signature"><div class="sig-name">Naimish Singh</div><div class="sig-line"></div><div class="sig-title">Naimish Singh · CEO, SkillForge</div></div>
-      <div class="qr-wrap"><div class="qr-box"><img class="qr" src="${qr}" alt="Certificate verification QR" /></div><div class="qr-label">SCAN TO VERIFY</div></div>
-      <div class="credentials"><div class="cred-label">Credential ID</div><div class="cred-id">${id}</div><div class="issuer">Issued by SkillForge · Verified Certificate</div></div>
+
+      <div class="credential-id">${id}</div>
     </div>
   </div>
-  <div class="footer">Skills Today · Better Tomorrow</div>
-</div></div>
-<script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
-</body></html>`);
+</body>
+</html>`);
+
   printWindow.document.close();
+
+  const print = () => {
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 500);
+  };
+
+  const artwork = printWindow.document.querySelector(".artwork") as HTMLImageElement | null;
+  if (artwork) {
+    if (artwork.complete) print();
+    else artwork.onload = print;
+  } else {
+    print();
+  }
 }
 
 function DashboardTabContent({
