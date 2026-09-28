@@ -332,18 +332,24 @@ const securityModules: CourseModule[] = [
 const getLocalCompletedLessons = (courseId: string): number => {
   if (typeof window === "undefined") return 0;
 
-  const moduleLectures =
-    courseId === "security"
-      ? securityModules.flatMap((module) => module.lectures)
-      : [];
+  const prefix = `skillforge_lecture_progress_${courseId}_`;
+  const suffix = "_complete";
+  let completed = 0;
 
-  return moduleLectures.filter((lecture) => {
-    const key = `skillforge_lecture_progress_${courseId}_${lecture.id}`;
-    // A lecture counts as completed only after its quiz is passed and the
-    // completion flag is written. Watching/marking the video alone is not
-    // enough for certificate eligibility.
-    return localStorage.getItem(`${key}_complete`) === "true";
-  }).length;
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+
+    if (
+      key &&
+      key.startsWith(prefix) &&
+      key.endsWith(suffix) &&
+      localStorage.getItem(key) === "true"
+    ) {
+      completed += 1;
+    }
+  }
+
+  return completed;
 };
 
 const getLocalCourseProgress = (course: Course): number => {
