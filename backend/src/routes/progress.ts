@@ -7,6 +7,10 @@ import {
 
 const router = Router();
 
+/**
+ * GET COURSE PROGRESS
+ * GET /progress/:courseId
+ */
 router.get(
   "/:courseId",
   authenticateToken,
@@ -64,6 +68,10 @@ router.get(
   },
 );
 
+/**
+ * SAVE QUIZ RESULT
+ * POST /progress/quiz
+ */
 router.post(
   "/quiz",
   authenticateToken,
@@ -81,18 +89,55 @@ router.post(
         return;
       }
 
-      const {
+      /**
+       * Normalize incoming values.
+       *
+       * Frontend may send:
+       *   quizScore: 7
+       * or
+       *   quizScore: "7"
+       *
+       * Both are handled here.
+       */
+      const courseId = String(req.body?.courseId ?? "").trim();
+      const moduleId = String(req.body?.moduleId ?? "").trim();
+      const lectureId = String(req.body?.lectureId ?? "").trim();
+
+      const quizScore = Number(req.body?.quizScore);
+      const quizTotal = Number(req.body?.quizTotal);
+
+      console.log("Quiz submission:", {
+        userId,
         courseId,
         moduleId,
         lectureId,
         quizScore,
         quizTotal,
-      } = req.body;
+        body: req.body,
+      });
 
+      /**
+       * Validate IDs
+       */
+      if (!courseId || !moduleId || !lectureId) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid quiz data",
+          details: {
+            courseId: !!courseId,
+            moduleId: !!moduleId,
+            lectureId: !!lectureId,
+          },
+        });
+        return;
+      }
+
+      /**
+       * Validate quiz numbers
+       */
       if (
-        typeof courseId !== "string" ||
-        typeof moduleId !== "string" ||
-        typeof lectureId !== "string" ||
+        !Number.isFinite(quizScore) ||
+        !Number.isFinite(quizTotal) ||
         !Number.isInteger(quizScore) ||
         !Number.isInteger(quizTotal) ||
         quizTotal <= 0 ||
@@ -102,10 +147,17 @@ router.post(
         res.status(400).json({
           success: false,
           message: "Invalid quiz data",
+          details: {
+            quizScore,
+            quizTotal,
+          },
         });
         return;
       }
 
+      /**
+       * Check course enrollment
+       */
       const enrollment = await client.query(
         `
         SELECT id
@@ -125,8 +177,18 @@ router.post(
         return;
       }
 
-      const passed = (quizScore / quizTotal) * 100 >= 70;
+      /**
+       * Passing score = 70%
+       */
+      const percentage = Math.round(
+        (quizScore / quizTotal) * 100,
+      );
 
+      const passed = percentage >= 70;
+
+      /**
+       * Save / update progress
+       */
       await client.query(
         `
         INSERT INTO lecture_progress (
@@ -148,7 +210,10 @@ router.post(
           $5,
           $6,
           $7,
-          CASE WHEN $7 = TRUE THEN NOW() ELSE NULL END,
+          CASE
+            WHEN $7 = TRUE THEN NOW()
+            ELSE NULL
+          END,
           NOW()
         )
         ON CONFLICT (user_id, course_id, lecture_id)
@@ -184,7 +249,7 @@ router.post(
         passed,
         quizScore,
         quizTotal,
-        percentage: Math.round((quizScore / quizTotal) * 100),
+        percentage,
         message: passed
           ? "Lecture completed successfully"
           : "Quiz not passed. Please retry.",
@@ -202,6 +267,10 @@ router.post(
   },
 );
 
+/**
+ * MARK LECTURE COMPLETE
+ * POST /progress/complete
+ */
 router.post(
   "/complete",
   authenticateToken,
@@ -217,17 +286,11 @@ router.post(
         return;
       }
 
-      const {
-        courseId,
-        moduleId,
-        lectureId,
-      } = req.body;
+      const courseId = String(req.body?.courseId ?? "").trim();
+      const moduleId = String(req.body?.moduleId ?? "").trim();
+      const lectureId = String(req.body?.lectureId ?? "").trim();
 
-      if (
-        typeof courseId !== "string" ||
-        typeof moduleId !== "string" ||
-        typeof lectureId !== "string"
-      ) {
+      if (!courseId || !moduleId || !lectureId) {
         res.status(400).json({
           success: false,
           message: "Invalid lecture data",
@@ -235,6 +298,10 @@ router.post(
         return;
       }
 
+      /**
+       * Lecture can only be completed
+       * after passing its quiz.
+       */
       const result = await pool.query(
         `
         UPDATE lecture_progress
@@ -266,7 +333,8 @@ router.post(
       if (result.rowCount === 0) {
         res.status(400).json({
           success: false,
-          message: "Lecture cannot be completed before passing its quiz",
+          message:
+            "Lecture cannot be completed before passing its quiz",
         });
         return;
       }
