@@ -60,6 +60,22 @@ type Course = {
   isPublished?: boolean;
 };
 
+type Offer = {
+  id: number;
+  title: string;
+  description: string | null;
+  badge_text: string | null;
+  button_text: string;
+  price: number;
+  original_price: number | null;
+  banner_image: string | null;
+  course_ids: string[];
+  show_home: boolean;
+  show_dashboard: boolean;
+  start_at: string | null;
+  end_at: string | null;
+};
+
 type QuizQuestion = {
   question: string;
   options: string[];
@@ -621,6 +637,9 @@ function AdminRoute() {
   return <AdminDashboard />;
 }
 
+const money = (value: number | null | undefined) =>
+  `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
+
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
@@ -693,6 +712,9 @@ function App() {
 
   const [catalogCourses, setCatalogCourses] = useState<Course[]>(courses);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const [selectedOfferCourseIds, setSelectedOfferCourseIds] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -769,6 +791,32 @@ function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadActiveOffer = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/offers/public/active`);
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data?.offer) {
+          if (!cancelled) setActiveOffer(null);
+          return;
+        }
+        if (!cancelled) {
+          const offer = data.offer as Offer;
+          if (offer.show_home) setActiveOffer(offer);
+          else setActiveOffer(null);
+        }
+      } catch (error) {
+        console.error("Offer loading error:", error);
+        if (!cancelled) setActiveOffer(null);
+      }
+    };
+
+    void loadActiveOffer();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -948,121 +996,72 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handlePurchase = async (courseId: string) => {
-    const token = localStorage.getItem("skillforge_token");
-
-    if (!user || !token) {
-      setAuthMode("login");
-      return;
-    }
-
-    const normalizedCourseId = String(courseId).trim();
-
-    if (!normalizedCourseId) {
-      alert("Course ID is required.");
-      return;
-    }
-
-    if (enrolledCourseIds.includes(normalizedCourseId)) {
-      alert("You are already enrolled in this course.");
-      return;
-    }
-
+  const completePayment = async (token: string, expectedCourseIds: string[], description: string, body: Record<string, unknown>) => {
     try {
       setPaymentLoading(true);
-
       const razorpayReady = await loadRazorpayScript();
-
       if (!razorpayReady || !window.Razorpay) {
         alert("Unable to load Razorpay Checkout. Please try again.");
         return;
       }
 
-      const createOrderResponse = await fetch(
-        `${API_BASE_URL}/api/payment/create-order`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            type: "course",
-            courseId: normalizedCourseId,
-          }),
+      const createOrderResponse = await fetch(`${API_BASE_URL}/api/payment/create-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify(body),
+      });
 
       const orderData = await createOrderResponse.json();
-
       if (!createOrderResponse.ok || !orderData.success) {
         alert(orderData.message || "Unable to create payment order.");
         return;
       }
 
       await new Promise<void>((resolve) => {
-        const selected = courses.find((course) => course.id === normalizedCourseId);
-
         const razorpay = new window.Razorpay!({
           key: orderData.keyId,
           amount: orderData.order.amount,
           currency: orderData.order.currency,
           name: "SkillForge",
-          description: `${selected?.title ?? "Course"} - SkillForge`,
+          description,
           order_id: orderData.order.id,
-          prefill: {
-            name: user.name,
-            email: user.email,
-            contact: user.phone,
-          },
-          theme: {
-            color: "#a3e635",
-          },
+          prefill: { name: user?.name, email: user?.email, contact: user?.phone },
+          theme: { color: "#a3e635" },
           handler: async (paymentResponse) => {
             try {
-              const verifyResponse = await fetch(
-                `${API_BASE_URL}/api/payment/verify`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify(paymentResponse),
+              const verifyResponse = await fetch(`${API_BASE_URL}/api/payment/verify`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
                 },
-              );
-
+                body: JSON.stringify(paymentResponse),
+              });
               const verifyData = await verifyResponse.json();
-
               if (!verifyResponse.ok || !verifyData.success) {
-                alert(
-                  verifyData.message ||
-                    "Payment was received but verification failed. Please contact SkillForge support.",
-                );
+                alert(verifyData.message || "Payment was received but verification failed. Please contact SkillForge support.");
                 return;
               }
 
               const verifiedIds = Array.isArray(verifyData.enrolledCourseIds)
-                ? verifyData.enrolledCourseIds.filter(
-                    (id: unknown): id is string => typeof id === "string",
-                  )
-                : [normalizedCourseId];
+                ? verifyData.enrolledCourseIds.filter((id: unknown): id is string => typeof id === "string")
+                : expectedCourseIds;
 
               setEnrolledCourseIds((current) => {
                 const merged = [...new Set([...current, ...verifiedIds])];
-                localStorage.setItem(
-                  `skillforge_enrollments_${user.id}`,
-                  JSON.stringify(merged),
-                );
+                if (user) localStorage.setItem(`skillforge_enrollments_${user.id}`, JSON.stringify(merged));
                 return merged;
               });
 
-              alert("Payment successful! Your course is now unlocked.");
+              setOfferModalOpen(false);
+              setSelectedOfferCourseIds([]);
+              alert(verifiedIds.length > 1 ? "Payment successful! Your selected courses are now unlocked." : "Payment successful! Your course is now unlocked.");
             } catch (error) {
               console.error("Payment verification error:", error);
-              alert(
-                "Payment verification could not be completed. Please contact SkillForge support.",
-              );
+              alert("Payment verification could not be completed. Please contact SkillForge support.");
             } finally {
               setPaymentLoading(false);
               resolve();
@@ -1075,7 +1074,6 @@ function App() {
             },
           },
         });
-
         razorpay.open();
       });
     } catch (error) {
@@ -1083,6 +1081,41 @@ function App() {
       alert("Unable to start payment. Please try again.");
       setPaymentLoading(false);
     }
+  };
+
+  const handlePurchase = async (courseId: string) => {
+    const token = localStorage.getItem("skillforge_token");
+    if (!user || !token) { setAuthMode("login"); return; }
+    const normalizedCourseId = String(courseId).trim();
+    if (!normalizedCourseId) { alert("Course ID is required."); return; }
+    if (enrolledCourseIds.includes(normalizedCourseId)) { alert("You are already enrolled in this course."); return; }
+    await completePayment(token, [normalizedCourseId], `${courses.find((course) => course.id === normalizedCourseId)?.title ?? "Course"} - SkillForge`, { type: "course", courseId: normalizedCourseId });
+  };
+
+  const offerRequiredCount = (offer: Offer) => {
+    const match = offer.title.match(/any\s+(2|3)\s+courses?/i);
+    return match ? Number(match[1]) : 0;
+  };
+
+  const openOffer = (offer: Offer) => {
+    if (!user) { setAuthMode("login"); return; }
+    const required = offerRequiredCount(offer);
+    if (required !== 2 && required !== 3) { alert("This offer is not configured correctly."); return; }
+    const eligible = offer.course_ids.filter((id) => catalogCourses.some((course) => course.id === id));
+    const available = eligible.filter((id) => !enrolledCourseIds.includes(id));
+    if (available.length < required) { alert(`You need ${required} eligible courses that you have not already purchased.`); return; }
+    setSelectedOfferCourseIds([]);
+    setOfferModalOpen(true);
+  };
+
+  const handleOfferPurchase = async () => {
+    const token = localStorage.getItem("skillforge_token");
+    if (!user || !token || !activeOffer) { setAuthMode("login"); return; }
+    const required = offerRequiredCount(activeOffer);
+    const uniqueIds = [...new Set(selectedOfferCourseIds)];
+    if (uniqueIds.length !== required) { alert(`Please select exactly ${required} courses.`); return; }
+    if (uniqueIds.some((id) => enrolledCourseIds.includes(id))) { alert("You are already enrolled in one or more selected courses."); return; }
+    await completePayment(token, uniqueIds, `${activeOffer.title} - SkillForge`, { type: "offer", offerId: activeOffer.id, courseIds: uniqueIds });
   };
 
   const openLearning = (course: Course) => {
@@ -1476,6 +1509,25 @@ function App() {
           )}
         </section>
 
+        {activeOffer && activeOffer.show_home && (
+          <section id="offers" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
+            <div className="overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-7 shadow-sm sm:p-9">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-700">{activeOffer.badge_text || "SPECIAL OFFER"}</span>
+                  <h2 className="mt-3 text-3xl font-black text-[#0b1736]">{activeOffer.title}</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{activeOffer.description || "Choose your courses and unlock them together."}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    {activeOffer.original_price != null && <span className="text-sm font-bold text-slate-400 line-through">{money(activeOffer.original_price)}</span>}
+                    <span className="text-2xl font-black text-emerald-700">{money(activeOffer.price)}</span>
+                  </div>
+                </div>
+                <button type="button" onClick={() => openOffer(activeOffer)} disabled={paymentLoading} className="shrink-0 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-black text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60">{activeOffer.button_text || "Choose Courses"} →</button>
+              </div>
+            </div>
+          </section>
+        )}
+
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
         <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
@@ -1485,6 +1537,7 @@ function App() {
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
 
+      {offerModalOpen && activeOffer && <Modal onClose={() => !paymentLoading && setOfferModalOpen(false)}><div className="w-full max-w-3xl"><div className="pr-8"><p className="text-xs font-black uppercase tracking-[0.2em] text-amber-500">{activeOffer.badge_text || "Special Offer"}</p><h2 className="mt-2 text-2xl font-black text-white">{activeOffer.title}</h2><p className="mt-2 text-sm text-gray-400">Select exactly {offerRequiredCount(activeOffer)} courses.</p></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{activeOffer.course_ids.map((id) => { const course=catalogCourses.find(c=>c.id===id); if(!course) return null; const selected=selectedOfferCourseIds.includes(id); const enrolled=enrolledCourseIds.includes(id); return <button type="button" key={id} disabled={enrolled} onClick={()=>setSelectedOfferCourseIds(current=>selected?current.filter(x=>x!==id):[...current,id])} className={`rounded-2xl border p-4 text-left transition ${selected?"border-emerald-400 bg-emerald-500/10":"border-white/10 bg-white/5 hover:border-emerald-400/40"} ${enrolled?"cursor-not-allowed opacity-40":""}`}><div className="flex items-center gap-3"><span className="text-3xl">{course.emoji}</span><div className="min-w-0"><p className="font-black text-white">{course.title}</p><p className="mt-1 text-xs text-gray-400">{course.category} • {course.lessons} Lessons</p></div><span className={`ml-auto h-5 w-5 rounded-full border ${selected?"border-emerald-400 bg-emerald-400":"border-gray-600"}`}>{selected&&<CheckCircle2 className="text-slate-950" size={18}/>}</span></div>{enrolled&&<p className="mt-2 text-xs font-bold text-gray-500">Already purchased</p>}</button>; })}</div><div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm text-gray-400">Selected: <span className="font-black text-white">{selectedOfferCourseIds.length}/{offerRequiredCount(activeOffer)}</span></p><p className="mt-1 text-xl font-black text-emerald-400">{money(activeOffer.price)}</p></div><button type="button" onClick={()=>void handleOfferPurchase()} disabled={paymentLoading || selectedOfferCourseIds.length!==offerRequiredCount(activeOffer)} className="rounded-xl bg-emerald-500 px-6 py-3 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">{paymentLoading?"Processing...":"Pay & Unlock Courses"}</button></div></div></Modal>}
       {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
       {introOpen && <Modal onClose={closeIntro}><div className="w-full max-w-5xl"><div className="mb-5 pr-8"><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Welcome to SkillForge</p><h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Learn. Practice. Grow.</h2><p className="mt-2 text-sm text-slate-400">See how SkillForge works before you start learning.</p></div><div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"><video className="aspect-video w-full bg-black object-contain" src={`${import.meta.env.BASE_URL}skillforge-intro.mp4`} controls autoPlay playsInline preload="auto" onError={(event) => { console.error("SkillForge intro video failed to load:", event.currentTarget.error); }} /></div><div className="mt-5 flex flex-wrap justify-end gap-3"><button onClick={() => { closeIntro(); scrollToSection("courses"); }} className="rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></div></Modal>}
