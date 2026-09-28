@@ -98,6 +98,19 @@ type Lecture = {
   isFree?: boolean;
 };
 
+type CertificateRecord = {
+  certificateId: string;
+  studentName: string;
+  courseId: string;
+  courseTitle: string;
+  issuedAt: string;
+  courseDescription?: string | null;
+  courseCategory?: string | null;
+  courseLevel?: string | null;
+  lessonCount?: number;
+  moduleTitles?: string[];
+};
+
 type CourseModule = {
   id: string;
   title: string;
@@ -471,6 +484,7 @@ let courses: Course[] = [
 ];
 
 const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+const SKILLFORGE_PUBLIC_URL = "https://skillforge-tau-three.vercel.app";
 
 declare global {
   interface Window {
@@ -704,7 +718,7 @@ function OfferCountdown({ endAt }: { endAt: string | null }) {
   );
 }
 
-function App() {
+function AppContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -2264,6 +2278,7 @@ html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
               totalProgress={totalProgress}
               completedCourses={completedCourses}
               loadingProgress={loadingProgress}
+              userName={user?.name ?? "Student"}
               onBack={onBack}
               onLearn={onLearn}
               setActiveTab={setActiveTab}
@@ -2275,6 +2290,118 @@ html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
   );
 }
 
+
+function printCertificateDocument(record: CertificateRecord) {
+  const escapeHtml = (value: unknown) => String(value ?? "").replace(/[<>&"']/g, (char) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char] || char));
+
+  const id = escapeHtml(record.certificateId);
+  const student = escapeHtml(record.studentName);
+  const title = escapeHtml(record.courseTitle);
+  const description = escapeHtml(record.courseDescription || "Successfully completed the course requirements on SkillForge.");
+  const category = escapeHtml(record.courseCategory || "IT & Tech");
+  const level = escapeHtml(record.courseLevel || "—");
+  const modules = (record.moduleTitles || []).slice(0, 4).map(escapeHtml);
+  const issueDate = escapeHtml(new Date(record.issuedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }));
+  const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(verification)}`;
+  const printWindow = window.open("", "_blank", "width=1400,height=950");
+
+  if (!printWindow) {
+    alert("Please allow pop-ups to download your certificate.");
+    return;
+  }
+
+  printWindow.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>SkillForge Certificate - ${id}</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; width:100%; height:100%; background:#eef2f7; }
+  body { display:flex; align-items:center; justify-content:center; font-family:Arial,Helvetica,sans-serif; color:#0b1736; }
+  .page { width:297mm; height:210mm; padding:10mm; background:#f8fafc; }
+  .certificate { position:relative; width:100%; height:100%; overflow:hidden; background:#fffdf8; border:2px solid #0b1736; box-shadow:0 8px 35px rgba(11,23,54,.18); }
+  .border1 { position:absolute; inset:5mm; border:1px solid #caa64c; pointer-events:none; }
+  .border2 { position:absolute; inset:8mm; border:1px solid #0b1736; pointer-events:none; }
+  .accent-left { position:absolute; left:-34mm; top:42mm; width:100mm; height:100mm; transform:rotate(45deg); border:14mm solid rgba(16,185,129,.08); }
+  .accent-right { position:absolute; right:-40mm; bottom:-45mm; width:125mm; height:125mm; transform:rotate(45deg); border:16mm solid rgba(202,166,76,.11); }
+  .content { position:relative; z-index:2; height:100%; padding:15mm 20mm 13mm; display:flex; flex-direction:column; }
+  .brand { font-size:28px; font-weight:900; letter-spacing:-1px; }
+  .brand span { color:#10b981; }
+  .tag { margin-top:2mm; font-size:8px; font-weight:800; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
+  .title { text-align:center; margin-top:5mm; }
+  .title small { font-size:11px; font-weight:800; letter-spacing:4px; color:#64748b; text-transform:uppercase; }
+  .title h1 { margin:2mm 0 0; font-family:Georgia,serif; font-size:35px; letter-spacing:3px; }
+  .title p { margin:2mm 0 0; color:#64748b; font-size:11px; }
+  .student { margin-top:4mm; text-align:center; font-family:Georgia,serif; font-size:31px; font-weight:700; color:#a97913; }
+  .student-line { width:105mm; margin:1mm auto 0; border-top:1px solid #caa64c; }
+  .course-wrap { text-align:center; margin-top:5mm; }
+  .course-label { color:#64748b; font-size:10px; }
+  .course { margin-top:1.5mm; font-size:22px; font-weight:900; }
+  .description { max-width:185mm; margin:2.5mm auto 0; text-align:center; color:#64748b; font-size:9px; line-height:1.5; }
+  .details { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4mm; margin-top:5mm; }
+  .detail { border:1px solid #e2e8f0; background:#f8fafc; padding:3mm; border-radius:2mm; }
+  .label { font-size:7px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; }
+  .value { margin-top:1mm; font-size:9px; font-weight:800; }
+  .modules { margin-top:4mm; text-align:center; }
+  .modules-title { font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:2px; color:#64748b; }
+  .module-list { display:flex; justify-content:center; flex-wrap:wrap; gap:2mm 5mm; margin-top:2mm; color:#334155; font-size:8px; }
+  .module-list span:before { content:"✓"; color:#10b981; font-weight:900; margin-right:1.5mm; }
+  .footer { margin-top:auto; display:grid; grid-template-columns:1fr 1fr 1fr; align-items:end; gap:8mm; }
+  .signature { text-align:center; }
+  .signature-line { width:42mm; margin:0 auto 2mm; border-top:1px solid #475569; }
+  .signature strong { font-size:9px; }
+  .signature span { display:block; margin-top:1mm; color:#64748b; font-size:7px; }
+  .qr-box { text-align:center; }
+  .qr { width:30mm; height:30mm; padding:1mm; background:white; border:1px solid #cbd5e1; }
+  .qr-caption { margin-top:1mm; font-size:7px; font-weight:900; color:#059669; letter-spacing:1px; }
+  .meta { text-align:right; }
+  .meta .label { margin-top:2mm; }
+  .meta .value { font-size:8px; }
+  .seal { position:absolute; right:16mm; top:18mm; width:24mm; height:24mm; border:2px solid #caa64c; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:7px; font-weight:900; color:#a97913; background:#fffdf8; }
+  @media print { html,body { background:#fff; } .page { padding:0; } .certificate { box-shadow:none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="certificate">
+    <div class="border1"></div><div class="border2"></div>
+    <div class="accent-left"></div><div class="accent-right"></div>
+    <div class="seal">SKILL<br/>FORGE<br/>VERIFIED</div>
+    <div class="content">
+      <div><div class="brand">Skill<span>Forge</span></div><div class="tag">Learn · Practice · Grow</div></div>
+      <div class="title"><small>Certificate of Completion</small><h1>CERTIFICATE</h1><p>This certificate is proudly presented to</p></div>
+      <div class="student">${student}</div>
+      <div class="student-line"></div>
+      <div class="course-wrap"><div class="course-label">for successfully completing the course</div><div class="course">${title}</div><div class="description">${description}</div></div>
+      <div class="details">
+        <div class="detail"><div class="label">Category</div><div class="value">${category}</div></div>
+        <div class="detail"><div class="label">Level</div><div class="value">${level}</div></div>
+        <div class="detail"><div class="label">Issue Date</div><div class="value">${issueDate}</div></div>
+      </div>
+      ${modules.length ? `<div class="modules"><div class="modules-title">Key Modules</div><div class="module-list">${modules.map((m)=>`<span>${m}</span>`).join("")}</div></div>` : ""}
+      <div class="footer">
+        <div class="signature"><div class="signature-line"></div><strong>Naimish Singh</strong><span>CEO, SkillForge</span></div>
+        <div class="qr-box"><img class="qr" src="${qr}" alt="Certificate verification QR"/><div class="qr-caption">SCAN TO VERIFY</div></div>
+        <div class="meta"><div class="label">Certificate ID</div><div class="value">${id}</div><div class="label">Issued By</div><div class="value">SkillForge</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},600);};</script>
+</body>
+</html>`);
+  printWindow.document.close();
+}
+
 function DashboardTabContent({
   activeTab,
   enrolledCourses,
@@ -2282,6 +2409,7 @@ function DashboardTabContent({
   totalProgress,
   completedCourses,
   loadingProgress,
+  userName,
   onBack,
   onLearn,
   setActiveTab,
@@ -2292,10 +2420,133 @@ function DashboardTabContent({
   totalProgress: number;
   completedCourses: number;
   loadingProgress: boolean;
+  userName: string;
   onBack: () => void;
   onLearn: (course: Course) => void;
   setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
 }) {
+  const [certificateCourse, setCertificateCourse] = useState<Course | null>(null);
+  const [certificateRecord, setCertificateRecord] = useState<CertificateRecord | null>(null);
+  const [certificateRecords, setCertificateRecords] = useState<Record<string, CertificateRecord>>({});
+  const [certificateLoading, setCertificateLoading] = useState(false);
+
+  const ensureCertificate = async (course: Course): Promise<CertificateRecord | null> => {
+    const token = localStorage.getItem("skillforge_token");
+    if (!token) {
+      alert("Please log in again to access your certificate.");
+      return null;
+    }
+
+    try {
+      setCertificateLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/payment/certificates/issue`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ courseId: course.id }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.success || !data?.certificate) {
+        alert(data?.message || "Unable to create your certificate.");
+        return null;
+      }
+
+      const record = data.certificate as CertificateRecord;
+      setCertificateRecords((current) => ({ ...current, [course.id]: record }));
+      return record;
+    } catch (error) {
+      console.error("Certificate issue error:", error);
+      alert("Unable to connect to SkillForge certificate service.");
+      return null;
+    } finally {
+      setCertificateLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "certificates" || enrolledCourses.length === 0) return;
+
+    let cancelled = false;
+
+    const loadCertificates = async () => {
+      const token = localStorage.getItem("skillforge_token");
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/payment/certificates/mine`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => null);
+        if (cancelled || !response.ok || !data?.success || !Array.isArray(data.certificates)) return;
+
+        const next: Record<string, CertificateRecord> = {};
+        for (const item of data.certificates) {
+          if (item?.courseId && item?.certificateId) {
+            next[String(item.courseId)] = item as CertificateRecord;
+          }
+        }
+        setCertificateRecords(next);
+      } catch (error) {
+        console.error("Certificate loading error:", error);
+      }
+    };
+
+    void loadCertificates();
+    return () => { cancelled = true; };
+  }, [activeTab, enrolledCourses]);
+
+  const certificateId = (course: Course) =>
+    certificateRecords[course.id]?.certificateId ?? "Generating certificate ID…";
+
+  const certificateIssueDate = (course: Course) => {
+    const issuedAt = certificateRecords[course.id]?.issuedAt;
+    if (!issuedAt) return "";
+    return new Date(issuedAt).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const verificationUrl = (id: string) =>
+    `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(id)}`;
+
+  const qrUrl = (id: string) =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verificationUrl(id))}`;
+
+  const openCertificate = async (course: Course) => {
+    const record = certificateRecords[course.id] ?? await ensureCertificate(course);
+    if (!record) return;
+    setCertificateRecord(record);
+    setCertificateCourse(course);
+  };
+
+  const printCertificate = async (course: Course) => {
+    const record = certificateRecords[course.id] ?? await ensureCertificate(course);
+    if (!record) return;
+
+    const token = localStorage.getItem("skillforge_token");
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/payment/certificates/${encodeURIComponent(record.certificateId)}/download`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (error) {
+        console.error("Certificate download tracking error:", error);
+      }
+    }
+
+    printCertificateDocument(record);
+  };
+
   const heading: Record<typeof activeTab, string> = {
     courses: "My Courses",
     progress: "My Progress",
@@ -2341,7 +2592,83 @@ function DashboardTabContent({
       )}
 
       {activeTab === "certificates" && (
-        <div className="mt-7">{completedCourses === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center"><Award className="mx-auto text-emerald-600" size={32}/><h3 className="mt-3 font-black">No certificates yet</h3><p className="mt-2 text-sm text-slate-500">Complete a course to unlock its SkillForge certificate.</p></div> : <div className="grid gap-5 md:grid-cols-2">{enrolledCourses.filter(c => (progressByCourse[c.id] ?? 0) >= 100).map(course => <div key={course.id} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><Award className="text-emerald-600"/><h3 className="mt-3 font-black">{course.title}</h3><p className="mt-1 text-sm text-slate-500">Course completed successfully.</p><button type="button" onClick={() => alert("Certificate generator will be connected here.")} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-emerald-700">View Certificate</button></div>)}</div>}</div>
+        <div className="mt-7">
+          {completedCourses === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+              <Award className="mx-auto text-emerald-600" size={32}/>
+              <h3 className="mt-3 font-black">No certificates yet</h3>
+              <p className="mt-2 text-sm text-slate-500">Complete a course to unlock its SkillForge certificate.</p>
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2">
+              {enrolledCourses.filter(c => (progressByCourse[c.id] ?? 0) >= 100).map(course => (
+                <div key={course.id} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <Award className="text-emerald-600"/>
+                      <h3 className="mt-3 font-black">{course.title}</h3>
+                      <p className="mt-1 text-sm text-slate-500">Course completed successfully.</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">100% Complete</span>
+                  </div>
+                  <div className="mt-4 rounded-xl border border-emerald-100 bg-white px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Certificate ID</p>
+                    <p className="mt-1 text-sm font-black text-slate-800">{certificateId(course)}</p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button type="button" onClick={() => { void openCertificate(course); }} disabled={certificateLoading} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">{certificateLoading ? "Loading…" : "View Certificate"}</button>
+                    <button type="button" onClick={() => { void printCertificate(course); }} disabled={certificateLoading} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:border-emerald-400 disabled:opacity-60">Download PDF</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {certificateCourse && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setCertificateCourse(null); }}>
+              <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">SkillForge Certificate</p>
+                    <h2 className="mt-1 text-lg font-black text-slate-900">{certificateCourse.title}</h2>
+                  </div>
+                  <button type="button" onClick={() => setCertificateCourse(null)} className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:text-slate-900"><X size={18}/></button>
+                </div>
+
+                <div className="bg-slate-100 p-4 sm:p-8">
+                  <div className="mx-auto aspect-[1.414/1] w-full max-w-4xl border-[10px] border-slate-900 bg-white p-2 shadow-xl">
+                    <div className="relative flex h-full flex-col items-center justify-center border-2 border-emerald-500 px-6 text-center sm:px-12">
+                      <div className="absolute left-3 top-3 h-12 w-12 border-l-2 border-t-2 border-emerald-500 sm:h-16 sm:w-16"/>
+                      <div className="absolute right-3 top-3 h-12 w-12 border-r-2 border-t-2 border-emerald-500 sm:h-16 sm:w-16"/>
+                      <div className="absolute bottom-3 left-3 h-12 w-12 border-b-2 border-l-2 border-emerald-500 sm:h-16 sm:w-16"/>
+                      <div className="absolute bottom-3 right-3 h-12 w-12 border-b-2 border-r-2 border-emerald-500 sm:h-16 sm:w-16"/>
+                      <div className="text-2xl font-black text-slate-900 sm:text-4xl">Skill<span className="text-emerald-600">Forge</span></div>
+                      <p className="mt-2 text-[8px] font-black uppercase tracking-[0.25em] text-slate-500 sm:text-xs">Certificate of Completion</p>
+                      <h3 className="mt-3 text-xl font-black tracking-wide text-slate-900 sm:mt-5 sm:text-4xl">Certificate of Achievement</h3>
+                      <p className="mt-4 text-xs text-slate-500 sm:mt-7 sm:text-sm">This certificate is proudly presented to</p>
+                      <p className="mt-2 font-serif text-2xl font-bold text-emerald-700 sm:text-4xl">{userName}</p>
+                      <div className="mt-1 h-px w-2/3 bg-slate-300"/>
+                      <p className="mt-4 text-xs text-slate-500 sm:mt-6 sm:text-sm">for successfully completing the course</p>
+                      <p className="mt-2 text-base font-black text-slate-900 sm:text-2xl">{certificateCourse.title}</p>
+                      <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-3 sm:bottom-7 sm:left-10 sm:right-10">
+                        <div className="text-center"><div className="border-t border-slate-500 pt-1 text-[8px] text-slate-500 sm:text-xs"><strong className="text-slate-900">Naimish Singh</strong><br/>CEO, SkillForge</div></div>
+                        <div className="flex items-end gap-3">
+                          {certificateRecord && <div className="text-center"><img src={qrUrl(certificateRecord.certificateId)} alt="Certificate verification QR" className="h-16 w-16 rounded-lg border border-slate-200 bg-white p-1 sm:h-20 sm:w-20"/><p className="mt-1 text-[7px] font-black uppercase tracking-wider text-emerald-700 sm:text-[9px]">Scan to Verify</p></div>}
+                          <div className="text-right text-[7px] leading-4 text-slate-500 sm:text-xs sm:leading-5"><div><strong>Certificate ID:</strong> {certificateRecord?.certificateId ?? "—"}</div><div><strong>Issue Date:</strong> {certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div><div className="max-w-[220px] truncate text-emerald-700">skillforge-tau-three.vercel.app/verify</div></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row">
+                  <button type="button" onClick={() => setCertificateCourse(null)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600">Close</button>
+                  <button type="button" onClick={() => { void printCertificate(certificateCourse); }} disabled={certificateLoading} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">Download / Print Certificate</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {activeTab === "purchases" && (
@@ -4753,5 +5080,212 @@ function Course({
 
 function Metric({icon,value,label}:{icon:ReactNode;value:string;label:string}){return <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">{icon}</div><div><p className="text-lg font-black text-[#0b1736]">{value}</p><p className="text-[10px] text-slate-500">{label}</p></div></div>}
 function Why({icon,title,text}:{icon:ReactNode;title:string;text:string}){return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">{icon}</div><div><p className="text-xs font-black text-[#0b1736]">{title}</p><p className="mt-1 text-[10px] text-slate-500">{text}</p></div></div></div>}
+
+
+function CertificateVerificationPage({ certificateId }: { certificateId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [certificate, setCertificate] = useState<CertificateRecord | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const verify = async () => {
+      if (!certificateId) {
+        setLoading(false);
+        setCertificate(null);
+        setError("Certificate ID is required.");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError("");
+        const response = await fetch(
+          `${API_BASE_URL}/api/payment/certificates/verify/${encodeURIComponent(certificateId)}`,
+        );
+        const data = await response.json().catch(() => null);
+
+        if (cancelled) return;
+
+        if (!response.ok || !data?.verified || !data?.certificate) {
+          setCertificate(null);
+          setError(data?.message || "This certificate could not be verified by SkillForge.");
+          return;
+        }
+
+        setCertificate(data.certificate as CertificateRecord);
+      } catch (error) {
+        console.error("Certificate verification error:", error);
+        if (!cancelled) {
+          setCertificate(null);
+          setError("Unable to connect to SkillForge verification service.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void verify();
+    return () => { cancelled = true; };
+  }, [certificateId]);
+
+  const issueDate = certificate
+    ? new Date(certificate.issuedAt).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+
+  const modules = (certificate?.moduleTitles ?? []).slice(0, 6);
+
+  return (
+    <div className="min-h-screen bg-[#06111f] text-white">
+      <header className="border-b border-white/10 bg-[#06101c]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1380px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
+          <div className="text-2xl font-black tracking-tight sm:text-3xl">Skill<span className="text-emerald-400">Forge</span></div>
+          <div className="hidden items-center gap-7 text-sm font-semibold text-slate-300 md:flex">
+            <a href={`${SKILLFORGE_PUBLIC_URL}/`} className="hover:text-white">Home</a>
+            <a href={`${SKILLFORGE_PUBLIC_URL}/#courses`} className="hover:text-white">Courses</a>
+            <a href={`${SKILLFORGE_PUBLIC_URL}/#about`} className="hover:text-white">About</a>
+            <span className="border-b-2 border-emerald-400 pb-1 text-emerald-400">Verify Certificate</span>
+            <a href={`${SKILLFORGE_PUBLIC_URL}/#contact`} className="hover:text-white">Contact</a>
+          </div>
+          <a href={`${SKILLFORGE_PUBLIC_URL}/#courses`} className="rounded-xl border border-emerald-400 px-4 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-400 hover:text-slate-950">
+            Explore Courses <ArrowRight className="ml-1 inline" size={15}/>
+          </a>
+        </div>
+      </header>
+
+      <main className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-14">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="relative mx-auto max-w-[1380px]">
+          {loading ? (
+            <div className="mx-auto max-w-xl rounded-3xl border border-white/10 bg-white/[0.04] p-14 text-center shadow-2xl">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-emerald-400" />
+              <p className="mt-5 text-lg font-bold text-slate-300">Verifying certificate with SkillForge…</p>
+            </div>
+          ) : certificate ? (
+            <>
+              <section className="mx-auto max-w-4xl text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400 text-slate-950 shadow-[0_0_45px_rgba(52,211,153,0.28)]">
+                  <CheckCircle2 size={36}/>
+                </div>
+                <p className="mt-5 text-xs font-black uppercase tracking-[0.25em] text-emerald-400">Certificate Verified</p>
+                <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">Congratulations!</h1>
+                <h2 className="mt-2 text-3xl font-black text-emerald-400 sm:text-4xl">Certificate Verified</h2>
+                <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">This certificate has been officially awarded to</p>
+                <p className="mt-1 text-3xl font-black sm:text-4xl">{certificate.studentName}</p>
+                <p className="mt-3 text-sm text-slate-400">for successfully completing the course</p>
+                <p className="mt-1 text-xl font-black text-emerald-300 sm:text-2xl">{certificate.courseTitle}</p>
+              </section>
+
+              <section className="mt-10 overflow-hidden rounded-3xl border border-white/10 bg-[#0b1728]/90 shadow-2xl">
+                <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
+                  <div className="p-5 sm:p-8">
+                    <div className="rounded-2xl bg-[#f8fafc] p-3 shadow-xl sm:p-4">
+                      <div className="relative overflow-hidden rounded-xl border border-[#d6b15a] bg-[#fffdf7] px-5 py-8 text-center text-slate-900 sm:px-10 sm:py-10">
+                        <div className="pointer-events-none absolute -left-24 -top-24 h-52 w-52 rotate-45 border-[18px] border-emerald-700/10" />
+                        <div className="pointer-events-none absolute -bottom-28 -right-24 h-60 w-60 rotate-45 border-[20px] border-amber-500/10" />
+                        <div className="text-2xl font-black tracking-tight sm:text-3xl">Skill<span className="text-emerald-600">Forge</span></div>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Learn · Practice · Grow</p>
+                        <div className="mx-auto mt-8 max-w-2xl">
+                          <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">Certificate</p>
+                          <h3 className="mt-1 text-3xl font-black sm:text-4xl">OF COMPLETION</h3>
+                          <p className="mt-7 text-sm text-slate-500">This is to certify that</p>
+                          <p className="mt-2 text-3xl font-black text-amber-700 sm:text-4xl">{certificate.studentName}</p>
+                          <div className="mx-auto mt-2 h-px max-w-md bg-amber-600/40" />
+                          <p className="mt-6 text-sm text-slate-500">has successfully completed the course</p>
+                          <p className="mt-2 text-xl font-black sm:text-2xl">{certificate.courseTitle}</p>
+                          {certificate.courseDescription && <p className="mx-auto mt-4 max-w-2xl text-xs leading-5 text-slate-500">{certificate.courseDescription}</p>}
+                        </div>
+                        <div className="mt-8 grid grid-cols-2 gap-4 border-t border-slate-200 pt-5 text-left sm:grid-cols-3">
+                          <div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Certificate ID</p><p className="mt-1 break-all text-xs font-black">{certificate.certificateId}</p></div>
+                          <div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Issue Date</p><p className="mt-1 text-xs font-black">{issueDate}</p></div>
+                          <div className="col-span-2 sm:col-span-1"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Issued By</p><p className="mt-1 text-xs font-black">Naimish Singh · CEO, SkillForge</p></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <aside className="border-t border-white/10 p-5 sm:p-8 lg:border-l lg:border-t-0">
+                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><CheckCircle2 size={25}/></div>
+                        <div><p className="text-lg font-black text-emerald-300">Certificate is Valid</p><p className="mt-1 text-xs text-emerald-100/70">Verified directly from SkillForge records.</p></div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 space-y-4 text-sm">
+                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Certificate ID</p><p className="mt-1 break-all font-black text-white">{certificate.certificateId}</p></div>
+                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Student Name</p><p className="mt-1 font-bold text-slate-200">{certificate.studentName}</p></div>
+                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Course</p><p className="mt-1 font-bold text-slate-200">{certificate.courseTitle}</p></div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Category</p><p className="mt-1 font-bold text-slate-200">{certificate.courseCategory || "—"}</p></div>
+                        <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Level</p><p className="mt-1 font-bold text-slate-200">{certificate.courseLevel || "—"}</p></div>
+                      </div>
+                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Issue Date</p><p className="mt-1 font-bold text-slate-200">{issueDate}</p></div>
+                    </div>
+
+                    {certificate.courseDescription && (
+                      <div className="mt-7 border-t border-white/10 pt-6">
+                        <p className="font-black text-white">About This Course</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-400">{certificate.courseDescription}</p>
+                      </div>
+                    )}
+
+                    {modules.length > 0 && (
+                      <div className="mt-6 border-t border-white/10 pt-6">
+                        <p className="font-black text-white">Key Modules</p>
+                        <div className="mt-3 space-y-2">
+                          {modules.map((module) => <div key={module} className="flex items-start gap-2 text-sm text-slate-300"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-400" size={15}/><span>{module}</span></div>)}
+                        </div>
+                      </div>
+                    )}
+                  </aside>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:justify-center sm:p-6">
+                  <button type="button" onClick={() => printCertificateDocument(certificate)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-7 py-3 text-sm font-black text-slate-950 shadow-lg hover:bg-emerald-300">
+                    <ArrowRight className="rotate-90" size={17}/> Download Certificate
+                  </button>
+                  <button type="button" onClick={() => { window.location.href = `${SKILLFORGE_PUBLIC_URL}/verify`; }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400 px-7 py-3 text-sm font-black text-emerald-300 hover:bg-emerald-400/10">
+                    Verify Another Certificate
+                  </button>
+                </div>
+              </section>
+            </>
+          ) : (
+            <section className="mx-auto max-w-2xl rounded-3xl border border-red-400/20 bg-white p-10 text-center text-slate-900 shadow-2xl">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600"><X size={34}/></div>
+              <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-red-600">Verification Failed</p>
+              <h1 className="mt-2 text-3xl font-black">Certificate Not Found</h1>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">{error}</p>
+              {certificateId && <p className="mt-6 break-all rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Certificate ID: {certificateId}</p>}
+              <a href={`${SKILLFORGE_PUBLIC_URL}/verify`} className="mt-6 inline-flex rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white">Verify Another Certificate</a>
+            </section>
+          )}
+        </div>
+      </main>
+
+      <footer className="border-t border-white/10 px-5 py-6 text-center text-xs text-slate-500">
+        SkillForge · Learn · Practice · Grow
+      </footer>
+    </div>
+  );
+}
+function App() {
+  const params = new URLSearchParams(window.location.search);
+  const certificateId = params.get("certificate");
+
+  if (window.location.pathname === "/verify" || certificateId) {
+    return certificateId
+      ? <CertificateVerificationPage certificateId={certificateId} />
+      : <CertificateVerificationPage certificateId="" />;
+  }
+
+  return <AppContent />;
+}
 
 export default App;
