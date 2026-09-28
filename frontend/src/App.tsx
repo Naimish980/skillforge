@@ -1057,6 +1057,7 @@ function App() {
       const razorpayReady = await loadRazorpayScript();
       if (!razorpayReady || !window.Razorpay) {
         alert("Unable to load Razorpay Checkout. Please try again.");
+        setPaymentLoading(false);
         return;
       }
 
@@ -1071,7 +1072,9 @@ function App() {
 
       const orderData = await createOrderResponse.json();
       if (!createOrderResponse.ok || !orderData.success) {
+        console.error("Create payment order failed:", orderData);
         alert(orderData.message || "Unable to create payment order.");
+        setPaymentLoading(false);
         return;
       }
 
@@ -1112,7 +1115,11 @@ function App() {
               });
 
               setOfferModalOpen(false);
+              setActiveOffer(null);
               setSelectedOfferCourseIds([]);
+              if (window.location.hash === "#offer") {
+                window.history.back();
+              }
               alert(verifiedIds.length > 1 ? "Payment successful! Your selected courses are now unlocked." : "Payment successful! Your course is now unlocked.");
             } catch (error) {
               console.error("Payment verification error:", error);
@@ -1182,11 +1189,24 @@ function App() {
       return;
     }
 
-    // Always open the selector. Already purchased courses are shown as disabled
-    // inside the modal instead of blocking the user before the selector opens.
+    // Keep the existing UI, but give the offer selector its own browser-history
+    // entry so the browser Back button closes the selector naturally.
     setActiveOffer(offer);
     setSelectedOfferCourseIds([]);
     setOfferModalOpen(true);
+    if (window.location.hash !== "#offer") {
+      window.history.pushState({ offerModal: true }, "", "#offer");
+    }
+  };
+
+  const closeOfferModal = () => {
+    if (paymentLoading) return;
+    setOfferModalOpen(false);
+    setActiveOffer(null);
+    setSelectedOfferCourseIds([]);
+    if (window.location.hash === "#offer") {
+      window.history.back();
+    }
   };
 
   const handleOfferPurchase = async () => {
@@ -1234,6 +1254,15 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
+      if (window.location.hash === "#offer") {
+        setOfferModalOpen(true);
+        return;
+      }
+
+      setOfferModalOpen(false);
+      setActiveOffer(null);
+      setSelectedOfferCourseIds([]);
+
       if (window.location.hash === "#dashboard") {
         setSelectedCourse(null);
         setLearningCourse(null);
@@ -1674,7 +1703,7 @@ function App() {
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
 
-      {offerModalOpen && activeOffer && <Modal onClose={() => !paymentLoading && setOfferModalOpen(false)}>
+      {offerModalOpen && activeOffer && <Modal onClose={closeOfferModal}>
         <div className="w-full max-w-3xl">
           <div className="pr-8">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-500">{activeOffer.badge_text || "Special Offer"}</p>
