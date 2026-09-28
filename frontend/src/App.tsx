@@ -2325,7 +2325,7 @@ function printCertificateDocument(record: CertificateRecord) {
   const baseUrl = String(import.meta.env.BASE_URL || "/");
   const templateUrl = `${window.location.origin}${baseUrl}certificate-template.png`;
 
-  const printWindow = window.open("", "_blank", "width=980,height=680,scrollbars=yes,resizable=yes");
+  const printWindow = window.open("", "_blank", "width=980,height=680,scrollbars=no,resizable=yes");
   if (!printWindow) {
     alert("Please allow pop-ups to download your certificate.");
     return;
@@ -2338,16 +2338,17 @@ function printCertificateDocument(record: CertificateRecord) {
 <meta name="viewport" content="width=1536,height=1024,initial-scale=1" />
 <title>SkillForge Certificate - ${id}</title>
 <style>
-  @page { size: landscape; margin: 0; }
+  @page { size: 15in 10in; margin: 0; }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     padding: 0;
-    width: 100vw;
-    height: 100vh;
-    min-width: 0;
-    min-height: 0;
+    width: 15in;
+    height: 10in;
+    min-width: 15in;
+    min-height: 10in;
     background: #ffffff;
+    overflow: hidden;
   }
   body {
     font-family: Arial, Helvetica, sans-serif;
@@ -2357,10 +2358,10 @@ function printCertificateDocument(record: CertificateRecord) {
   }
   .page {
     position: relative;
-    width: min(94vw, 1536px);
-    height: min(88vh, 1024px);
+    width: 15in;
+    height: 10in;
     aspect-ratio: 1536 / 1024;
-    margin: auto;
+    margin: 0;
     overflow: hidden;
     background: #f8f3e7;
   }
@@ -2565,8 +2566,21 @@ function printCertificateDocument(record: CertificateRecord) {
     .page { box-shadow: 0 12px 45px rgba(0,0,0,.18); }
   }
   @media print {
-    html, body { width: 100%; height: 100%; overflow: hidden; }
-    .page { width: 100vw; height: 100vh; max-width: none; max-height: none; aspect-ratio: auto; }
+    html, body {
+      width: 15in;
+      height: 10in;
+      min-width: 15in;
+      min-height: 10in;
+      overflow: hidden;
+    }
+    .page {
+      width: 15in;
+      height: 10in;
+      max-width: none;
+      max-height: none;
+      aspect-ratio: 1536 / 1024;
+      margin: 0;
+    }
   }
 </style>
 </head>
