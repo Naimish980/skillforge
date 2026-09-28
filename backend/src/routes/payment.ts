@@ -362,14 +362,8 @@ router.post(
           });
         }
 
-        // The Admin Portal stores offer.course_ids as database IDs, while the
-        // student-facing catalog/payment flow uses stable public IDs (slugs).
-        // Resolve every selected public ID first, then accept the course when
-        // either its DB ID or its public ID is present in the offer.
         const eligibleCourseIds = Array.isArray(offer.course_ids)
-          ? offer.course_ids
-              .map((id: unknown) => String(id).trim())
-              .filter(Boolean)
+          ? offer.course_ids.map((id: unknown) => String(id).trim()).filter(Boolean)
           : [];
 
         const titleMatch = String(offer.title).match(/any\s+(2|3)\s+courses?/i);
@@ -389,32 +383,11 @@ router.post(
           });
         }
 
-        for (const selectedId of normalizedCourseIds) {
-          const course = await getCourseByPublicId(selectedId);
-
-          if (!course || !course.is_published) {
-            return res.status(400).json({
-              success: false,
-              message: "One or more selected courses are unavailable",
-            });
-          }
-
-          const dbCourseId = String(course.id);
-          const publicCourseId = slugify(
-            String(course.title),
-            Number(course.id),
-          );
-
-          if (
-            !eligibleCourseIds.includes(dbCourseId) &&
-            !eligibleCourseIds.includes(publicCourseId)
-          ) {
-            return res.status(400).json({
-              success: false,
-              message: "One or more selected courses are not included in this offer",
-            });
-          }
-
+        if (normalizedCourseIds.some((id) => !eligibleCourseIds.includes(id))) {
+          return res.status(400).json({
+            success: false,
+            message: "One or more selected courses are not included in this offer",
+          });
         }
 
         const existingEnrollment = await pool.query(
@@ -435,6 +408,16 @@ router.post(
           });
         }
 
+        for (const selectedId of normalizedCourseIds) {
+          const course = await getCourseByPublicId(selectedId);
+          if (!course || !course.is_published) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more selected courses are unavailable",
+            });
+          }
+        }
+
         const offerPrice = Number(offer.price);
         if (!Number.isFinite(offerPrice) || offerPrice <= 0 || !Number.isInteger(offerPrice)) {
           return res.status(500).json({
@@ -445,7 +428,7 @@ router.post(
 
         amount = offerPrice * 100;
         receipt = `offer_${numericOfferId}_${Date.now()}`;
-        paymentType = "offer";
+        paymentType = "combo";
         selectedOfferId = numericOfferId;
       }
 
@@ -612,7 +595,7 @@ router.post(
           enrolledCourseIds:
             paymentOrder.payment_type === "course" && paymentOrder.course_id
               ? [String(paymentOrder.course_id)]
-              : paymentOrder.payment_type === "offer" && Array.isArray(paymentOrder.course_ids)
+              : (paymentOrder.payment_type === "offer" || paymentOrder.payment_type === "combo") && Array.isArray(paymentOrder.course_ids)
                 ? paymentOrder.course_ids.map((id: string) => String(id))
                 : [],
         });
@@ -717,8 +700,8 @@ router.post(
         }
 
         if (
-          paymentOrder.payment_type ===
-            "offer" &&
+          (paymentOrder.payment_type === "offer" ||
+          paymentOrder.payment_type === "combo") &&
           Array.isArray(paymentOrder.course_ids)
         ) {
           enrollmentCourseIds = paymentOrder.course_ids.map(
