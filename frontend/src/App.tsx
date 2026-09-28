@@ -2303,10 +2303,8 @@ function printCertificateDocument(record: CertificateRecord) {
   const id = escapeHtml(record.certificateId);
   const student = escapeHtml(record.studentName);
   const title = escapeHtml(record.courseTitle);
-  const description = escapeHtml(record.courseDescription || "Successfully completed the course requirements on SkillForge.");
   const category = escapeHtml(record.courseCategory || "IT & Tech");
   const level = escapeHtml(record.courseLevel || "—");
-  const modules = (record.moduleTitles || []).slice(0, 4).map(escapeHtml);
   const issueDate = escapeHtml(new Date(record.issuedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }));
   const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(verification)}`;
@@ -2381,17 +2379,16 @@ function printCertificateDocument(record: CertificateRecord) {
       <div class="title"><small>Certificate of Completion</small><h1>CERTIFICATE</h1><p>This certificate is proudly presented to</p></div>
       <div class="student">${student}</div>
       <div class="student-line"></div>
-      <div class="course-wrap"><div class="course-label">for successfully completing the course</div><div class="course">${title}</div><div class="description">${description}</div></div>
+      <div class="course-wrap"><div class="course-label">for successfully completing the course</div><div class="course">${title}</div></div>
       <div class="details">
         <div class="detail"><div class="label">Category</div><div class="value">${category}</div></div>
         <div class="detail"><div class="label">Level</div><div class="value">${level}</div></div>
         <div class="detail"><div class="label">Issue Date</div><div class="value">${issueDate}</div></div>
       </div>
-      ${modules.length ? `<div class="modules"><div class="modules-title">Key Modules</div><div class="module-list">${modules.map((m)=>`<span>${m}</span>`).join("")}</div></div>` : ""}
       <div class="footer">
         <div class="signature"><div class="signature-line"></div><strong>Naimish Singh</strong><span>CEO, SkillForge</span></div>
         <div class="qr-box"><img class="qr" src="${qr}" alt="Certificate verification QR"/><div class="qr-caption">SCAN TO VERIFY</div></div>
-        <div class="meta"><div class="label">Certificate ID</div><div class="value">${id}</div><div class="label">Issued By</div><div class="value">SkillForge</div></div>
+        <div class="meta"><div class="label">Credential ID</div><div class="value">${id}</div><div class="label">Issued By</div><div class="value">SkillForge</div></div>
       </div>
     </div>
   </div>
@@ -2481,26 +2478,71 @@ function DashboardTabContent({
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json().catch(() => null);
-        if (cancelled || !response.ok || !data?.success || !Array.isArray(data.certificates)) return;
+
+        if (cancelled || !response.ok || !data?.success || !Array.isArray(data.certificates)) {
+          return;
+        }
 
         const next: Record<string, CertificateRecord> = {};
+
         for (const item of data.certificates) {
           if (item?.courseId && item?.certificateId) {
             next[String(item.courseId)] = item as CertificateRecord;
           }
         }
-        setCertificateRecords(next);
+
+        // Certificates are issued once and persisted in PostgreSQL.
+        // If a course is already 100% complete but its certificate record
+        // does not exist yet, issue it silently once. Future visits simply
+        // load the existing record and never create a new ID.
+        const completedCoursesList = enrolledCourses.filter(
+          (course) => (progressByCourse[course.id] ?? 0) >= 100,
+        );
+
+        for (const course of completedCoursesList) {
+          if (next[course.id]) continue;
+
+          try {
+            const issueResponse = await fetch(`${API_BASE_URL}/api/payment/certificates/issue`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ courseId: course.id }),
+            });
+
+            const issueData = await issueResponse.json().catch(() => null);
+
+            if (
+              issueResponse.ok &&
+              issueData?.success &&
+              issueData?.certificate?.certificateId
+            ) {
+              next[course.id] = issueData.certificate as CertificateRecord;
+            }
+          } catch (error) {
+            console.error("Automatic certificate issue error:", error);
+          }
+        }
+
+        if (!cancelled) {
+          setCertificateRecords(next);
+        }
       } catch (error) {
         console.error("Certificate loading error:", error);
       }
     };
 
     void loadCertificates();
-    return () => { cancelled = true; };
-  }, [activeTab, enrolledCourses]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, enrolledCourses, progressByCourse]);
 
   const certificateId = (course: Course) =>
-    certificateRecords[course.id]?.certificateId ?? "Generating certificate ID…";
+    certificateRecords[course.id]?.certificateId ?? "Preparing credential…";
 
   const certificateIssueDate = (course: Course) => {
     const issuedAt = certificateRecords[course.id]?.issuedAt;
@@ -2611,13 +2653,46 @@ function DashboardTabContent({
                     </div>
                     <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">100% Complete</span>
                   </div>
-                  <div className="mt-4 rounded-xl border border-emerald-100 bg-white px-4 py-3">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Certificate ID</p>
-                    <p className="mt-1 text-sm font-black text-slate-800">{certificateId(course)}</p>
+                  <div className="mt-4 rounded-2xl border border-emerald-100 bg-white px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Credential ID</p>
+                        <p className="mt-1 break-all text-sm font-black text-slate-900">
+                          {certificateId(course)}
+                        </p>
+                      </div>
+                      {certificateRecords[course.id] && (
+                        <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                          Issued
+                        </span>
+                      )}
+                    </div>
+                    {certificateRecords[course.id] && (
+                      <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                        <span className="text-xs text-slate-500">
+                          Issued {certificateIssueDate(course)}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-600">Permanently stored</span>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <button type="button" onClick={() => { void openCertificate(course); }} disabled={certificateLoading} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">{certificateLoading ? "Loading…" : "View Certificate"}</button>
-                    <button type="button" onClick={() => { void printCertificate(course); }} disabled={certificateLoading} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:border-emerald-400 disabled:opacity-60">Download PDF</button>
+                    <button
+                      type="button"
+                      onClick={() => { void openCertificate(course); }}
+                      disabled={certificateLoading || !certificateRecords[course.id]}
+                      className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {certificateRecords[course.id] ? "View Certificate" : "Preparing Certificate…"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { void printCertificate(course); }}
+                      disabled={certificateLoading || !certificateRecords[course.id]}
+                      className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Download PDF
+                    </button>
                   </div>
                 </div>
               ))}
@@ -5339,12 +5414,12 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
                     <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
                       <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><CheckCircle2 size={25}/></div>
-                        <div><p className="text-lg font-black text-emerald-300">Certificate is Valid</p><p className="mt-1 text-xs text-emerald-100/70">Verified directly from SkillForge records.</p></div>
+                        <div><p className="text-lg font-black text-emerald-300">Certificate is Valid</p><p className="mt-1 text-xs text-emerald-100/70">Verified directly from SkillForge records and permanently stored.</p></div>
                       </div>
                     </div>
 
                     <div className="mt-6 space-y-4 text-sm">
-                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Certificate ID</p><p className="mt-1 break-all font-black text-white">{certificate.certificateId}</p></div>
+                      <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Credential ID</p><p className="mt-1 break-all font-black text-white">{certificate.certificateId}</p></div>
                       <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Student Name</p><p className="mt-1 font-bold text-slate-200">{certificate.studentName}</p></div>
                       <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Course</p><p className="mt-1 font-bold text-slate-200">{certificate.courseTitle}</p></div>
                       <div className="grid grid-cols-2 gap-4">
@@ -5388,7 +5463,7 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
               <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-red-600">Verification Failed</p>
               <h1 className="mt-2 text-3xl font-black">Certificate Not Found</h1>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">{error}</p>
-              {certificateId && <p className="mt-6 break-all rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Certificate ID: {certificateId}</p>}
+              {certificateId && <p className="mt-6 break-all rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Credential ID: {certificateId}</p>}
               <a href={`${SKILLFORGE_PUBLIC_URL}/verify`} className="mt-6 inline-flex rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white">Verify Another Certificate</a>
             </section>
           )}
