@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { pool } from "../db";
 import {
   AuthenticatedRequest,
@@ -7,77 +7,66 @@ import {
 
 const router = Router();
 
-/* =====================================================
-   ADMIN ACCESS HELPER
-===================================================== */
+/* =========================================================
+   ADMIN VERIFICATION
+========================================================= */
 
 async function verifyAdmin(
   req: AuthenticatedRequest,
   res: Response,
-): Promise<boolean> {
-  const userId = req.userId;
+  next: () => void,
+) {
+  try {
+    const userId = req.userId;
 
-  if (!userId) {
-    res.status(401).json({
-      success: false,
-      message: "Authenticated user not found",
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT role
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [userId],
+    );
+
+    if (!result.rows.length) {
+      return res.status(403).json({
+        message: "Admin access required",
+      });
+    }
+
+    if (result.rows[0].role !== "admin") {
+      return res.status(403).json({
+        message: "Admin access required",
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Admin verification error:", error);
+
+    return res.status(500).json({
+      message: "Unable to verify admin",
     });
-
-    return false;
   }
-
-  const adminResult = await pool.query(
-    `
-    SELECT id, name, email, role
-    FROM users
-    WHERE id = $1
-    LIMIT 1
-    `,
-    [userId],
-  );
-
-  if (adminResult.rows.length === 0) {
-    res.status(401).json({
-      success: false,
-      message: "User not found",
-    });
-
-    return false;
-  }
-
-  const admin = adminResult.rows[0];
-
-  if (admin.role !== "admin") {
-    res.status(403).json({
-      success: false,
-      message: "Admin access required",
-    });
-
-    return false;
-  }
-
-  return true;
 }
 
-/* =====================================================
+/* =========================================================
    ADMIN - GET ALL OFFERS
-   GET /api/offers
-===================================================== */
+========================================================= */
 
 router.get(
   "/",
   authenticateToken,
-  async (
-    req: AuthenticatedRequest,
-    res: Response,
-  ) => {
+  verifyAdmin,
+  async (_req, res) => {
     try {
-      const isAdmin = await verifyAdmin(req, res);
-
-      if (!isAdmin) {
-        return;
-      }
-
       const result = await pool.query(`
         SELECT
           id,
@@ -100,7 +89,7 @@ router.get(
         ORDER BY created_at DESC
       `);
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         offers: result.rows,
       });
@@ -115,25 +104,16 @@ router.get(
   },
 );
 
-/* =====================================================
+/* =========================================================
    ADMIN - CREATE OFFER
-   POST /api/offers
-===================================================== */
+========================================================= */
 
 router.post(
   "/",
   authenticateToken,
-  async (
-    req: AuthenticatedRequest,
-    res: Response,
-  ) => {
+  verifyAdmin,
+  async (req, res) => {
     try {
-      const isAdmin = await verifyAdmin(req, res);
-
-      if (!isAdmin) {
-        return;
-      }
-
       const {
         title,
         description,
@@ -184,13 +164,7 @@ router.post(
       }
 
       const ids = Array.isArray(courseIds)
-        ? [
-            ...new Set(
-              courseIds
-                .map((id: unknown) => String(id).trim())
-                .filter(Boolean),
-            ),
-          ]
+        ? courseIds.map((id: unknown) => String(id))
         : [];
 
       const result = await pool.query(
@@ -211,19 +185,7 @@ router.post(
           end_at
         )
         VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          $8,
-          $9,
-          $10,
-          $11,
-          $12,
-          $13
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
         )
         RETURNING *
         `,
@@ -268,25 +230,16 @@ router.post(
   },
 );
 
-/* =====================================================
+/* =========================================================
    ADMIN - UPDATE OFFER
-   PUT /api/offers/:offerId
-===================================================== */
+========================================================= */
 
 router.put(
   "/:offerId",
   authenticateToken,
-  async (
-    req: AuthenticatedRequest,
-    res: Response,
-  ) => {
+  verifyAdmin,
+  async (req, res) => {
     try {
-      const isAdmin = await verifyAdmin(req, res);
-
-      if (!isAdmin) {
-        return;
-      }
-
       const offerId = Number(req.params.offerId);
 
       if (!Number.isInteger(offerId)) {
@@ -346,13 +299,7 @@ router.put(
       }
 
       const ids = Array.isArray(courseIds)
-        ? [
-            ...new Set(
-              courseIds
-                .map((id: unknown) => String(id).trim())
-                .filter(Boolean),
-            ),
-          ]
+        ? courseIds.map((id: unknown) => String(id))
         : [];
 
       const result = await pool.query(
@@ -402,14 +349,14 @@ router.put(
         ],
       );
 
-      if (result.rows.length === 0) {
+      if (!result.rows.length) {
         return res.status(404).json({
           success: false,
           message: "Offer not found",
         });
       }
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         message: "Offer updated successfully",
         offer: result.rows[0],
@@ -425,25 +372,16 @@ router.put(
   },
 );
 
-/* =====================================================
+/* =========================================================
    ADMIN - ACTIVATE / DEACTIVATE
-   PATCH /api/offers/:offerId/status
-===================================================== */
+========================================================= */
 
 router.patch(
   "/:offerId/status",
   authenticateToken,
-  async (
-    req: AuthenticatedRequest,
-    res: Response,
-  ) => {
+  verifyAdmin,
+  async (req, res) => {
     try {
-      const isAdmin = await verifyAdmin(req, res);
-
-      if (!isAdmin) {
-        return;
-      }
-
       const offerId = Number(req.params.offerId);
 
       if (!Number.isInteger(offerId)) {
@@ -467,14 +405,14 @@ router.patch(
         [isActive, offerId],
       );
 
-      if (result.rows.length === 0) {
+      if (!result.rows.length) {
         return res.status(404).json({
           success: false,
           message: "Offer not found",
         });
       }
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         message: isActive
           ? "Offer activated successfully"
@@ -492,25 +430,16 @@ router.patch(
   },
 );
 
-/* =====================================================
-   ADMIN - DELETE OFFER
-   DELETE /api/offers/:offerId
-===================================================== */
+/* =========================================================
+   ADMIN - DELETE
+========================================================= */
 
 router.delete(
   "/:offerId",
   authenticateToken,
-  async (
-    req: AuthenticatedRequest,
-    res: Response,
-  ) => {
+  verifyAdmin,
+  async (req, res) => {
     try {
-      const isAdmin = await verifyAdmin(req, res);
-
-      if (!isAdmin) {
-        return;
-      }
-
       const offerId = Number(req.params.offerId);
 
       if (!Number.isInteger(offerId)) {
@@ -529,14 +458,14 @@ router.delete(
         [offerId],
       );
 
-      if (result.rows.length === 0) {
+      if (!result.rows.length) {
         return res.status(404).json({
           success: false,
           message: "Offer not found",
         });
       }
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         message: "Offer deleted successfully",
       });
@@ -551,19 +480,16 @@ router.delete(
   },
 );
 
-/* =====================================================
-   PUBLIC - ALL ACTIVE OFFERS
-   GET /api/offers/public/active
-
+/* =========================================================
+   PUBLIC - ACTIVE OFFERS
    IMPORTANT:
-   Returns ALL active offers, not LIMIT 1.
-   This allows Any 2 and Any 3 offers to appear
-   together on the SkillForge homepage.
-===================================================== */
+   This route is intentionally ABOVE any future
+   GET /:offerId route.
+========================================================= */
 
 router.get(
   "/public/active",
-  async (_req: Request, res: Response) => {
+  async (_req, res) => {
     try {
       const result = await pool.query(`
         SELECT
@@ -581,8 +507,8 @@ router.get(
           start_at,
           end_at
         FROM offers
-        WHERE
-          is_active = true
+        WHERE is_active = TRUE
+          AND show_home = TRUE
           AND (
             start_at IS NULL
             OR start_at <= NOW()
@@ -591,10 +517,16 @@ router.get(
             end_at IS NULL
             OR end_at >= NOW()
           )
-        ORDER BY created_at DESC
+        ORDER BY
+          CASE
+            WHEN title ILIKE '%any 2%' THEN 1
+            WHEN title ILIKE '%any 3%' THEN 2
+            ELSE 3
+          END,
+          created_at DESC
       `);
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         offers: result.rows,
       });
@@ -604,6 +536,7 @@ router.get(
       return res.status(500).json({
         success: false,
         message: "Unable to load offers",
+        offers: [],
       });
     }
   },
