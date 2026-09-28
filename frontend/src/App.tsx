@@ -1152,6 +1152,27 @@ function App() {
     return match ? Number(match[1]) : 0;
   };
 
+  // Offers store eligible course IDs as database IDs, while the public catalog
+  // uses a stable public slug in `course.id` and exposes the DB ID as `dbId`.
+  // Always resolve both forms so the selector never appears empty.
+  const findOfferCourse = (offerCourseId: string, catalog = catalogCourses) => {
+    const normalized = String(offerCourseId).trim();
+    return catalog.find(
+      (course) =>
+        String(course.id).trim() === normalized ||
+        (course.dbId != null && String(course.dbId) === normalized),
+    );
+  };
+
+  const isCourseEnrolled = (course: Course) => {
+    const publicId = String(course.id).trim();
+    const dbId = course.dbId == null ? "" : String(course.dbId).trim();
+    return enrolledCourseIds.some((id) => {
+      const normalized = String(id).trim();
+      return normalized === publicId || (dbId !== "" && normalized === dbId);
+    });
+  };
+
   const openOffer = (offer: Offer) => {
     if (!user) { setAuthMode("login"); return; }
 
@@ -1174,7 +1195,13 @@ function App() {
     const required = offerRequiredCount(activeOffer);
     const uniqueIds = [...new Set(selectedOfferCourseIds)];
     if (uniqueIds.length !== required) { alert(`Please select exactly ${required} courses.`); return; }
-    if (uniqueIds.some((id) => enrolledCourseIds.includes(id))) { alert("You are already enrolled in one or more selected courses."); return; }
+    if (uniqueIds.some((id) => {
+      const course = findOfferCourse(id);
+      return course ? isCourseEnrolled(course) : false;
+    })) {
+      alert("You are already enrolled in one or more selected courses.");
+      return;
+    }
     await completePayment(token, uniqueIds, `${activeOffer.title} - SkillForge`, { type: "offer", offerId: activeOffer.id, courseIds: uniqueIds });
   };
 
@@ -1647,47 +1674,75 @@ function App() {
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
 
-      {offerModalOpen && activeOffer && <Modal onClose={() => !paymentLoading && setOfferModalOpen(false)}><div className="w-full max-w-3xl"><div className="pr-8"><p className="text-xs font-black uppercase tracking-[0.2em] text-amber-500">{activeOffer.badge_text || "Special Offer"}</p><h2 className="mt-2 text-2xl font-black text-white">{activeOffer.title}</h2><p className="mt-2 text-sm text-gray-400">Select exactly {offerRequiredCount(activeOffer)} courses from the available options.</p></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{activeOffer.course_ids.map((id) => {
-                const course = catalogCourses.find((c) => c.id === id);
-                if (!course) return null;
+      {offerModalOpen && activeOffer && <Modal onClose={() => !paymentLoading && setOfferModalOpen(false)}>
+        <div className="w-full max-w-3xl">
+          <div className="pr-8">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-500">{activeOffer.badge_text || "Special Offer"}</p>
+            <h2 className="mt-2 text-2xl font-black text-white">{activeOffer.title}</h2>
+            <p className="mt-2 text-sm text-gray-400">Select exactly {offerRequiredCount(activeOffer)} courses from the available options.</p>
+          </div>
 
-                const selected = selectedOfferCourseIds.includes(id);
-                const enrolled = enrolledCourseIds.includes(id);
-                const maxReached = selectedOfferCourseIds.length >= offerRequiredCount(activeOffer);
-                const disabled = enrolled || (!selected && maxReached);
+          <div className="mx-auto mt-6 grid w-full max-w-2xl justify-items-center gap-3 sm:grid-cols-2">
+            {activeOffer.course_ids.map((id) => {
+              const course = findOfferCourse(String(id));
+              if (!course) return null;
 
-                return (
-                  <button
-                    type="button"
-                    key={id}
-                    disabled={disabled}
-                    onClick={() =>
-                      setSelectedOfferCourseIds((current) => {
-                        if (selected) return current.filter((x) => x !== id);
-                        if (current.length >= offerRequiredCount(activeOffer)) return current;
-                        return [...current, id];
-                      })
-                    }
-                    className={`rounded-2xl border p-4 text-left transition ${selected ? "border-emerald-400 bg-emerald-500/10" : "border-white/10 bg-white/5 hover:border-emerald-400/40"} ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{course.emoji}</span>
-                      <div className="min-w-0">
-                        <p className="font-black text-white">{course.title}</p>
-                        <p className="mt-1 text-xs text-gray-400">{course.category} • {course.lessons} Lessons</p>
-                      </div>
-                      <span className={`ml-auto h-5 w-5 rounded-full border ${selected ? "border-emerald-400 bg-emerald-400" : "border-gray-600"}`}>
-                        {selected && <CheckCircle2 className="text-slate-950" size={18} />}
-                      </span>
+              const offerCourseId = String(id).trim();
+              const selected = selectedOfferCourseIds.includes(offerCourseId);
+              const enrolled = isCourseEnrolled(course);
+              const maxReached = selectedOfferCourseIds.length >= offerRequiredCount(activeOffer);
+              const disabled = enrolled || (!selected && maxReached);
+
+              return (
+                <button
+                  type="button"
+                  key={offerCourseId}
+                  disabled={disabled}
+                  onClick={() =>
+                    setSelectedOfferCourseIds((current) => {
+                      if (current.includes(offerCourseId)) {
+                        return current.filter((x) => x !== offerCourseId);
+                      }
+                      if (current.length >= offerRequiredCount(activeOffer)) return current;
+                      return [...current, offerCourseId];
+                    })
+                  }
+                  className={`w-full rounded-2xl border p-4 text-left transition ${selected ? "border-emerald-400 bg-emerald-500/10" : "border-white/10 bg-white/5 hover:border-emerald-400/40"} ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{course.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="font-black text-white">{course.title}</p>
+                      <p className="mt-1 text-xs text-gray-400">{course.category} • {course.lessons} Lessons</p>
                     </div>
-                    {enrolled && <p className="mt-2 text-xs font-bold text-gray-500">Already purchased</p>}
-                  </button>
-                );
-              })}</div>{activeOffer.course_ids.every((id) => enrolledCourseIds.includes(id)) && (
-              <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-300">
-                You have already purchased all courses included in this offer.
-              </p>
-            )}<div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm text-gray-400">Selected: <span className="font-black text-white">{selectedOfferCourseIds.length}/{offerRequiredCount(activeOffer)}</span></p><p className="mt-1 text-xl font-black text-emerald-400">{money(activeOffer.price)}</p></div><button type="button" onClick={()=>void handleOfferPurchase()} disabled={paymentLoading || selectedOfferCourseIds.length!==offerRequiredCount(activeOffer)} className="rounded-xl bg-emerald-500 px-6 py-3 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">{paymentLoading?"Processing...":"Pay & Unlock Courses"}</button></div></div></Modal>}
+                    <span className={`ml-auto h-5 w-5 shrink-0 rounded-full border ${selected ? "border-emerald-400 bg-emerald-400" : "border-gray-600"}`}>
+                      {selected && <CheckCircle2 className="text-slate-950" size={18} />}
+                    </span>
+                  </div>
+                  {enrolled && <p className="mt-2 text-xs font-bold text-gray-500">Already purchased</p>}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeOffer.course_ids.length > 0 && activeOffer.course_ids.every((id) => {
+            const course = findOfferCourse(String(id));
+            return course ? isCourseEnrolled(course) : false;
+          }) && (
+            <p className="mx-auto mt-4 max-w-2xl rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-300">
+              You have already purchased all courses included in this offer.
+            </p>
+          )}
+
+          <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-400">Selected: <span className="font-black text-white">{selectedOfferCourseIds.length}/{offerRequiredCount(activeOffer)}</span></p>
+              <p className="mt-1 text-xl font-black text-emerald-400">{money(activeOffer.price)}</p>
+            </div>
+            <button type="button" onClick={() => void handleOfferPurchase()} disabled={paymentLoading || selectedOfferCourseIds.length !== offerRequiredCount(activeOffer)} className="rounded-xl bg-emerald-500 px-6 py-3 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">{paymentLoading ? "Processing..." : "Pay & Unlock Courses"}</button>
+          </div>
+        </div>
+      </Modal>}
       {searchOpen && <Modal onClose={() => setSearchOpen(false)}><div className="w-full max-w-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-emerald-600">SkillForge Search</p><h2 className="mt-2 text-2xl font-black text-[#0b1736]">Find a course</h2></div><button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-slate-400 hover:text-slate-900"><X/></button></div><div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4"><Search className="text-slate-400" size={20}/><input autoFocus value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder="Search AWS, Linux, Networking..." className="w-full bg-transparent py-4 text-slate-900 outline-none placeholder:text-slate-400"/></div><div className="mt-5 max-h-80 space-y-2 overflow-y-auto">{filteredCourses.map(course=><button key={course.id} onClick={()=>{setSearchOpen(false);openCourse(course)}} className="flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50"><span className="text-3xl">{course.emoji}</span><div><p className="font-bold text-slate-900">{course.title}</p><p className="mt-1 text-xs text-slate-500">{course.category} • {course.lessons} Lessons</p></div><ChevronRight className="ml-auto text-slate-400" size={18}/></button>)}{filteredCourses.length===0&&<p className="py-8 text-center text-slate-500">No matching courses.</p>}</div></div></Modal>}
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onModeChange={setAuthMode} onSuccess={handleAuth}/>} 
       {introOpen && <Modal onClose={closeIntro}><div className="w-full max-w-5xl"><div className="mb-5 pr-8"><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Welcome to SkillForge</p><h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Learn. Practice. Grow.</h2><p className="mt-2 text-sm text-slate-400">See how SkillForge works before you start learning.</p></div><div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"><video className="aspect-video w-full bg-black object-contain" src={`${import.meta.env.BASE_URL}skillforge-intro.mp4`} controls autoPlay playsInline preload="auto" onError={(event) => { console.error("SkillForge intro video failed to load:", event.currentTarget.error); }} /></div><div className="mt-5 flex flex-wrap justify-end gap-3"><button onClick={() => { closeIntro(); scrollToSection("courses"); }} className="rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-700">Explore Courses</button></div></div></Modal>}
