@@ -712,6 +712,7 @@ function App() {
 
   const [catalogCourses, setCatalogCourses] = useState<Course[]>(courses);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [activeOffers, setActiveOffers] = useState<Offer[]>([]);
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [selectedOfferCourseIds, setSelectedOfferCourseIds] = useState<string[]>([]);
@@ -796,26 +797,37 @@ function App() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadActiveOffer = async () => {
+    const loadActiveOffers = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/offers/public/active`);
         const data = await response.json().catch(() => null);
-        if (!response.ok || !data?.offer) {
-          if (!cancelled) setActiveOffer(null);
+
+        if (!response.ok) {
+          if (!cancelled) setActiveOffers([]);
           return;
         }
+
+        const offers = Array.isArray(data?.offers)
+          ? (data.offers as Offer[])
+          : data?.offer
+            ? [data.offer as Offer]
+            : [];
+
+        const homeOffers = offers.filter((offer) => offer.show_home);
+
         if (!cancelled) {
-          const offer = data.offer as Offer;
-          if (offer.show_home) setActiveOffer(offer);
-          else setActiveOffer(null);
+          setActiveOffers(homeOffers);
+          if (activeOffer && !homeOffers.some((offer) => offer.id === activeOffer.id)) {
+            setActiveOffer(null);
+          }
         }
       } catch (error) {
         console.error("Offer loading error:", error);
-        if (!cancelled) setActiveOffer(null);
+        if (!cancelled) setActiveOffers([]);
       }
     };
 
-    void loadActiveOffer();
+    void loadActiveOffers();
     return () => { cancelled = true; };
   }, []);
 
@@ -1104,6 +1116,7 @@ function App() {
     const eligible = offer.course_ids.filter((id) => catalogCourses.some((course) => course.id === id));
     const available = eligible.filter((id) => !enrolledCourseIds.includes(id));
     if (available.length < required) { alert(`You need ${required} eligible courses that you have not already purchased.`); return; }
+    setActiveOffer(offer);
     setSelectedOfferCourseIds([]);
     setOfferModalOpen(true);
   };
@@ -1436,6 +1449,73 @@ function App() {
           <div className="mx-auto grid max-w-[1300px] grid-cols-2 gap-3 px-5 pb-10 sm:grid-cols-4 lg:px-8"><Metric icon={<GraduationCap/>} value={`${catalogCourses.length}`} label="Published Courses"/><Metric icon={<Shield/>} value="100%" label="Practical Learning"/><Metric icon={<Clock3/>} value="24/7" label="Access"/><Metric icon={<Award/>} value="Certificate" label="On Completion"/></div>
         </section>
 
+        {activeOffers.length > 0 && (
+          <section id="offers" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:p-8">
+              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Special Offers</p>
+                  <h2 className="mt-2 text-3xl font-black text-[#0b1736]">Choose more. Save more.</h2>
+                  <p className="mt-2 text-sm text-slate-500">Pick the courses you want and unlock them together at one special price.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                {activeOffers.map((offer) => (
+                  <article key={offer.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                    {offer.banner_image ? (
+                      <div className="aspect-[16/7] w-full overflow-hidden bg-slate-950">
+                        <img
+                          src={offer.banner_image}
+                          alt={offer.title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="p-5 sm:p-6">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-700">
+                          {offer.badge_text || "SPECIAL OFFER"}
+                        </span>
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
+                          {offer.course_ids.length} eligible courses
+                        </span>
+                      </div>
+
+                      <h3 className="mt-3 text-2xl font-black text-[#0b1736]">{offer.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {offer.description || "Choose your courses and unlock them together."}
+                      </p>
+
+                      <div className="mt-5 flex items-center justify-between gap-4">
+                        <div>
+                          {offer.original_price != null && (
+                            <span className="mr-2 text-sm font-bold text-slate-400 line-through">{money(offer.original_price)}</span>
+                          )}
+                          <span className="text-3xl font-black text-emerald-700">{money(offer.price)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openOffer(offer)}
+                          disabled={paymentLoading}
+                          className="shrink-0 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {offer.button_text || "Choose Courses"} →
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         <section id="categories" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 py-12 lg:px-8">
           <div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black text-[#0b1736]">Explore Categories</h2><p className="mt-1 text-sm text-slate-500">Choose a learning path and build practical technical skills.</p></div><button onClick={() => {setSelectedCategory("All"); scrollToSection("courses")}} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
@@ -1508,25 +1588,6 @@ function App() {
           })}</div>
           )}
         </section>
-
-        {activeOffer && activeOffer.show_home && (
-          <section id="offers" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
-            <div className="overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-7 shadow-sm sm:p-9">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-700">{activeOffer.badge_text || "SPECIAL OFFER"}</span>
-                  <h2 className="mt-3 text-3xl font-black text-[#0b1736]">{activeOffer.title}</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{activeOffer.description || "Choose your courses and unlock them together."}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    {activeOffer.original_price != null && <span className="text-sm font-bold text-slate-400 line-through">{money(activeOffer.original_price)}</span>}
-                    <span className="text-2xl font-black text-emerald-700">{money(activeOffer.price)}</span>
-                  </div>
-                </div>
-                <button type="button" onClick={() => openOffer(activeOffer)} disabled={paymentLoading} className="shrink-0 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-black text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60">{activeOffer.button_text || "Choose Courses"} →</button>
-              </div>
-            </div>
-          </section>
-        )}
 
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
