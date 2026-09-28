@@ -1687,8 +1687,12 @@ function App() {
               const course = findOfferCourse(String(id));
               if (!course) return null;
 
+              // Keep the public course ID for payment/enrollment. The offer itself
+              // may store database IDs, so `id` and `course.id` are intentionally
+              // different here.
               const offerCourseId = String(id).trim();
-              const selected = selectedOfferCourseIds.includes(offerCourseId);
+              const selectionId = String(course.id).trim();
+              const selected = selectedOfferCourseIds.includes(selectionId);
               const enrolled = isCourseEnrolled(course);
               const maxReached = selectedOfferCourseIds.length >= offerRequiredCount(activeOffer);
               const disabled = enrolled || (!selected && maxReached);
@@ -1700,11 +1704,11 @@ function App() {
                   disabled={disabled}
                   onClick={() =>
                     setSelectedOfferCourseIds((current) => {
-                      if (current.includes(offerCourseId)) {
-                        return current.filter((x) => x !== offerCourseId);
+                      if (current.includes(selectionId)) {
+                        return current.filter((x) => x !== selectionId);
                       }
                       if (current.length >= offerRequiredCount(activeOffer)) return current;
-                      return [...current, offerCourseId];
+                      return [...current, selectionId];
                     })
                   }
                   className={`w-full rounded-2xl border p-4 text-left transition ${selected ? "border-emerald-400 bg-emerald-500/10" : "border-white/10 bg-white/5 hover:border-emerald-400/40"} ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
