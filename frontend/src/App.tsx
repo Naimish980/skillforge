@@ -640,11 +640,32 @@ function AdminRoute() {
 const money = (value: number | null | undefined) =>
   `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
 
+function parseSkillForgeDate(value: string | null) {
+  if (!value) return null;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // SkillForge stores offer start/end in PostgreSQL TIMESTAMP columns.
+  // They represent the India local time entered by Admin (datetime-local).
+  // node-postgres may serialize that TIMESTAMP as an ISO string ending in Z,
+  // but that Z does NOT mean the admin entered a UTC time. Preserve the
+  // original wall-clock value and interpret it explicitly as Asia/Kolkata.
+  const wallClockMatch = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)/);
+  if (wallClockMatch) {
+    const timestamp = new Date(`${wallClockMatch[1]}T${wallClockMatch[2]}+05:30`).getTime();
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  const timestamp = new Date(raw).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 function OfferCountdown({ endAt }: { endAt: string | null }) {
   const getRemaining = () => {
     if (!endAt) return 0;
-    const endTime = new Date(endAt).getTime();
-    if (!Number.isFinite(endTime)) return 0;
+    const endTime = parseSkillForgeDate(endAt);
+    if (endTime == null) return 0;
     return Math.max(0, endTime - Date.now());
   };
 

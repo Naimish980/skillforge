@@ -139,7 +139,17 @@ export default function AdminDashboard() {
 
   const openCreateOffer = () => { setEditingOfferId(null); setOfferForm(emptyOffer); setOfferModal(true); };
   const openCreateOfferTemplate = (count: 2 | 3) => { setEditingOfferId(null); setOfferForm(offerTemplate(count)); setOfferModal(true); };
-  const openEditOffer = (o:Offer) => { const iso=(v:string|null)=>v?new Date(v).toISOString().slice(0,16):""; setEditingOfferId(o.id); setOfferForm({title:o.title,description:o.description||"",badgeText:o.badge_text||"",buttonText:o.button_text,price:String(o.price),originalPrice:o.original_price==null?"":String(o.original_price),bannerImage:o.banner_image||"",courseIds:Array.isArray(o.course_ids)?o.course_ids:[],isActive:o.is_active,showHome:o.show_home,showDashboard:o.show_dashboard,startAt:iso(o.start_at),endAt:iso(o.end_at)}); setOfferModal(true); };
+  const openEditOffer = (o:Offer) => {
+    const iso=(v:string|null)=>{
+      if(!v) return "";
+      const raw=String(v).trim();
+      if(/Z$/i.test(raw)||/[+-]\d{2}:?\d{2}$/.test(raw)){
+        const d=new Date(raw);
+        return Number.isFinite(d.getTime())?d.toISOString().slice(0,16):"";
+      }
+      return raw.replace(" ","T").slice(0,16);
+    };
+    setEditingOfferId(o.id); setOfferForm({title:o.title,description:o.description||"",badgeText:o.badge_text||"",buttonText:o.button_text,price:String(o.price),originalPrice:o.original_price==null?"":String(o.original_price),bannerImage:o.banner_image||"",courseIds:Array.isArray(o.course_ids)?o.course_ids:[],isActive:o.is_active,showHome:o.show_home,showDashboard:o.show_dashboard,startAt:iso(o.start_at),endAt:iso(o.end_at)}); setOfferModal(true); };
   const saveOffer = async () => { if(!offerForm.title.trim()) return setError("Offer title is required"); const price=Number(offerForm.price); if(!Number.isFinite(price)||price<=0) return setError("Invalid offer price"); const original=offerForm.originalPrice.trim()===""?null:Number(offerForm.originalPrice); if(original!==null&&(!Number.isFinite(original)||original<0)) return setError("Invalid original price"); const mixMatch=offerForm.title.match(/any\s+(2|3)\s+courses?/i); if(mixMatch){const required=Number(mixMatch[1]); if(offerForm.courseIds.length<required) return setError(`Select at least ${required} eligible courses for this offer`); if(required===2 && price<=0) return setError("Invalid Any 2 offer price"); if(required===3 && price<=0) return setError("Invalid Any 3 offer price");} try{setOfferSaving(true);setError("");const path=editingOfferId?`/api/offers/${editingOfferId}`:"/api/offers";await api(path,{method:editingOfferId?"PUT":"POST",body:JSON.stringify({title:offerForm.title.trim(),description:offerForm.description.trim()||null,badgeText:offerForm.badgeText.trim()||null,buttonText:offerForm.buttonText.trim()||"Get Offer Now",price,originalPrice:original,bannerImage:offerForm.bannerImage.trim()||null,courseIds:offerForm.courseIds,isActive:offerForm.isActive,showHome:offerForm.showHome,showDashboard:offerForm.showDashboard,startAt:offerForm.startAt||null,endAt:offerForm.endAt||null})});setOfferModal(false);await loadOffers();}catch(e){setError(e instanceof Error?e.message:"Unable to save offer");}finally{setOfferSaving(false);} };
   const toggleOffer = async (o:Offer) => { try{await api(`/api/offers/${o.id}/status`,{method:"PATCH",body:JSON.stringify({isActive:!o.is_active})});await loadOffers();}catch(e){setError(e instanceof Error?e.message:"Unable to update offer");} };
   const deleteOffer = async (o:Offer) => { if(!window.confirm(`Delete "${o.title}"?`))return; try{await api(`/api/offers/${o.id}`,{method:"DELETE"});await loadOffers();}catch(e){setError(e instanceof Error?e.message:"Unable to delete offer");} };
