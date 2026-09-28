@@ -2868,12 +2868,6 @@ function DashboardTabContent({
     });
   };
 
-  const verificationUrl = (id: string) =>
-    `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(id)}`;
-
-  const qrUrl = (id: string) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verificationUrl(id))}`;
-
   const openCertificate = async (course: Course) => {
     const record = certificateRecords[course.id] ?? await ensureCertificate(course);
     if (!record) return;
@@ -3039,70 +3033,6 @@ function DashboardTabContent({
                   <div className="bg-[#07111f] p-2 sm:p-2 lg:p-2">
                     {certificateRecord && <CertificateArtwork record={certificateRecord} />}
                   </div>
-                            <div className="tag">Learn · Practice · Grow</div>
-                          </div>
-                          <div className="flex items-start gap-3 sm:gap-6">
-                            <div className="motto hidden sm:block">
-                              Empowering<br/>Learners For<br/>A Brighter Tomorrow
-                              <div className="motto-line"/>
-                            </div>
-                            <div className="seal">SKILLFORGE<br/>VERIFIED</div>
-                          </div>
-                        </div>
-
-                        <div className="hero">
-                          <div className="eyebrow">Certificate of Completion</div>
-                          <div className="heading">CERTIFICATE</div>
-                          <div className="rule"/>
-                          <div className="presented">This certificate is proudly presented to</div>
-                          <div className="student">{userName}</div>
-                          <div className="student-line"/>
-                          <div className="course-label">for successfully completing the course</div>
-                          <div className="course">{certificateCourse.title}</div>
-                          <div className="description">
-                            {certificateRecord?.courseDescription ||
-                              "This certifies that the learner has successfully completed the course and demonstrated the required knowledge and practical skills."}
-                          </div>
-                        </div>
-
-                        <div className="bottom">
-                          <div className="signature">
-                            <div className="signature-mark">Naimish Singh</div>
-                            <div className="signature-line"/>
-                            <strong>Naimish Singh</strong>
-                            <span>CEO, SkillForge</span>
-                          </div>
-
-                          <div className="qr-area">
-                            {certificateRecord && (
-                              <>
-                                <div className="qr-frame">
-                                  <img
-                                    src={qrUrl(certificateRecord.certificateId)}
-                                    alt="Certificate verification QR"
-                                    className="qr"
-                                  />
-                                </div>
-                                <div className="qr-caption">SCAN TO VERIFY</div>
-                              </>
-                            )}
-                          </div>
-
-                          <div className="credential">
-                            <div className="credential-label">Credential ID</div>
-                            <div className="credential-id">{certificateRecord?.certificateId || "—"}</div>
-                            <div className="issued-by">Issued By</div>
-                            <div className="issuer">SkillForge</div>
-                            <div className="issued-by">Issue Date</div>
-                            <div className="issuer">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div>
-                          </div>
-                        </div>
-
-                        <div className="footer-note">Skills Today · Better Tomorrow</div>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="border-t border-slate-700 bg-[#07111f] p-5 sm:p-7 lg:border-l lg:border-t-0">
                     <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                       <div className="flex items-center gap-3">
