@@ -2475,18 +2475,53 @@ function printCertificateDocument(record: CertificateRecord) {
     left: 270px;
     top: 790px;
     width: 300px;
-    height: 42px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     color: #101c20;
+    white-space: nowrap;
+    overflow: visible;
+  }
+  .signature-script {
+    position: relative;
+    z-index: 2;
     font-family: "Segoe Script", "Brush Script MT", "Lucida Handwriting", cursive;
-    font-size: 26px;
+    font-size: 27px;
     line-height: 1;
     font-style: italic;
-    white-space: nowrap;
-    overflow: hidden;
+    letter-spacing: -0.4px;
+  }
+  .signature-feather {
+    position: relative;
+    z-index: 1;
+    width: 28px;
+    height: 48px;
+    margin-left: -2px;
+    transform: rotate(38deg) translateY(-4px);
+    transform-origin: center;
+  }
+  .signature-feather::before {
+    content: "";
+    position: absolute;
+    left: 13px;
+    top: 2px;
+    width: 2px;
+    height: 44px;
+    background: #b88a2c;
+    border-radius: 999px;
+  }
+  .signature-feather::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 20px;
+    height: 35px;
+    background: linear-gradient(135deg, #d6b15a, #9b7120);
+    clip-path: polygon(50% 0%, 100% 16%, 78% 30%, 100% 45%, 69% 57%, 86% 70%, 52% 76%, 40% 100%, 34% 73%, 8% 82%, 25% 61%, 0% 55%, 24% 39%, 8% 25%, 36% 19%);
+    border-radius: 55% 45% 55% 20%;
   }
 
   .signature-person {
@@ -2574,7 +2609,7 @@ function printCertificateDocument(record: CertificateRecord) {
       <div class="category-value">${category}</div>
       <div class="level-value">${level}</div>
       <div class="date-value">${issueDate}</div>
-      <div class="signature-name">Naimish Singh</div>
+      <div class="signature-name"><span class="signature-script">Naimish Singh</span><span class="signature-feather" aria-hidden="true"></span></div>
       <div class="signature-person">Naimish Singh</div>
       <div class="signature-role">CEO, SkillForge</div>
       <div class="qr"><img src="${qr}" alt="Certificate verification QR code" /></div>
@@ -2623,7 +2658,7 @@ function CertificateArtwork({ record }: { record: CertificateRecord }) {
         <div className="sf-artwork-field sf-category">{record.courseCategory || "IT & Tech"}</div>
         <div className="sf-artwork-field sf-level">{record.courseLevel || "—"}</div>
         <div className="sf-artwork-field sf-date">{issueDate}</div>
-        <div className="sf-artwork-field sf-signature">Naimish Singh</div>
+        <div className="sf-artwork-field sf-signature"><span className="sf-signature-script">Naimish Singh</span><span className="sf-signature-feather" aria-hidden="true"></span></div>
         <div className="sf-artwork-field sf-signature-person">Naimish Singh</div>
         <div className="sf-artwork-field sf-signature-role">CEO, SkillForge</div>
         <img className="sf-artwork-qr" src={qr} alt="Certificate verification QR code" />
@@ -2690,9 +2725,34 @@ function CertificateArtwork({ record }: { record: CertificateRecord }) {
         .sf-level { left: 48.31%; width: 11.59%; }
         .sf-date { left: 70.44%; width: 12.24%; }
         .sf-signature {
-          left: 17.58%; top: 77.15%; width: 19.53%; height: 4.1%;
-          color: #101c20; font-family: "Segoe Script", "Brush Script MT", cursive;
+          left: 17.58%; top: 77.15%; width: 19.53%; height: 4.9%;
+          color: #101c20;
+          display: flex; align-items: center; justify-content: center;
+          white-space: nowrap; overflow: visible;
+        }
+        .sf-signature-script {
+          position: relative; z-index: 2;
+          font-family: "Segoe Script", "Brush Script MT", "Lucida Handwriting", cursive;
           font-size: 1.693cqw; line-height: 1; font-style: italic;
+          letter-spacing: -.03cqw;
+        }
+        .sf-signature-feather {
+          position: relative; z-index: 1;
+          width: 2.1cqw; height: 3.7cqw;
+          margin-left: -.15cqw;
+          transform: rotate(38deg) translateY(-.3cqw);
+          transform-origin: center;
+        }
+        .sf-signature-feather::before {
+          content: ""; position: absolute; left: 48%; top: 3%;
+          width: .15cqw; height: 91%; background: #b88a2c; border-radius: 999px;
+        }
+        .sf-signature-feather::after {
+          content: ""; position: absolute; left: 12%; top: 2%;
+          width: 72%; height: 73%;
+          background: linear-gradient(135deg, #d6b15a, #9b7120);
+          clip-path: polygon(50% 0%, 100% 16%, 78% 30%, 100% 45%, 69% 57%, 86% 70%, 52% 76%, 40% 100%, 34% 73%, 8% 82%, 25% 61%, 0% 55%, 24% 39%, 8% 25%, 36% 19%);
+          border-radius: 55% 45% 55% 20%;
         }
         .sf-signature-person {
           left: 17.58%; top: 84.0%; width: 19.53%; height: 2.35%;
