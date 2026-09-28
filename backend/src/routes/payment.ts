@@ -331,7 +331,9 @@ router.post(
             course_ids,
             is_active,
             start_at,
-            end_at
+            end_at,
+            (start_at IS NULL OR start_at <= (NOW() AT TIME ZONE 'Asia/Kolkata')) AS has_started,
+            (end_at IS NULL OR end_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')) AS has_not_ended
           FROM offers
           WHERE id = $1
           LIMIT 1
@@ -347,15 +349,12 @@ router.post(
         }
 
         const offer = offerResult.rows[0];
-        const now = new Date();
-        const startsAt = offer.start_at ? new Date(offer.start_at) : null;
-        const endsAt = offer.end_at ? new Date(offer.end_at) : null;
 
-        if (
-          !offer.is_active ||
-          (startsAt && now < startsAt) ||
-          (endsAt && now > endsAt)
-        ) {
+        // Admin `datetime-local` values are stored as India local wall-clock
+        // time in the existing TIMESTAMP columns. Compare them explicitly
+        // against India time so Render/UTC server timezone cannot shift the
+        // offer window.
+        if (!offer.is_active || !offer.has_started || !offer.has_not_ended) {
           return res.status(400).json({
             success: false,
             message: "This offer is not currently available",
