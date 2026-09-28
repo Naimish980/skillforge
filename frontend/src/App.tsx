@@ -2325,7 +2325,7 @@ function printCertificateDocument(record: CertificateRecord) {
   const baseUrl = String(import.meta.env.BASE_URL || "/");
   const templateUrl = `${window.location.origin}${baseUrl}certificate-template.png`;
 
-  const printWindow = window.open("", "_blank", "width=980,height=680,scrollbars=no,resizable=yes");
+  const printWindow = window.open("", "_blank", "width=1100,height=800,scrollbars=no,resizable=yes");
   if (!printWindow) {
     alert("Please allow pop-ups to download your certificate.");
     return;
@@ -2335,18 +2335,18 @@ function printCertificateDocument(record: CertificateRecord) {
 <html>
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=1536,height=1024,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>SkillForge Certificate - ${id}</title>
 <style>
-  @page { size: 15in 10in; margin: 0; }
+  @page { size: landscape; margin: 0; }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     padding: 0;
-    width: 15in;
-    height: 10in;
-    min-width: 15in;
-    min-height: 10in;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     background: #ffffff;
     overflow: hidden;
   }
@@ -2355,232 +2355,125 @@ function printCertificateDocument(record: CertificateRecord) {
     color: #102129;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .page {
+    container-type: inline-size;
     position: relative;
-    width: 15in;
-    height: 10in;
+    width: min(100%, 150vh);
+    height: auto;
     aspect-ratio: 1536 / 1024;
-    margin: 0;
+    flex: 0 0 auto;
     overflow: hidden;
     background: #f8f3e7;
+    border-left: 8px solid #ffffff;
+    border-right: 8px solid #ffffff;
   }
   .artwork {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 1536px;
-    height: 1024px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     display: block;
     z-index: 0;
+    object-fit: fill;
   }
   .overlay {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 1536px;
-    height: 1024px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 2;
     pointer-events: none;
   }
-
-  /*
-    Master artwork is exactly 1536 x 1024.
-    Every dynamic field below uses fixed pixel coordinates so browser/PDF
-    rendering cannot move the text because of percentage or physical units.
-  */
-  .student {
+  .field {
     position: absolute;
-    left: 350px;
-    top: 399px;
-    width: 836px;
-    height: 72px;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .student {
+    left: 22.7865%; top: 38.965%; width: 54.427%; height: 7.03%;
     color: #a87517;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 60px;
+    font-size: 3.90625cqw;
     line-height: 1;
     font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-
   .course {
-    position: absolute;
-    left: 365px;
-    top: 536px;
-    width: 806px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    left: 23.763%; top: 52.344%; width: 52.474%; height: 5.469%;
     color: #071b1b;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 42px;
+    font-size: 2.734375cqw;
     line-height: 1;
     font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-
   .description {
-    position: absolute;
-    left: 350px;
-    top: 580px;
-    width: 836px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    left: 22.7865%; top: 56.64%; width: 54.427%; height: 2.05%;
     color: #344d57;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 13px;
+    font-size: .846354cqw;
     line-height: 1.15;
     font-weight: 500;
-    letter-spacing: 0.05px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-
-  .category-value,
-  .level-value,
-  .date-value {
-    position: absolute;
-    top: 684px;
-    height: 24px;
-    display: flex;
-    align-items: center;
+  .category, .level, .date {
+    top: 66.8%; height: 2.55%;
     color: #101e23;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 13px;
+    font-size: .846354cqw;
     line-height: 1;
     font-weight: 800;
-    letter-spacing: -0.1px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .category-value { left: 400px; width: 178px; justify-content: center; text-align: center; }
-  .level-value { left: 742px; width: 178px; justify-content: center; text-align: center; }
-  .date-value { left: 1082px; width: 188px; justify-content: center; text-align: center; }
-
+  .category { left: 26.04%; width: 11.59%; }
+  .level { left: 48.31%; width: 11.59%; }
+  .date { left: 70.44%; width: 12.24%; }
   .signature-name {
-    position: absolute;
-    left: 270px;
-    top: 790px;
-    width: 300px;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    left: 17.58%; top: 77.15%; width: 19.53%; height: 4.1%;
     color: #101c20;
     font-family: "Segoe Script", "Brush Script MT", "Lucida Handwriting", cursive;
-    font-size: 26px;
+    font-size: 1.693cqw;
     line-height: 1;
     font-style: italic;
-    white-space: nowrap;
-    overflow: hidden;
   }
-
   .signature-person {
-    position: absolute;
-    left: 270px;
-    top: 864px;
-    width: 300px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    left: 17.58%; top: 84%; width: 19.53%; height: 2.35%;
     color: #0d171a;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 17px;
+    font-size: 1.107cqw;
     line-height: 1;
     font-weight: 800;
-    white-space: nowrap;
   }
-
   .signature-role {
-    position: absolute;
-    left: 270px;
-    top: 889px;
-    width: 300px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    left: 17.58%; top: 86.43%; width: 19.53%; height: 2.15%;
     color: #263d43;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 16px;
+    font-size: 1.042cqw;
     line-height: 1;
-    white-space: nowrap;
   }
-
   .qr {
     position: absolute;
-    left: 963px;
-    top: 750px;
-    width: 147px;
-    height: 147px;
-    padding: 0;
+    left: 62.695%; top: 73.24%;
+    width: 9.57%; height: 14.36%;
+    z-index: 2;
   }
   .qr img {
     display: block;
-    width: 147px;
-    height: 147px;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
-
-  .credential-id {
-    position: absolute;
-    left: 1198px;
-    top: 779px;
-    width: 194px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+  .credential {
+    left: 78%; top: 76.07%; width: 12.63%; height: 2.2%;
     color: #102129;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 14px;
+    font-size: .9115cqw;
     line-height: 1;
     font-weight: 800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-
   @media screen {
-    html, body { overflow: auto; }
-    body { background: #dfe4e1; padding: 18px; display: flex; align-items: center; justify-content: center; }
+    body { background: #dfe4e1; padding: 18px; }
     .page { box-shadow: 0 12px 45px rgba(0,0,0,.18); }
-  }
-  @media print {
-    html, body {
-      width: 15in;
-      height: 10in;
-      min-width: 15in;
-      min-height: 10in;
-      overflow: hidden;
-    }
-    .page {
-      width: 15in;
-      height: 10in;
-      max-width: none;
-      max-height: none;
-      aspect-ratio: 1536 / 1024;
-      margin: 0;
-    }
   }
 </style>
 </head>
@@ -2588,17 +2481,17 @@ function printCertificateDocument(record: CertificateRecord) {
   <div class="page">
     <img class="artwork" src="${templateUrl}" alt="" />
     <div class="overlay">
-      <div class="student">${student}</div>
-      <div class="course">${title}</div>
-      <div class="description">${description}</div>
-      <div class="category-value">${category}</div>
-      <div class="level-value">${level}</div>
-      <div class="date-value">${issueDate}</div>
-      <div class="signature-name">Naimish Singh</div>
-      <div class="signature-person">Naimish Singh</div>
-      <div class="signature-role">CEO, SkillForge</div>
+      <div class="field student">${student}</div>
+      <div class="field course">${title}</div>
+      <div class="field description">${description}</div>
+      <div class="field category">${category}</div>
+      <div class="field level">${level}</div>
+      <div class="field date">${issueDate}</div>
+      <div class="field signature-name">Naimish Singh</div>
+      <div class="field signature-person">Naimish Singh</div>
+      <div class="field signature-role">CEO, SkillForge</div>
       <div class="qr"><img src="${qr}" alt="Certificate verification QR code" /></div>
-      <div class="credential-id">${id}</div>
+      <div class="field credential">${id}</div>
     </div>
   </div>
 </body>
@@ -2664,6 +2557,8 @@ function CertificateArtwork({ record, fitToContainer = false }: { record: Certif
           width: 100%;
           aspect-ratio: 1536 / 1024;
           overflow: hidden;
+          border-left: 8px solid #ffffff;
+          border-right: 8px solid #ffffff;
         }
         .sf-artwork-fit {
           width: min(100%, 900px);
