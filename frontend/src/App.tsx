@@ -2368,8 +2368,10 @@ function printCertificateDocument(record: CertificateRecord) {
     flex: 0 0 auto;
     overflow: hidden;
     background: #f8f3e7;
-    border-left: 8px solid #ffffff;
+    border-top: 8px solid #ffffff;
     border-right: 8px solid #ffffff;
+    border-bottom: 8px solid #ffffff;
+    border-left: 8px solid #ffffff;
   }
   .artwork {
     position: absolute;
