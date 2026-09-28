@@ -207,16 +207,17 @@ router.post(
         });
       }
 
-      const { type, courseId } = req.body;
+      const { type, courseId, offerId, courseIds } = req.body;
 
       let amount = 0;
       let receipt = "";
       let normalizedCourseIds: string[] = [];
+      let paymentType = "";
+      let selectedOfferId: number | null = null;
 
       /* =================================================
          INDIVIDUAL COURSE
       ================================================= */
-
       if (type === "course") {
         if (
           courseId === undefined ||
@@ -230,12 +231,7 @@ router.post(
         }
 
         const normalizedCourseId = String(courseId).trim();
-
         normalizedCourseIds = [normalizedCourseId];
-
-        /* ---------------------------------------------
-           Check existing enrollment
-        --------------------------------------------- */
 
         const existingEnrollment = await pool.query(
           `
@@ -255,14 +251,7 @@ router.post(
           });
         }
 
-        /* ---------------------------------------------
-           COURSE PRICE FROM DATABASE
-           Admin Portal -> courses.price -> Razorpay
-        --------------------------------------------- */
-
-        const course = await getCourseByPublicId(
-          normalizedCourseId,
-        );
+        const course = await getCourseByPublicId(normalizedCourseId);
 
         if (!course) {
           return res.status(404).json({
@@ -299,13 +288,149 @@ router.post(
         }
 
         amount = coursePrice * 100;
-
         receipt = `course_${normalizedCourseId}_${Date.now()}`;
+        paymentType = "course";
       }
 
       /* =================================================
-         INVALID PAYMENT TYPE
+         MIX & MATCH OFFER
+         Admin controls the price in offers.price.
+         Frontend never sends the amount.
       ================================================= */
+      else if (type === "offer") {
+        const numericOfferId = Number(offerId);
+
+        if (!Number.isInteger(numericOfferId) || numericOfferId <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Offer ID is required",
+          });
+        }
+
+        if (!Array.isArray(courseIds)) {
+          return res.status(400).json({
+            success: false,
+            message: "Selected course IDs are required",
+          });
+        }
+
+        normalizedCourseIds = [
+          ...new Set(
+            courseIds
+              .map((id: unknown) => String(id).trim())
+              .filter(Boolean),
+          ),
+        ];
+
+        const offerResult = await pool.query(
+          `
+          SELECT
+            id,
+            title,
+            price,
+            course_ids,
+            is_active,
+            start_at,
+            end_at
+          FROM offers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [numericOfferId],
+        );
+
+        if (offerResult.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Offer not found",
+          });
+        }
+
+        const offer = offerResult.rows[0];
+        const now = new Date();
+        const startsAt = offer.start_at ? new Date(offer.start_at) : null;
+        const endsAt = offer.end_at ? new Date(offer.end_at) : null;
+
+        if (
+          !offer.is_active ||
+          (startsAt && now < startsAt) ||
+          (endsAt && now > endsAt)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "This offer is not currently available",
+          });
+        }
+
+        const eligibleCourseIds = Array.isArray(offer.course_ids)
+          ? offer.course_ids.map((id: unknown) => String(id).trim()).filter(Boolean)
+          : [];
+
+        const titleMatch = String(offer.title).match(/any\s+(2|3)\s+courses?/i);
+        if (!titleMatch) {
+          return res.status(400).json({
+            success: false,
+            message: "This offer is not configured as an Any 2 or Any 3 course offer",
+          });
+        }
+
+        const requiredCount = Number(titleMatch[1]);
+
+        if (normalizedCourseIds.length !== requiredCount) {
+          return res.status(400).json({
+            success: false,
+            message: `Please select exactly ${requiredCount} different courses for this offer`,
+          });
+        }
+
+        if (normalizedCourseIds.some((id) => !eligibleCourseIds.includes(id))) {
+          return res.status(400).json({
+            success: false,
+            message: "One or more selected courses are not included in this offer",
+          });
+        }
+
+        const existingEnrollment = await pool.query(
+          `
+          SELECT course_id
+          FROM enrollments
+          WHERE user_id = $1
+            AND course_id = ANY($2::text[])
+          `,
+          [userId, normalizedCourseIds],
+        );
+
+        if (existingEnrollment.rows.length > 0) {
+          return res.status(409).json({
+            success: false,
+            message: "You are already enrolled in one or more selected courses",
+            alreadyEnrolled: existingEnrollment.rows.map((row) => String(row.course_id)),
+          });
+        }
+
+        for (const selectedId of normalizedCourseIds) {
+          const course = await getCourseByPublicId(selectedId);
+          if (!course || !course.is_published) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more selected courses are unavailable",
+            });
+          }
+        }
+
+        const offerPrice = Number(offer.price);
+        if (!Number.isFinite(offerPrice) || offerPrice <= 0 || !Number.isInteger(offerPrice)) {
+          return res.status(500).json({
+            success: false,
+            message: "Invalid offer price configured by SkillForge admin",
+          });
+        }
+
+        amount = offerPrice * 100;
+        receipt = `offer_${numericOfferId}_${Date.now()}`;
+        paymentType = "offer";
+        selectedOfferId = numericOfferId;
+      }
 
       else {
         return res.status(400).json({
@@ -314,24 +439,18 @@ router.post(
         });
       }
 
-      /* =================================================
-         CREATE RAZORPAY ORDER
-      ================================================= */
-
       const order = await razorpay.orders.create({
         amount,
         currency: "INR",
         receipt,
         notes: {
           userId: String(userId),
-          type: "course",
-          courseId: normalizedCourseIds[0],
+          type: paymentType,
+          courseId: paymentType === "course" ? normalizedCourseIds[0] : "",
+          courseIds: normalizedCourseIds.join(","),
+          offerId: selectedOfferId ? String(selectedOfferId) : "",
         },
       });
-
-      /* =================================================
-         SAVE PAYMENT ORDER
-      ================================================= */
 
       const paymentOrderResult = await pool.query(
         `
@@ -345,40 +464,21 @@ router.post(
           course_ids,
           status
         )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          'created'
-        )
-        RETURNING
-          id,
-          razorpay_order_id,
-          amount,
-          currency,
-          payment_type,
-          course_id,
-          course_ids,
-          status,
-          created_at
+        VALUES ($1,$2,$3,$4,$5,$6,$7,'created')
+        RETURNING id, razorpay_order_id, amount, currency, payment_type, course_id, course_ids, status, created_at
         `,
         [
           userId,
           order.id,
           amount,
           "INR",
-          "course",
-          normalizedCourseIds[0],
+          paymentType,
+          paymentType === "course" ? normalizedCourseIds[0] : null,
           normalizedCourseIds,
         ],
       );
 
-      const paymentOrder =
-        paymentOrderResult.rows[0];
+      const paymentOrder = paymentOrderResult.rows[0];
 
       return res.status(200).json({
         success: true,
@@ -392,15 +492,10 @@ router.post(
         keyId,
       });
     } catch (error) {
-      console.error(
-        "Create Razorpay order error:",
-        error,
-      );
-
+      console.error("Create Razorpay order error:", error);
       return res.status(500).json({
         success: false,
-        message:
-          "Unable to create payment order",
+        message: "Unable to create payment order",
       });
     }
   },
@@ -500,7 +595,9 @@ router.post(
           enrolledCourseIds:
             paymentOrder.payment_type === "course" && paymentOrder.course_id
               ? [String(paymentOrder.course_id)]
-              : [],
+              : paymentOrder.payment_type === "offer" && Array.isArray(paymentOrder.course_ids)
+                ? paymentOrder.course_ids.map((id: string) => String(id))
+                : [],
         });
       }
 
@@ -602,6 +699,15 @@ router.post(
           ];
         }
 
+        if (
+          paymentOrder.payment_type ===
+            "offer" &&
+          Array.isArray(paymentOrder.course_ids)
+        ) {
+          enrollmentCourseIds = paymentOrder.course_ids.map(
+            (id: string) => String(id),
+          );
+        }
 
         /* ---------------------------------------------
            Create enrollments
