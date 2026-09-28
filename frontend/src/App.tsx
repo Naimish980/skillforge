@@ -35,6 +35,7 @@ import {
   Moon,
 } from "lucide-react";
 import AdminDashboard from "./pages/AdminDashboard";
+import { Analytics } from "@vercel/analytics/react";
 
 type User = {
   id: number;
@@ -5797,12 +5798,22 @@ function App() {
   const certificateId = params.get("certificate");
 
   if (window.location.pathname === "/verify" || certificateId) {
-    return certificateId
-      ? <CertificateVerificationPage certificateId={certificateId} />
-      : <CertificateVerificationPage certificateId="" />;
+    return (
+      <>
+        {certificateId
+          ? <CertificateVerificationPage certificateId={certificateId} />
+          : <CertificateVerificationPage certificateId="" />}
+        <Analytics />
+      </>
+    );
   }
 
-  return <AppContent />;
+  return (
+    <>
+      <AppContent />
+      <Analytics />
+    </>
+  );
 }
 
 export default App;
