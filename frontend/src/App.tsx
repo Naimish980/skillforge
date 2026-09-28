@@ -2278,7 +2278,6 @@ html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
               totalProgress={totalProgress}
               completedCourses={completedCourses}
               loadingProgress={loadingProgress}
-              userName={user?.name ?? "Student"}
               onBack={onBack}
               onLearn={onLearn}
               setActiveTab={setActiveTab}
@@ -2326,7 +2325,7 @@ function printCertificateDocument(record: CertificateRecord) {
   const baseUrl = String(import.meta.env.BASE_URL || "/");
   const templateUrl = `${window.location.origin}${baseUrl}certificate-template.png`;
 
-  const printWindow = window.open("", "_blank", "width=1600,height=1100");
+  const printWindow = window.open("", "_blank", "width=980,height=680,scrollbars=yes,resizable=yes");
   if (!printWindow) {
     alert("Please allow pop-ups to download your certificate.");
     return;
@@ -2336,62 +2335,73 @@ function printCertificateDocument(record: CertificateRecord) {
 <html>
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=1536,height=1024,initial-scale=1" />
 <title>SkillForge Certificate - ${id}</title>
 <style>
-  @page { size: 15in 10in; margin: 0; }
-
+  @page { size: landscape; margin: 0; }
   * { box-sizing: border-box; }
-
   html, body {
     margin: 0;
-    width: 100%;
-    min-height: 100%;
-    background: #fff;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    min-width: 0;
+    min-height: 0;
+    background: #ffffff;
   }
-
   body {
     font-family: Arial, Helvetica, sans-serif;
     color: #102129;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
   .page {
     position: relative;
-    width: 15in;
-    height: 10in;
-    margin: 0 auto;
+    width: min(94vw, 1536px);
+    height: min(88vh, 1024px);
+    aspect-ratio: 1536 / 1024;
+    margin: auto;
     overflow: hidden;
     background: #f8f3e7;
   }
-
   .artwork {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: fill;
+    left: 0;
+    top: 0;
+    width: 1536px;
+    height: 1024px;
     display: block;
     z-index: 0;
   }
-
   .overlay {
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: 0;
+    width: 1536px;
+    height: 1024px;
     z-index: 2;
+    pointer-events: none;
   }
 
+  /*
+    Master artwork is exactly 1536 x 1024.
+    Every dynamic field below uses fixed pixel coordinates so browser/PDF
+    rendering cannot move the text because of percentage or physical units.
+  */
   .student {
     position: absolute;
-    left: 27%;
-    top: 39.7%;
-    width: 46%;
+    left: 350px;
+    top: 399px;
+    width: 836px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    color: #ad7918;
+    color: #a87517;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 0.52in;
-    line-height: 1.05;
+    font-size: 60px;
+    line-height: 1;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
@@ -2400,14 +2410,18 @@ function printCertificateDocument(record: CertificateRecord) {
 
   .course {
     position: absolute;
-    left: 25%;
-    top: 51.4%;
-    width: 50%;
+    left: 365px;
+    top: 536px;
+    width: 806px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     color: #071b1b;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 0.40in;
-    line-height: 1.05;
+    font-size: 42px;
+    line-height: 1;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
@@ -2416,136 +2430,143 @@ function printCertificateDocument(record: CertificateRecord) {
 
   .description {
     position: absolute;
-    left: 27%;
-    top: 57.9%;
-    width: 46%;
+    left: 350px;
+    top: 580px;
+    width: 836px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    color: #3d5058;
-    font-size: 0.18in;
-    line-height: 1.3;
+    color: #344d57;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    line-height: 1.15;
+    font-weight: 500;
+    letter-spacing: 0.05px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .category-value {
-    position: absolute;
-    left: 26.0%;
-    top: 68.2%;
-    width: 11.5%;
-    text-align: left;
-    color: #101e23;
-    font-size: 0.16in;
-    font-weight: 800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .level-value {
-    position: absolute;
-    left: 48.0%;
-    top: 68.2%;
-    width: 11.5%;
-    text-align: left;
-    color: #101e23;
-    font-size: 0.16in;
-    font-weight: 800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
+  .category-value,
+  .level-value,
   .date-value {
     position: absolute;
-    left: 70.0%;
-    top: 68.2%;
-    width: 11.8%;
-    text-align: left;
+    top: 684px;
+    height: 24px;
+    display: flex;
+    align-items: center;
     color: #101e23;
-    font-size: 0.16in;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    line-height: 1;
     font-weight: 800;
+    letter-spacing: -0.1px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .category-value { left: 400px; width: 178px; justify-content: center; text-align: center; }
+  .level-value { left: 742px; width: 178px; justify-content: center; text-align: center; }
+  .date-value { left: 1082px; width: 188px; justify-content: center; text-align: center; }
 
   .signature-name {
     position: absolute;
-    left: 17%;
-    top: 76.2%;
-    width: 20%;
+    left: 270px;
+    top: 790px;
+    width: 300px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    color: #111d22;
-    font-family: "Brush Script MT", "Segoe Script", cursive;
-    font-size: 0.40in;
+    color: #101c20;
+    font-family: "Segoe Script", "Brush Script MT", "Lucida Handwriting", cursive;
+    font-size: 26px;
     line-height: 1;
     font-style: italic;
     white-space: nowrap;
+    overflow: hidden;
   }
 
   .signature-person {
     position: absolute;
-    left: 17%;
-    top: 86.0%;
-    width: 20%;
+    left: 270px;
+    top: 864px;
+    width: 300px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     color: #0d171a;
-    font-size: 0.17in;
-    line-height: 1.1;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 17px;
+    line-height: 1;
     font-weight: 800;
     white-space: nowrap;
   }
 
   .signature-role {
     position: absolute;
-    left: 17%;
-    top: 88.0%;
-    width: 20%;
+    left: 270px;
+    top: 889px;
+    width: 300px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     color: #263d43;
-    font-size: 0.16in;
-    line-height: 1.1;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1;
     white-space: nowrap;
   }
 
   .qr {
     position: absolute;
-    left: 62.8%;
-    top: 74.0%;
-    width: 9.0%;
-    aspect-ratio: 1;
-    padding: 0.07in;
+    left: 963px;
+    top: 750px;
+    width: 147px;
+    height: 147px;
+    padding: 0;
   }
-
   .qr img {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 147px;
+    height: 147px;
   }
 
   .credential-id {
     position: absolute;
-    left: 78.0%;
-    top: 79.1%;
-    width: 14.0%;
+    left: 1198px;
+    top: 779px;
+    width: 194px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     color: #102129;
-    font-size: 0.17in;
-    line-height: 1.2;
-    font-weight: 900;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 800;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   @media screen {
-    body {
-      background: #dfe4e1;
-      padding: 20px;
-    }
-
-    .page {
-      box-shadow: 0 12px 45px rgba(0,0,0,.18);
-    }
+    html, body { overflow: auto; }
+    body { background: #dfe4e1; padding: 18px; display: flex; align-items: center; justify-content: center; }
+    .page { box-shadow: 0 12px 45px rgba(0,0,0,.18); }
+  }
+  @media print {
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    .page { width: 100vw; height: 100vh; max-width: none; max-height: none; aspect-ratio: auto; }
   }
 </style>
 </head>
@@ -2556,19 +2577,13 @@ function printCertificateDocument(record: CertificateRecord) {
       <div class="student">${student}</div>
       <div class="course">${title}</div>
       <div class="description">${description}</div>
-
       <div class="category-value">${category}</div>
       <div class="level-value">${level}</div>
       <div class="date-value">${issueDate}</div>
-
       <div class="signature-name">Naimish Singh</div>
       <div class="signature-person">Naimish Singh</div>
       <div class="signature-role">CEO, SkillForge</div>
-
-      <div class="qr">
-        <img src="${qr}" alt="Certificate verification QR code" />
-      </div>
-
+      <div class="qr"><img src="${qr}" alt="Certificate verification QR code" /></div>
       <div class="credential-id">${id}</div>
     </div>
   </div>
@@ -2591,6 +2606,130 @@ function printCertificateDocument(record: CertificateRecord) {
   }
 }
 
+function CertificateArtwork({ record, fitToContainer = false }: { record: CertificateRecord; fitToContainer?: boolean }) {
+  const verification = `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(record.certificateId)}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=${encodeURIComponent(verification)}`;
+  const baseUrl = String(import.meta.env.BASE_URL || "/");
+  const templateUrl = `${window.location.origin}${baseUrl}certificate-template.png`;
+  const issueDate = new Date(record.issuedAt).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const description = record.courseDescription || "Practical, structured learning from SkillForge.";
+
+  return (
+    <div className={`sf-artwork-shell${fitToContainer ? " sf-artwork-fit" : ""}`}>
+      <div className="sf-artwork-stage">
+        <img className="sf-artwork-bg" src={templateUrl} alt="SkillForge certificate" />
+        <div className="sf-artwork-field sf-student">{record.studentName}</div>
+        <div className="sf-artwork-field sf-course">{record.courseTitle}</div>
+        <div className="sf-artwork-field sf-description">{description}</div>
+        <div className="sf-artwork-field sf-category">{record.courseCategory || "IT & Tech"}</div>
+        <div className="sf-artwork-field sf-level">{record.courseLevel || "—"}</div>
+        <div className="sf-artwork-field sf-date">{issueDate}</div>
+        <div className="sf-artwork-field sf-signature">Naimish Singh</div>
+        <div className="sf-artwork-field sf-signature-person">Naimish Singh</div>
+        <div className="sf-artwork-field sf-signature-role">CEO, SkillForge</div>
+        <img className="sf-artwork-qr" src={qr} alt="Certificate verification QR code" />
+        <div className="sf-artwork-field sf-credential">{record.certificateId}</div>
+      </div>
+      <style>{`
+        .sf-artwork-shell {
+          container-type: inline-size;
+          width: min(100%, 900px);
+          max-width: 900px;
+          margin: 0 auto;
+          overflow: hidden;
+          border-radius: 10px;
+          background: #f8f3e7;
+          box-shadow: 0 18px 50px rgba(0,0,0,.28);
+        }
+        .sf-artwork-stage {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1536 / 1024;
+          overflow: hidden;
+        }
+        .sf-artwork-fit {
+          width: min(100%, 900px);
+          max-width: 900px;
+          height: auto;
+          aspect-ratio: 1536 / 1024;
+          flex: 0 1 auto;
+        }
+        .sf-artwork-fit .sf-artwork-stage {
+          width: 100%;
+          height: auto;
+          aspect-ratio: 1536 / 1024;
+        }
+        .sf-artwork-bg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: fill;
+          display: block;
+        }
+        .sf-artwork-field {
+          position: absolute;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          color: #102129;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+        .sf-student {
+          left: 22.7865%; top: 38.965%; width: 54.427%; height: 7.03%;
+          color: #a87517; font-family: Georgia, "Times New Roman", serif;
+          font-size: 3.90625cqw; line-height: 1; font-weight: 700;
+        }
+        .sf-course {
+          left: 23.763%; top: 52.344%; width: 52.474%; height: 5.469%;
+          color: #071b1b; font-family: Georgia, "Times New Roman", serif;
+          font-size: 2.734375cqw; line-height: 1; font-weight: 700;
+        }
+        .sf-description {
+          left: 22.7865%; top: 56.64%; width: 54.427%; height: 2.05%;
+          color: #344d57; font-size: .846354cqw; line-height: 1.15; font-weight: 500;
+        }
+        .sf-category, .sf-level, .sf-date {
+          top: 66.8%; height: 2.55%; font-size: .846354cqw; font-weight: 800; line-height: 1;
+        }
+        .sf-category { left: 26.04%; width: 11.59%; }
+        .sf-level { left: 48.31%; width: 11.59%; }
+        .sf-date { left: 70.44%; width: 12.24%; }
+        .sf-signature {
+          left: 17.58%; top: 77.15%; width: 19.53%; height: 4.1%;
+          color: #101c20; font-family: "Segoe Script", "Brush Script MT", cursive;
+          font-size: 1.693cqw; line-height: 1; font-style: italic;
+        }
+        .sf-signature-person {
+          left: 17.58%; top: 84.0%; width: 19.53%; height: 2.35%;
+          font-size: 1.107cqw; font-weight: 800;
+        }
+        .sf-signature-role {
+          left: 17.58%; top: 86.43%; width: 19.53%; height: 2.15%;
+          font-size: 1.042cqw; color: #263d43;
+        }
+        .sf-artwork-qr {
+          position: absolute; z-index: 2; left: 62.695%; top: 73.24%;
+          width: 9.57%; height: 14.36%; object-fit: contain;
+        }
+        .sf-credential {
+          left: 78.0%; top: 76.07%; width: 12.63%; height: 2.2%;
+          font-size: .9115cqw; font-weight: 800;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function DashboardTabContent({
   activeTab,
   enrolledCourses,
@@ -2598,7 +2737,6 @@ function DashboardTabContent({
   totalProgress,
   completedCourses,
   loadingProgress,
-  userName,
   onBack,
   onLearn,
   setActiveTab,
@@ -2609,13 +2747,12 @@ function DashboardTabContent({
   totalProgress: number;
   completedCourses: number;
   loadingProgress: boolean;
-  userName: string;
   onBack: () => void;
   onLearn: (course: Course) => void;
   setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
 }) {
-  const [certificateCourse, setCertificateCourse] = useState<Course | null>(null);
-  const [certificateRecord, setCertificateRecord] = useState<CertificateRecord | null>(null);
+  const [downloadCourse, setDownloadCourse] = useState<Course | null>(null);
+  const [downloadRecord, setDownloadRecord] = useState<CertificateRecord | null>(null);
   const [certificateRecords, setCertificateRecords] = useState<Record<string, CertificateRecord>>({});
   const [certificateLoading, setCertificateLoading] = useState(false);
 
@@ -2746,27 +2883,21 @@ function DashboardTabContent({
     });
   };
 
-  const verificationUrl = (id: string) =>
-    `${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(id)}`;
 
-  const qrUrl = (id: string) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verificationUrl(id))}`;
-
-  const openCertificate = async (course: Course) => {
+  const openDownloadFrame = async (course: Course) => {
     const record = certificateRecords[course.id] ?? await ensureCertificate(course);
     if (!record) return;
-    setCertificateRecord(record);
-    setCertificateCourse(course);
+    setDownloadRecord(record);
+    setDownloadCourse(course);
   };
 
-  const printCertificate = async (course: Course) => {
-    const record = certificateRecords[course.id] ?? await ensureCertificate(course);
-    if (!record) return;
+  const downloadCertificate = async () => {
+    if (!downloadRecord) return;
 
     const token = localStorage.getItem("skillforge_token");
     if (token) {
       try {
-        await fetch(`${API_BASE_URL}/api/payment/certificates/${encodeURIComponent(record.certificateId)}/download`, {
+        await fetch(`${API_BASE_URL}/api/payment/certificates/${encodeURIComponent(downloadRecord.certificateId)}/download`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2778,7 +2909,7 @@ function DashboardTabContent({
       }
     }
 
-    printCertificateDocument(record);
+    printCertificateDocument(downloadRecord);
   };
 
   const heading: Record<typeof activeTab, string> = {
@@ -2871,19 +3002,11 @@ function DashboardTabContent({
                   <div className="mt-4 flex flex-wrap gap-3">
                     <button
                       type="button"
-                      onClick={() => { void openCertificate(course); }}
+                      onClick={() => { void openDownloadFrame(course); }}
                       disabled={certificateLoading || !certificateRecords[course.id]}
                       className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {certificateRecords[course.id] ? "View Certificate" : "Preparing Certificate…"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { void printCertificate(course); }}
-                      disabled={certificateLoading || !certificateRecords[course.id]}
-                      className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Download PDF
+                      {certificateRecords[course.id] ? "Download PDF" : "Preparing Certificate…"}
                     </button>
                   </div>
                 </div>
@@ -2891,242 +3014,52 @@ function DashboardTabContent({
             </div>
           )}
 
-          {certificateCourse && (
+          {downloadCourse && downloadRecord && (
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm sm:p-6"
               onMouseDown={(event) => {
-                if (event.target === event.currentTarget) setCertificateCourse(null);
+                if (event.target === event.currentTarget) {
+                  setDownloadCourse(null);
+                  setDownloadRecord(null);
+                }
               }}
             >
-              <div className="w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-700 bg-[#07111f] shadow-2xl">
-                <div className="flex items-center justify-between border-b border-slate-700/80 px-5 py-4 sm:px-7">
+              <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#07111f] shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-700/80 px-5 py-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">SkillForge Certificate</p>
-                    <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Certificate of Completion</h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">SkillForge</p>
+                    <h2 className="mt-1 text-lg font-black text-white">Download Certificate</h2>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setCertificateCourse(null)}
+                    onClick={() => { setDownloadCourse(null); setDownloadRecord(null); }}
                     className="rounded-xl border border-slate-600 bg-slate-900/70 p-2 text-slate-300 transition hover:border-emerald-400 hover:text-white"
+                    aria-label="Close certificate download"
                   >
                     <X size={18}/>
                   </button>
                 </div>
 
-                <div className="grid max-h-[78vh] gap-0 overflow-y-auto lg:grid-cols-[1.55fr_.85fr]">
-                  <div className="bg-[#07111f] p-3 sm:p-6 lg:p-8">
-                    <style>{`
-                      .sf-preview {
-                        position: relative;
-                        width: 100%;
-                        aspect-ratio: 297 / 210;
-                        overflow: hidden;
-                        border: 2px solid #0b1736;
-                        background:
-                          radial-gradient(circle at 78% 18%, rgba(202,166,76,.08), transparent 22%),
-                          linear-gradient(135deg, #fffefb 0%, #fffdf7 50%, #fffaf0 100%);
-                        color: #0b1736;
-                        box-shadow: 0 20px 45px rgba(0,0,0,.28);
-                      }
-                      .sf-preview .frame-gold { position:absolute; inset:2.2%; border:1.5px solid #caa64c; pointer-events:none; z-index:5; }
-                      .sf-preview .frame-navy { position:absolute; inset:3.4%; border:1px solid #0b1736; pointer-events:none; z-index:5; }
-                      .sf-preview .wave { position:absolute; width:58%; height:82%; border:1px solid rgba(202,166,76,.10); border-radius:48%; transform:rotate(28deg); pointer-events:none; }
-                      .sf-preview .wave.one { left:-34%; top:18%; }
-                      .sf-preview .wave.two { left:-30%; top:14%; width:53%; height:74%; }
-                      .sf-preview .wave.three { right:-38%; bottom:-18%; width:58%; height:82%; }
-                      .sf-preview .ribbon-left { position:absolute; left:-11%; top:-8%; width:20%; height:117%; background:linear-gradient(90deg,#053f32,#08755a 42%,#0d4d3e 70%,#052f27); transform:rotate(35deg); }
-                      .sf-preview .ribbon-left:after { content:""; position:absolute; left:21%; top:-5%; width:12%; height:125%; background:linear-gradient(90deg,#d3a83f,#f5d777,#b58418); }
-                      .sf-preview .ribbon-right { position:absolute; right:-13%; top:-12%; width:21%; height:98%; background:linear-gradient(90deg,#06382e,#08765b 45%,#043126); transform:rotate(-35deg); }
-                      .sf-preview .ribbon-right:after { content:""; position:absolute; right:21%; top:-3%; width:12%; height:106%; background:linear-gradient(90deg,#b58418,#f5d777,#d3a83f); }
-                      .sf-preview .swoosh-left { position:absolute; left:-8%; bottom:-28%; width:64%; height:30%; border:1.8vw solid #d6ad4a; border-right:0; border-radius:50%; transform:rotate(26deg); }
-                      .sf-preview .swoosh-left:after { content:""; position:absolute; left:3%; top:9%; width:92%; height:74%; border:0.45vw solid #f1d26d; border-right:0; border-radius:50%; }
-                      .sf-preview .swoosh-right { position:absolute; right:-12%; top:-14%; width:34%; height:36%; border:1.5vw solid #d3a83f; border-left:0; border-bottom:0; border-radius:0 50% 0 0; transform:rotate(8deg); }
-                      .sf-preview .content { position:relative; z-index:10; height:100%; padding:7.5% 8.5% 6.5%; display:flex; flex-direction:column; }
-                      .sf-preview .topbar { display:flex; align-items:flex-start; justify-content:space-between; }
-                      .sf-preview .brand { font-size:clamp(18px,3.1vw,34px); font-weight:950; letter-spacing:-1.5px; line-height:1; color:#0b1736; }
-                      .sf-preview .brand span { color:#10a875; }
-                      .sf-preview .tag { margin-top:1.5%; font-size:clamp(5px,.75vw,9px); font-weight:800; letter-spacing:3px; color:#64748b; text-transform:uppercase; }
-                      .sf-preview .motto { margin-right:7%; text-align:left; font-size:clamp(4px,.62vw,7px); font-weight:800; line-height:1.6; letter-spacing:2px; color:#475569; text-transform:uppercase; }
-                      .sf-preview .motto-line { width:13mm; max-width:65%; height:1px; background:#caa64c; margin-top:5%; }
-                      .sf-preview .seal { width:clamp(38px,7vw,82px); height:clamp(38px,7vw,82px); flex:none; border-radius:50%; border:2px solid #caa64c; background:radial-gradient(circle,#fffef8,#fff8df); box-shadow:inset 0 0 0 2px rgba(202,166,76,.18),0 2px 8px rgba(11,23,54,.12); display:flex; align-items:center; justify-content:center; text-align:center; color:#a97913; font-size:clamp(5px,.7vw,8px); font-weight:950; line-height:1.35; letter-spacing:.7px; }
-                      .sf-preview .hero { text-align:center; margin-top:4%; }
-                      .sf-preview .eyebrow { font-size:clamp(6px,.82vw,10px); font-weight:900; letter-spacing:4px; color:#64748b; text-transform:uppercase; }
-                      .sf-preview .heading { margin:1.2% 0 0; font-family:Georgia,"Times New Roman",serif; font-size:clamp(22px,4.2vw,48px); line-height:1; letter-spacing:4px; color:#0b1736; }
-                      .sf-preview .rule { width:11%; height:1px; margin:1.5% auto 0; background:#caa64c; }
-                      .sf-preview .presented { margin-top:1.2%; color:#64748b; font-size:clamp(6px,.8vw,10px); }
-                      .sf-preview .student { margin-top:.8%; font-family:Georgia,"Times New Roman",serif; font-size:clamp(18px,3.2vw,34px); line-height:1.1; font-weight:700; color:#a97913; }
-                      .sf-preview .student-line { width:36%; margin:1% auto 0; border-top:1px solid #caa64c; }
-                      .sf-preview .course-label { margin-top:2%; color:#475569; font-size:clamp(6px,.72vw,9px); }
-                      .sf-preview .course { margin-top:.8%; max-width:80%; margin-left:auto; margin-right:auto; font-size:clamp(12px,2.1vw,24px); line-height:1.15; font-weight:950; color:#0b1736; }
-                      .sf-preview .description { max-width:72%; margin:1.5% auto 0; text-align:center; color:#475569; font-size:clamp(5px,.7vw,8.5px); line-height:1.45; }
-                      .sf-preview .bottom { margin-top:auto; display:grid; grid-template-columns:1fr 1.1fr 1fr; align-items:end; gap:4%; }
-                      .sf-preview .signature { text-align:center; padding-bottom:1%; }
-                      .sf-preview .signature-mark { font-family:"Brush Script MT","Segoe Script",cursive; font-size:clamp(10px,1.4vw,18px); color:#1f2937; margin-bottom:-1%; }
-                      .sf-preview .signature-line { width:70%; margin:0 auto 2%; border-top:1px solid #475569; }
-                      .sf-preview .signature strong { font-size:clamp(6px,.72vw,9px); }
-                      .sf-preview .signature span { display:block; margin-top:1%; color:#64748b; font-size:clamp(5px,.58vw,7px); }
-                      .sf-preview .qr-area { text-align:center; }
-                      .sf-preview .qr-frame { display:inline-flex; padding:1.5%; background:#fff; border:1px solid #caa64c; border-radius:3px; }
-                      .sf-preview .qr { width:clamp(48px,8.8vw,105px); height:clamp(48px,8.8vw,105px); display:block; }
-                      .sf-preview .qr-caption { margin-top:1.5%; font-size:clamp(5px,.62vw,7px); font-weight:950; color:#00885f; letter-spacing:1.5px; }
-                      .sf-preview .credential { text-align:right; padding-bottom:1%; }
-                      .sf-preview .credential-label { font-size:clamp(5px,.58vw,7px); font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
-                      .sf-preview .credential-id { margin-top:1%; font-size:clamp(5px,.72vw,8.5px); font-weight:950; color:#0b1736; word-break:break-all; }
-                      .sf-preview .issued-by { margin-top:3%; font-size:clamp(5px,.58vw,7px); font-weight:950; letter-spacing:1.5px; color:#94a3b8; text-transform:uppercase; }
-                      .sf-preview .issuer { margin-top:1%; font-size:clamp(6px,.72vw,8.5px); font-weight:950; color:#0b1736; }
-                      .sf-preview .footer-note { position:absolute; right:8.5%; bottom:5%; font-size:clamp(4px,.52vw,6px); font-weight:800; letter-spacing:2px; color:#64748b; text-transform:uppercase; }
-                    `}</style>
-
-                    <div className="sf-preview">
-                      <div className="frame-gold"/>
-                      <div className="frame-navy"/>
-                      <div className="wave one"/>
-                      <div className="wave two"/>
-                      <div className="wave three"/>
-                      <div className="ribbon-left"/>
-                      <div className="ribbon-right"/>
-                      <div className="swoosh-left"/>
-                      <div className="swoosh-right"/>
-
-                      <div className="content">
-                        <div className="topbar">
-                          <div>
-                            <div className="brand">Skill<span>Forge</span></div>
-                            <div className="tag">Learn · Practice · Grow</div>
-                          </div>
-                          <div className="flex items-start gap-3 sm:gap-6">
-                            <div className="motto hidden sm:block">
-                              Empowering<br/>Learners For<br/>A Brighter Tomorrow
-                              <div className="motto-line"/>
-                            </div>
-                            <div className="seal">SKILLFORGE<br/>VERIFIED</div>
-                          </div>
-                        </div>
-
-                        <div className="hero">
-                          <div className="eyebrow">Certificate of Completion</div>
-                          <div className="heading">CERTIFICATE</div>
-                          <div className="rule"/>
-                          <div className="presented">This certificate is proudly presented to</div>
-                          <div className="student">{userName}</div>
-                          <div className="student-line"/>
-                          <div className="course-label">for successfully completing the course</div>
-                          <div className="course">{certificateCourse.title}</div>
-                          <div className="description">
-                            {certificateRecord?.courseDescription ||
-                              "This certifies that the learner has successfully completed the course and demonstrated the required knowledge and practical skills."}
-                          </div>
-                        </div>
-
-                        <div className="bottom">
-                          <div className="signature">
-                            <div className="signature-mark">Naimish Singh</div>
-                            <div className="signature-line"/>
-                            <strong>Naimish Singh</strong>
-                            <span>CEO, SkillForge</span>
-                          </div>
-
-                          <div className="qr-area">
-                            {certificateRecord && (
-                              <>
-                                <div className="qr-frame">
-                                  <img
-                                    src={qrUrl(certificateRecord.certificateId)}
-                                    alt="Certificate verification QR"
-                                    className="qr"
-                                  />
-                                </div>
-                                <div className="qr-caption">SCAN TO VERIFY</div>
-                              </>
-                            )}
-                          </div>
-
-                          <div className="credential">
-                            <div className="credential-label">Credential ID</div>
-                            <div className="credential-id">{certificateRecord?.certificateId || "—"}</div>
-                            <div className="issued-by">Issued By</div>
-                            <div className="issuer">SkillForge</div>
-                            <div className="issued-by">Issue Date</div>
-                            <div className="issuer">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</div>
-                          </div>
-                        </div>
-
-                        <div className="footer-note">Skills Today · Better Tomorrow</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-slate-700 bg-[#07111f] p-5 sm:p-7 lg:border-l lg:border-t-0">
-                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
-                          <Award size={22}/>
-                        </div>
-                        <div>
-                          <p className="font-black text-emerald-400">Certificate Ready</p>
-                          <p className="mt-0.5 text-xs text-slate-400">This certificate is issued by SkillForge.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Certificate Details</p>
-                      <div className="mt-3 space-y-3">
-                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
-                          <span className="text-xs text-slate-500">Student</span>
-                          <span className="text-right text-xs font-bold text-white">{userName}</span>
-                        </div>
-                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
-                          <span className="text-xs text-slate-500">Course</span>
-                          <span className="text-right text-xs font-bold text-white">{certificateCourse.title}</span>
-                        </div>
-                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
-                          <span className="text-xs text-slate-500">Certificate ID</span>
-                          <span className="text-right text-xs font-bold text-emerald-400">{certificateRecord?.certificateId || "—"}</span>
-                        </div>
-                        <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
-                          <span className="text-xs text-slate-500">Issue Date</span>
-                          <span className="text-right text-xs font-bold text-white">{certificateRecord ? certificateIssueDate(certificateCourse) : "—"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">About This Course</p>
-                      <p className="mt-2 text-xs leading-5 text-slate-400">{certificateRecord?.courseDescription || certificateCourse.description || "Successfully completed the course requirements on SkillForge."}</p>
-                    </div>
-
-                    {!!(certificateRecord?.moduleTitles?.length) && (
-                      <div className="mt-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Key Modules</p>
-                        <div className="mt-3 space-y-2">
-                          {certificateRecord.moduleTitles.slice(0, 5).map((module, index) => (
-                            <div key={`${module}-${index}`} className="flex items-start gap-2 text-xs text-slate-300">
-                              <span className="mt-0.5 text-emerald-400">✓</span>
-                              <span>{module}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#111827] p-2 sm:p-3">
+                  <div className="flex h-full w-full items-center justify-center">
+                    <CertificateArtwork record={downloadRecord} fitToContainer />
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-end gap-3 border-t border-slate-700 bg-[#07111f] px-5 py-4 sm:flex-row sm:px-7">
+                <div className="flex flex-col-reverse gap-3 border-t border-slate-700 bg-[#07111f] p-4 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => setCertificateCourse(null)}
-                    className="rounded-xl border border-slate-600 px-5 py-3 text-sm font-bold text-slate-300 transition hover:border-slate-400 hover:text-white"
+                    onClick={() => { setDownloadCourse(null); setDownloadRecord(null); }}
+                    className="rounded-xl border border-slate-600 px-5 py-3 text-sm font-bold text-slate-300 hover:border-slate-400 hover:text-white"
                   >
                     Close
                   </button>
                   <button
                     type="button"
-                    onClick={() => { void printCertificate(certificateCourse); }}
-                    disabled={certificateLoading}
-                    className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 disabled:opacity-60"
+                    onClick={() => { void downloadCertificate(); }}
+                    className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 shadow-lg hover:bg-emerald-400"
                   >
-                    {certificateLoading ? "Preparing…" : "Download / Print Certificate"}
+                    Download / Print Certificate
                   </button>
                 </div>
               </div>
@@ -5572,7 +5505,6 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
     return () => { cancelled = true; };
   }, [certificateId]);
 
-  const issueDate = certificate ? new Date(certificate.issuedAt).toLocaleDateString("en-IN", {day:"2-digit",month:"long",year:"numeric"}) : "";
   const modules = (certificate?.moduleTitles ?? []).slice(0, 6);
 
   return (
@@ -5601,35 +5533,8 @@ function CertificateVerificationPage({ certificateId }: { certificateId: string 
                 <p className="mt-1 font-serif text-3xl font-bold text-[#b1882f] sm:text-4xl">{certificate.studentName}</p>
               </section>
 
-              <section className="relative mt-10 overflow-hidden border-2 border-[#073f33] bg-[#fbf8ed] shadow-2xl">
-                <div className="absolute inset-3 border border-[#c8a64e] pointer-events-none"/><div className="absolute inset-6 border border-[#123f35] pointer-events-none"/>
-                <div className="absolute -left-20 top-0 h-[120%] w-28 rotate-[28deg] bg-gradient-to-r from-[#06372e] via-[#0b765a] to-[#07503f]"/><div className="absolute -right-20 bottom-0 h-[120%] w-28 -rotate-[28deg] bg-gradient-to-r from-[#07503f] via-[#0b765a] to-[#06372e]"/>
-                <div className="relative z-10 p-7 sm:p-12 lg:p-14">
-                  <div className="flex items-start justify-between gap-5">
-                    <div><div className="text-3xl font-black text-[#073f33]">Skill<span className="text-[#0a8b67]">Forge</span></div><div className="mt-1 text-[10px] font-black uppercase tracking-[0.25em] text-[#707a73]">Learn · Practice · Grow</div></div>
-                    <div className="flex items-start gap-4"><div className="hidden text-right text-[10px] font-black uppercase leading-5 tracking-wider text-[#69736d] sm:block">Empowering<br/>Learners For<br/>A Brighter Tomorrow</div><div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#c8a64e] bg-[#fbf8ed] text-center text-[8px] font-black leading-3 text-[#0a5844]">SKILLFORGE<br/>VERIFIED</div></div>
-                  </div>
-                  <div className="mx-auto max-w-3xl py-8 text-center sm:py-10">
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#9b7829]">Certificate of Completion</p>
-                    <h2 className="mt-1 font-serif text-5xl font-black tracking-wider text-[#073f33] sm:text-6xl">CERTIFICATE</h2>
-                    <div className="mx-auto mt-3 h-1 w-28 bg-gradient-to-r from-transparent via-[#c8a64e] to-transparent"/>
-                    <p className="mt-6 font-serif text-sm text-[#737d77]">This certificate is proudly presented to</p>
-                    <p className="mt-2 font-serif text-4xl font-bold text-[#b1882f]">{certificate.studentName}</p>
-                    <div className="mx-auto mt-2 h-px w-64 bg-[#b1882f]/50"/>
-                    <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#737d77]">For successfully completing the course</p>
-                    <p className="mt-2 text-2xl font-black text-[#073f33]">{certificate.courseTitle}</p>
-                    {certificate.courseDescription && <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#69736d]">{certificate.courseDescription}</p>}
-                  </div>
-                  <div className="grid gap-4 border-t border-[#d8c991] pt-5 sm:grid-cols-3">
-                    {[['Category',certificate.courseCategory || 'IT & Tech'],['Level',certificate.courseLevel || '—'],['Issue Date',issueDate]].map(([label,value])=><div key={label} className="border border-[#d9c78e] bg-white/60 p-4 text-center"><div className="text-[10px] font-black uppercase tracking-widest text-[#8a7950]">{label}</div><div className="mt-1 text-sm font-black text-[#173d33]">{value}</div></div>)}
-                  </div>
-                  <div className="mt-7 grid items-end gap-7 sm:grid-cols-[1fr_auto_1fr]">
-                    <div><div className="font-serif text-2xl italic text-[#0b5a46]">Naimish Singh</div><div className="mt-1 w-44 border-t border-[#4c5d55]"/><div className="mt-2 text-[10px] font-black uppercase tracking-wider text-[#626d67]">Naimish Singh · CEO, SkillForge</div></div>
-                    <div className="text-center"><div className="mx-auto w-28 border border-[#c8a64e] bg-white p-1"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=0&data=${encodeURIComponent(`${SKILLFORGE_PUBLIC_URL}/verify?certificate=${encodeURIComponent(certificate.certificateId)}`)}`} className="w-full" alt="Verification QR"/></div><div className="mt-1 text-[9px] font-black tracking-widest text-[#0a6049]">SCAN TO VERIFY</div></div>
-                    <div className="border-l border-[#d5bd74] pl-5"><div className="text-[10px] font-black uppercase tracking-widest text-[#8a7950]">Credential ID</div><div className="mt-1 break-all text-sm font-black text-[#173d33]">{certificate.certificateId}</div><div className="mt-2 text-xs font-bold text-[#626d67]">Issued by SkillForge · Verified Certificate</div></div>
-                  </div>
-                  <div className="mt-6 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[#7e866f]">Skills Today · Better Tomorrow</div>
-                </div>
+              <section className="mx-auto mt-8 max-w-4xl">
+                <CertificateArtwork record={certificate} />
               </section>
 
               <section className="mx-auto mt-8 grid max-w-5xl gap-5 md:grid-cols-3">
