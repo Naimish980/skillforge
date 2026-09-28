@@ -362,8 +362,14 @@ router.post(
           });
         }
 
+        // The Admin Portal stores offer.course_ids as database IDs, while the
+        // student-facing catalog/payment flow uses stable public IDs (slugs).
+        // Resolve every selected public ID first, then accept the course when
+        // either its DB ID or its public ID is present in the offer.
         const eligibleCourseIds = Array.isArray(offer.course_ids)
-          ? offer.course_ids.map((id: unknown) => String(id).trim()).filter(Boolean)
+          ? offer.course_ids
+              .map((id: unknown) => String(id).trim())
+              .filter(Boolean)
           : [];
 
         const titleMatch = String(offer.title).match(/any\s+(2|3)\s+courses?/i);
@@ -383,11 +389,32 @@ router.post(
           });
         }
 
-        if (normalizedCourseIds.some((id) => !eligibleCourseIds.includes(id))) {
-          return res.status(400).json({
-            success: false,
-            message: "One or more selected courses are not included in this offer",
-          });
+        for (const selectedId of normalizedCourseIds) {
+          const course = await getCourseByPublicId(selectedId);
+
+          if (!course || !course.is_published) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more selected courses are unavailable",
+            });
+          }
+
+          const dbCourseId = String(course.id);
+          const publicCourseId = slugify(
+            String(course.title),
+            Number(course.id),
+          );
+
+          if (
+            !eligibleCourseIds.includes(dbCourseId) &&
+            !eligibleCourseIds.includes(publicCourseId)
+          ) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more selected courses are not included in this offer",
+            });
+          }
+
         }
 
         const existingEnrollment = await pool.query(
@@ -406,16 +433,6 @@ router.post(
             message: "You are already enrolled in one or more selected courses",
             alreadyEnrolled: existingEnrollment.rows.map((row) => String(row.course_id)),
           });
-        }
-
-        for (const selectedId of normalizedCourseIds) {
-          const course = await getCourseByPublicId(selectedId);
-          if (!course || !course.is_published) {
-            return res.status(400).json({
-              success: false,
-              message: "One or more selected courses are unavailable",
-            });
-          }
         }
 
         const offerPrice = Number(offer.price);
