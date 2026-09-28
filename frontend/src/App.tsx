@@ -4296,11 +4296,11 @@ function CoursePlayer({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          courseId: course.id,
-          moduleId: activeModule?.id ?? "",
-          lectureId: lecture.id,
-          score: currentScore,
-          total,
+          courseId: String(course.id),
+          moduleId: String(activeModule?.id ?? ""),
+          lectureId: String(lecture.id),
+          quizScore: Number(currentScore),
+          quizTotal: Number(total),
         }),
       });
 
@@ -4311,7 +4311,7 @@ function CoursePlayer({
         return;
       }
 
-      if (data?.progress?.passed === true) {
+      if (data?.passed === true) {
         localStorage.setItem(`${key}_complete`, "true");
       } else {
         localStorage.removeItem(`${key}_complete`);
