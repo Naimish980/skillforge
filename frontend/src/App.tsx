@@ -2361,6 +2361,7 @@ function printCertificateDocument(record: CertificateRecord) {
     margin: 0;
     overflow: hidden;
     background: #f8f3e7;
+    border: 8px solid #ffffff;
   }
   .artwork {
     position: absolute;
@@ -2644,6 +2645,8 @@ function CertificateArtwork({ record }: { record: CertificateRecord }) {
           width: 100%;
           aspect-ratio: 1536 / 1024;
           overflow: hidden;
+          border: 8px solid #ffffff;
+          background: #ffffff;
         }
         .sf-artwork-bg {
           position: absolute;
