@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { pool } from "../db";
 import {
   AuthenticatedRequest,
@@ -45,7 +45,9 @@ async function verifyAdmin(
     return false;
   }
 
-  if (adminResult.rows[0].role !== "admin") {
+  const admin = adminResult.rows[0];
+
+  if (admin.role !== "admin") {
     res.status(403).json({
       success: false,
       message: "Admin access required",
@@ -58,14 +60,17 @@ async function verifyAdmin(
 }
 
 /* =====================================================
-   GET ALL OFFERS
+   ADMIN - GET ALL OFFERS
    GET /api/offers
 ===================================================== */
 
 router.get(
   "/",
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
     try {
       const isAdmin = await verifyAdmin(req, res);
 
@@ -92,7 +97,7 @@ router.get(
           created_at,
           updated_at
         FROM offers
-        ORDER BY created_at DESC, id DESC
+        ORDER BY created_at DESC
       `);
 
       return res.status(200).json({
@@ -111,14 +116,17 @@ router.get(
 );
 
 /* =====================================================
-   CREATE OFFER
+   ADMIN - CREATE OFFER
    POST /api/offers
 ===================================================== */
 
 router.post(
   "/",
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
     try {
       const isAdmin = await verifyAdmin(req, res);
 
@@ -176,7 +184,13 @@ router.post(
       }
 
       const ids = Array.isArray(courseIds)
-        ? courseIds.map((id: unknown) => String(id))
+        ? [
+            ...new Set(
+              courseIds
+                .map((id: unknown) => String(id).trim())
+                .filter(Boolean),
+            ),
+          ]
         : [];
 
       const result = await pool.query(
@@ -255,14 +269,17 @@ router.post(
 );
 
 /* =====================================================
-   UPDATE OFFER
+   ADMIN - UPDATE OFFER
    PUT /api/offers/:offerId
 ===================================================== */
 
 router.put(
   "/:offerId",
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
     try {
       const isAdmin = await verifyAdmin(req, res);
 
@@ -329,7 +346,13 @@ router.put(
       }
 
       const ids = Array.isArray(courseIds)
-        ? courseIds.map((id: unknown) => String(id))
+        ? [
+            ...new Set(
+              courseIds
+                .map((id: unknown) => String(id).trim())
+                .filter(Boolean),
+            ),
+          ]
         : [];
 
       const result = await pool.query(
@@ -403,14 +426,17 @@ router.put(
 );
 
 /* =====================================================
-   ACTIVATE / DEACTIVATE OFFER
+   ADMIN - ACTIVATE / DEACTIVATE
    PATCH /api/offers/:offerId/status
 ===================================================== */
 
 router.patch(
   "/:offerId/status",
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
     try {
       const isAdmin = await verifyAdmin(req, res);
 
@@ -467,14 +493,17 @@ router.patch(
 );
 
 /* =====================================================
-   DELETE OFFER
+   ADMIN - DELETE OFFER
    DELETE /api/offers/:offerId
 ===================================================== */
 
 router.delete(
   "/:offerId",
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
     try {
       const isAdmin = await verifyAdmin(req, res);
 
@@ -523,13 +552,18 @@ router.delete(
 );
 
 /* =====================================================
-   PUBLIC ACTIVE OFFER
+   PUBLIC - ALL ACTIVE OFFERS
    GET /api/offers/public/active
+
+   IMPORTANT:
+   Returns ALL active offers, not LIMIT 1.
+   This allows Any 2 and Any 3 offers to appear
+   together on the SkillForge homepage.
 ===================================================== */
 
 router.get(
   "/public/active",
-  async (_req, res) => {
+  async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(`
         SELECT
@@ -557,23 +591,19 @@ router.get(
             end_at IS NULL
             OR end_at >= NOW()
           )
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
+        ORDER BY created_at DESC
       `);
 
       return res.status(200).json({
         success: true,
-        offer: result.rows[0] || null,
+        offers: result.rows,
       });
     } catch (error) {
-      console.error(
-        "Get public offer error:",
-        error,
-      );
+      console.error("Get public offers error:", error);
 
       return res.status(500).json({
         success: false,
-        message: "Unable to load offer",
+        message: "Unable to load offers",
       });
     }
   },
