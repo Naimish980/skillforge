@@ -329,10 +329,30 @@ const securityModules: CourseModule[] = [
   }
 ];
 
+const getActiveUserId = (): string => {
+  if (typeof window === "undefined") return "anonymous";
+
+  try {
+    const storedUser = localStorage.getItem("skillforge_user");
+    if (!storedUser) return "anonymous";
+    const parsed = JSON.parse(storedUser) as { id?: number | string };
+    const userId = String(parsed?.id ?? "").trim();
+    return userId || "anonymous";
+  } catch {
+    return "anonymous";
+  }
+};
+
+const getLectureProgressKey = (courseId: string, lectureId: string): string =>
+  `skillforge_lecture_progress_${getActiveUserId()}_${courseId}_${lectureId}`;
+
+const getResumeStorageKey = (courseId: string): string =>
+  `skillforge_resume_${getActiveUserId()}_${courseId}`;
+
 const getLocalCompletedLessons = (courseId: string): number => {
   if (typeof window === "undefined") return 0;
 
-  const prefix = `skillforge_lecture_progress_${courseId}_`;
+  const prefix = `skillforge_lecture_progress_${getActiveUserId()}_${courseId}_`;
   const suffix = "_complete";
   let completed = 0;
 
@@ -1926,6 +1946,7 @@ function DashboardPage({
   );
 
   const [progressByCourse, setProgressByCourse] = useState<Record<string, number>>({});
+  const [completedLessonsByCourse, setCompletedLessonsByCourse] = useState<Record<string, number>>({});
   const [lessonTotalsByCourse, setLessonTotalsByCourse] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     enrolledCourses.forEach((course) => {
@@ -1940,11 +1961,14 @@ function DashboardPage({
       const token = localStorage.getItem("skillforge_token");
       if (!token || enrolledCourses.length === 0) {
         setProgressByCourse({});
+        setCompletedLessonsByCourse({});
+        setLessonTotalsByCourse({});
         return;
       }
 
       setLoadingProgress(true);
       const next: Record<string, number> = {};
+      const nextCompleted: Record<string, number> = {};
       const nextLessonTotals: Record<string, number> = {};
 
       await Promise.all(
@@ -1964,35 +1988,42 @@ function DashboardPage({
 
             if (!response.ok) {
               const completed = getLocalCompletedLessons(course.id);
+              nextCompleted[course.id] = completed;
               next[course.id] = Math.min(100, Math.round((completed / actualLessonTotal) * 100));
               return;
             }
 
             const data = await response.json();
             const progress = Array.isArray(data.progress) ? data.progress : [];
+            const completed = progress.filter(
+              (item: { passed?: boolean; completed_at?: string | null }) =>
+                item?.passed === true && Boolean(item?.completed_at),
+            ).length;
 
             for (const item of progress) {
               if (item?.passed !== true || !item?.completed_at) continue;
               const lectureId = String(item.lecture_id ?? "").trim();
               if (!lectureId) continue;
-              const key = `skillforge_lecture_progress_${course.id}_${lectureId}`;
+              const key = getLectureProgressKey(course.id, lectureId);
               localStorage.setItem(`${key}_video`, "true");
               localStorage.setItem(`${key}_complete`, "true");
             }
 
-            const completed = getLocalCompletedLessons(course.id);
+            nextCompleted[course.id] = completed;
             next[course.id] = Math.min(100, Math.round((completed / actualLessonTotal) * 100));
           } catch (error) {
             console.error(`Progress loading error for ${course.id}:`, error);
             const fallbackTotal = getCourseLessonTotal(course);
             nextLessonTotals[course.id] = fallbackTotal;
             const completed = getLocalCompletedLessons(course.id);
+            nextCompleted[course.id] = completed;
             next[course.id] = Math.min(100, Math.round((completed / fallbackTotal) * 100));
           }
         }),
       );
 
       setLessonTotalsByCourse(nextLessonTotals);
+      setCompletedLessonsByCourse(nextCompleted);
       setProgressByCourse(next);
       setLoadingProgress(false);
     };
@@ -2022,7 +2053,7 @@ function DashboardPage({
   );
 
   const totalCompletedLessonCount = enrolledCourses.reduce(
-    (sum, course) => sum + getLocalCompletedLessons(course.id),
+    (sum, course) => sum + (completedLessonsByCourse[course.id] ?? getLocalCompletedLessons(course.id)),
     0,
   );
 
@@ -2975,7 +3006,7 @@ function DashboardTabContent({
 
     // A certificate is available only after every lecture quiz in the
     // course has been passed and the completion flags reach 100%.
-    if (getLocalCourseProgress(course) < 100) {
+    if ((progressByCourse[course.id] ?? 0) < 100) {
       alert("Pass all lecture quizzes to unlock your certificate.");
       return null;
     }
@@ -3029,6 +3060,8 @@ function DashboardTabContent({
           return;
         }
 
+        // Never trust the existence of a certificate record as proof of completion.
+        // The UI unlocks a certificate only when the current course progress is 100%.
         const next: Record<string, CertificateRecord> = {};
 
         for (const item of data.certificates) {
@@ -3038,48 +3071,14 @@ function DashboardTabContent({
             (candidate) => candidate.id === String(item.courseId),
           );
 
-          // Do not unlock/display an existing certificate until all lecture
-          // quizzes are passed for that course.
-          if (course && getLocalCourseProgress(course) >= 100) {
+          if (course && (progressByCourse[course.id] ?? 0) >= 100) {
             next[String(item.courseId)] = item as CertificateRecord;
           }
         }
 
-        // Certificates are issued once and persisted in PostgreSQL.
-        // If a course is already 100% complete but its certificate record
-        // does not exist yet, issue it silently once. Future visits simply
-        // load the existing record and never create a new ID.
-        const completedCoursesList = enrolledCourses.filter(
-          (course) => (progressByCourse[course.id] ?? 0) >= 100,
-        );
-
-        for (const course of completedCoursesList) {
-          if (next[course.id]) continue;
-
-          try {
-            const issueResponse = await fetch(`${API_BASE_URL}/api/payment/certificates/issue`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ courseId: course.id }),
-            });
-
-            const issueData = await issueResponse.json().catch(() => null);
-
-            if (
-              issueResponse.ok &&
-              issueData?.success &&
-              issueData?.certificate?.certificateId
-            ) {
-              next[course.id] = issueData.certificate as CertificateRecord;
-            }
-          } catch (error) {
-            console.error("Automatic certificate issue error:", error);
-          }
-        }
-
+        // Do not automatically issue certificates from this tab.
+        // A certificate is created only after every lecture quiz is passed
+        // and the backend completion check succeeds.
         if (!cancelled) {
           setCertificateRecords(next);
         }
@@ -4499,7 +4498,7 @@ function CoursePlayer({
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const resumeInitializedRef = useRef(false);
-  const resumeKey = `skillforge_resume_${course.id}`;
+  const resumeKey = getResumeStorageKey(course.id);
 
   useEffect(() => {
     const refresh = () => setProgressRefresh((value) => value + 1);
@@ -4536,7 +4535,7 @@ function CoursePlayer({
       module.lectures.some(
         (item) =>
           localStorage.getItem(
-            `skillforge_lecture_progress_${course.id}_${item.id}_complete`,
+            `${getLectureProgressKey(course.id, item.id)}_complete`,
           ) !== "true",
       ),
     );
@@ -4545,7 +4544,7 @@ function CoursePlayer({
       const firstIncompleteLectureIndex = modules[firstIncompleteModuleIndex].lectures.findIndex(
         (item) =>
           localStorage.getItem(
-            `skillforge_lecture_progress_${course.id}_${item.id}_complete`,
+            `${getLectureProgressKey(course.id, item.id)}_complete`,
           ) !== "true",
       );
 
@@ -4587,7 +4586,7 @@ function CoursePlayer({
           const lectureId = String(item.lecture_id ?? "").trim();
           if (!lectureId) continue;
 
-          const key = `skillforge_lecture_progress_${course.id}_${lectureId}`;
+          const key = getLectureProgressKey(course.id, lectureId);
           localStorage.setItem(`${key}_video`, "true");
           localStorage.setItem(`${key}_complete`, "true");
         }
@@ -4607,7 +4606,7 @@ function CoursePlayer({
 
   useEffect(() => {
     if (!lecture) return;
-    const key = `skillforge_lecture_progress_${course.id}_${lecture.id}`;
+    const key = getLectureProgressKey(course.id, lecture.id);
     setVideoMarkedComplete(localStorage.getItem(`${key}_video`) === "true");
     setQuizStarted(false);
     setAnswers({});
@@ -4647,7 +4646,7 @@ function CoursePlayer({
 
   const markLectureComplete = () => {
     if (!lecture) return;
-    const key = `skillforge_lecture_progress_${course.id}_${lecture.id}`;
+    const key = getLectureProgressKey(course.id, lecture.id);
     localStorage.setItem(`${key}_video`, "true");
     setVideoMarkedComplete(true);
     setQuizStarted(false);
@@ -4669,7 +4668,7 @@ function CoursePlayer({
     setScore(currentScore);
     setSubmitted(true);
 
-    const key = `skillforge_lecture_progress_${course.id}_${lecture.id}`;
+    const key = getLectureProgressKey(course.id, lecture.id);
     localStorage.setItem(`${key}_quiz_score`, String(currentScore));
     localStorage.setItem(`${key}_quiz_completed`, "true");
 
@@ -4719,10 +4718,10 @@ function CoursePlayer({
   const passed = submitted && !!lecture && score >= Math.ceil(lecture.questions.length * 0.7);
   const allLectures = modules.flatMap((module) => module.lectures);
   const currentLectureNumber = Math.max(1, allLectures.findIndex((item) => item.id === lecture?.id) + 1);
-  const totalLectures = Math.max(course.lessons, allLectures.length);
+  const totalLectures = allLectures.length || Math.max(course.lessons, 1);
   const moduleCompletion = modules.map((module) => {
     const completedLectures = module.lectures.filter((item) => {
-      const key = `skillforge_lecture_progress_${course.id}_${item.id}`;
+      const key = getLectureProgressKey(course.id, item.id);
       return localStorage.getItem(`${key}_complete`) === "true";
     }).length;
 
@@ -5053,7 +5052,7 @@ html.dark .skillforge-course-player header {
                       <div className="border-t border-slate-100 bg-slate-50/70 p-2">
                         {module.lectures.map((item, lectureIndex) => {
                           const active = item.id === lecture.id;
-                          const itemKey = `skillforge_lecture_progress_${course.id}_${item.id}`;
+                          const itemKey = getLectureProgressKey(course.id, item.id);
                           const completed = localStorage.getItem(`${itemKey}_video`) === "true";
                           return (
                             <button key={item.id} onClick={() => selectLecture(moduleIndex, lectureIndex)} className={`mb-1 flex w-full items-start gap-3 rounded-xl p-3 text-left transition last:mb-0 ${active ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100" : "text-slate-600 hover:bg-white"} ${!canAccessLecture(item) ? "opacity-80" : ""}`}>
