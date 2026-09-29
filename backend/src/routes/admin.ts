@@ -84,6 +84,10 @@ router.get(
           c.original_price,
           c.thumbnail,
           c.is_published,
+          c.overview_intro,
+          c.what_you_learn,
+          c.requirements,
+          c.target_audience,
           c.created_at,
           c.updated_at,
 
@@ -202,6 +206,18 @@ router.get(
           ? String(course.thumbnail)
           : null,
         isPublished: Boolean(course.is_published),
+        overviewIntro: course.overview_intro
+          ? String(course.overview_intro)
+          : "",
+        whatYouLearn: Array.isArray(course.what_you_learn)
+          ? course.what_you_learn.map((item: unknown) => String(item))
+          : [],
+        requirements: Array.isArray(course.requirements)
+          ? course.requirements.map((item: unknown) => String(item))
+          : [],
+        targetAudience: course.target_audience
+          ? String(course.target_audience)
+          : "",
         modules: Array.isArray(course.modules)
           ? course.modules.map((module: {
               id: number;
@@ -259,7 +275,11 @@ router.get(
           price,
           original_price,
           thumbnail,
-          is_published
+          is_published,
+          overview_intro,
+          what_you_learn,
+          requirements,
+          target_audience
         FROM courses
         WHERE id = $1
           AND is_published = true
@@ -424,6 +444,18 @@ router.get(
             ? String(courseResult.rows[0].thumbnail)
             : null,
           isPublished: Boolean(courseResult.rows[0].is_published),
+          overviewIntro: courseResult.rows[0].overview_intro
+            ? String(courseResult.rows[0].overview_intro)
+            : "",
+          whatYouLearn: Array.isArray(courseResult.rows[0].what_you_learn)
+            ? courseResult.rows[0].what_you_learn.map((item: unknown) => String(item))
+            : [],
+          requirements: Array.isArray(courseResult.rows[0].requirements)
+            ? courseResult.rows[0].requirements.map((item: unknown) => String(item))
+            : [],
+          targetAudience: courseResult.rows[0].target_audience
+            ? String(courseResult.rows[0].target_audience)
+            : "",
         },
         modules,
       });
@@ -1618,6 +1650,10 @@ router.get(
           original_price,
           thumbnail,
           is_published,
+          overview_intro,
+          what_you_learn,
+          requirements,
+          target_audience,
           created_at,
           updated_at
         FROM courses
@@ -1666,6 +1702,267 @@ router.get(
         success: false,
         message:
           "Unable to load course content",
+      });
+    }
+  },
+);
+
+/* =====================================================
+   COURSE OVERVIEW
+   GET /api/admin/courses/:courseId/overview
+   PUT /api/admin/courses/:courseId/overview
+===================================================== */
+
+router.get(
+  "/courses/:courseId/overview",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(req.params.courseId);
+
+      if (!Number.isInteger(courseId) || courseId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          original_price,
+          thumbnail,
+          is_published,
+          overview_intro,
+          what_you_learn,
+          requirements,
+          target_audience
+        FROM courses
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [courseId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      const course = result.rows[0];
+
+      return res.status(200).json({
+        success: true,
+        course: {
+          courseId: Number(course.id),
+          title: String(course.title),
+          description: course.description
+            ? String(course.description)
+            : "",
+          category: course.category
+            ? String(course.category)
+            : "",
+          level: course.level
+            ? String(course.level)
+            : "",
+          price: Number(course.price) || 0,
+          originalPrice:
+            course.original_price == null
+              ? null
+              : Number(course.original_price),
+          thumbnail: course.thumbnail
+            ? String(course.thumbnail)
+            : null,
+          isPublished: Boolean(course.is_published),
+          overviewIntro: course.overview_intro
+            ? String(course.overview_intro)
+            : "",
+          whatYouLearn: Array.isArray(course.what_you_learn)
+            ? course.what_you_learn.map((item: unknown) => String(item))
+            : [],
+          requirements: Array.isArray(course.requirements)
+            ? course.requirements.map((item: unknown) => String(item))
+            : [],
+          targetAudience: course.target_audience
+            ? String(course.target_audience)
+            : "",
+        },
+      });
+    } catch (error) {
+      console.error("Get course overview error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load course overview",
+      });
+    }
+  },
+);
+
+router.put(
+  "/courses/:courseId/overview",
+  authenticateToken,
+  async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const courseId = Number(req.params.courseId);
+
+      if (!Number.isInteger(courseId) || courseId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID",
+        });
+      }
+
+      const {
+        overviewIntro,
+        whatYouLearn,
+        requirements,
+        targetAudience,
+      } = req.body ?? {};
+
+      const cleanOverviewIntro =
+        typeof overviewIntro === "string"
+          ? overviewIntro.trim()
+          : "";
+
+      const cleanWhatYouLearn = Array.isArray(whatYouLearn)
+        ? whatYouLearn
+            .filter(
+              (item: unknown): item is string =>
+                typeof item === "string",
+            )
+            .map((item: string) => item.trim())
+            .filter(Boolean)
+        : [];
+
+      const cleanRequirements = Array.isArray(requirements)
+        ? requirements
+            .filter(
+              (item: unknown): item is string =>
+                typeof item === "string",
+            )
+            .map((item: string) => item.trim())
+            .filter(Boolean)
+        : [];
+
+      const cleanTargetAudience =
+        typeof targetAudience === "string"
+          ? targetAudience.trim()
+          : "";
+
+      const result = await pool.query(
+        `
+        UPDATE courses
+        SET
+          overview_intro = $1,
+          what_you_learn = $2,
+          requirements = $3,
+          target_audience = $4,
+          updated_at = NOW()
+        WHERE id = $5
+        RETURNING
+          id,
+          title,
+          description,
+          category,
+          level,
+          price,
+          original_price,
+          thumbnail,
+          is_published,
+          overview_intro,
+          what_you_learn,
+          requirements,
+          target_audience
+        `,
+        [
+          cleanOverviewIntro,
+          cleanWhatYouLearn,
+          cleanRequirements,
+          cleanTargetAudience,
+          courseId,
+        ],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Course not found",
+        });
+      }
+
+      const course = result.rows[0];
+
+      return res.status(200).json({
+        success: true,
+        message: "Course overview saved successfully",
+        course: {
+          courseId: Number(course.id),
+          title: String(course.title),
+          description: course.description
+            ? String(course.description)
+            : "",
+          category: course.category
+            ? String(course.category)
+            : "",
+          level: course.level
+            ? String(course.level)
+            : "",
+          price: Number(course.price) || 0,
+          originalPrice:
+            course.original_price == null
+              ? null
+              : Number(course.original_price),
+          thumbnail: course.thumbnail
+            ? String(course.thumbnail)
+            : null,
+          isPublished: Boolean(course.is_published),
+          overviewIntro: course.overview_intro
+            ? String(course.overview_intro)
+            : "",
+          whatYouLearn: Array.isArray(course.what_you_learn)
+            ? course.what_you_learn.map((item: unknown) => String(item))
+            : [],
+          requirements: Array.isArray(course.requirements)
+            ? course.requirements.map((item: unknown) => String(item))
+            : [],
+          targetAudience: course.target_audience
+            ? String(course.target_audience)
+            : "",
+        },
+      });
+    } catch (error) {
+      console.error("Save course overview error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to save course overview",
       });
     }
   },
