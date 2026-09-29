@@ -332,25 +332,105 @@ const securityModules: CourseModule[] = [
 const getLocalCompletedLessons = (courseId: string): number => {
   if (typeof window === "undefined") return 0;
 
-  const moduleLectures =
-    courseId === "security"
-      ? securityModules.flatMap((module) => module.lectures)
-      : [];
+  const prefix = `skillforge_lecture_progress_${courseId}_`;
+  const suffix = "_complete";
+  let completed = 0;
 
-  return moduleLectures.filter((lecture) => {
-    const key = `skillforge_lecture_progress_${courseId}_${lecture.id}`;
-    // A lecture counts as completed only after its quiz is passed and the
-    // completion flag is written. Watching/marking the video alone is not
-    // enough for certificate eligibility.
-    return localStorage.getItem(`${key}_complete`) === "true";
-  }).length;
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+
+    if (
+      key &&
+      key.startsWith(prefix) &&
+      key.endsWith(suffix) &&
+      localStorage.getItem(key) === "true"
+    ) {
+      completed += 1;
+    }
+  }
+
+  return completed;
+};
+
+const courseLessonTotals = new Map<string, number>();
+
+const getCourseLessonTotal = (course: Course): number => {
+  const cachedTotal = courseLessonTotals.get(course.id);
+  if (cachedTotal && cachedTotal > 0) return cachedTotal;
+
+  if (course.id === "security") {
+    const securityLectureCount = securityModules.reduce(
+      (total, module) => total + module.lectures.length,
+      0,
+    );
+    if (securityLectureCount > 0) return securityLectureCount;
+  }
+
+  return Math.max(course.lessons, 1);
+};
+
+const resolveCourseLessonTotal = async (course: Course): Promise<number> => {
+  const cachedTotal = courseLessonTotals.get(course.id);
+  if (cachedTotal && cachedTotal > 0) return cachedTotal;
+
+  if (course.id === "security") {
+    const securityLectureCount = securityModules.reduce(
+      (total, module) => total + module.lectures.length,
+      0,
+    );
+    if (securityLectureCount > 0) {
+      courseLessonTotals.set(course.id, securityLectureCount);
+      return securityLectureCount;
+    }
+  }
+
+  try {
+    let dbId = course.dbId;
+
+    if (!dbId) {
+      const catalogResponse = await fetch(`${API_BASE_URL}/api/admin/public-courses`);
+      const catalogData = await catalogResponse.json().catch(() => null);
+      if (catalogResponse.ok && Array.isArray(catalogData?.courses)) {
+        const match = catalogData.courses.find(
+          (item: { id?: string; dbId?: number }) => String(item.id) === String(course.id),
+        );
+        dbId = Number(match?.dbId) || undefined;
+      }
+    }
+
+    if (dbId) {
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/public-courses/${dbId}/content`,
+      );
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data?.success && Array.isArray(data.modules)) {
+        const total = data.modules.reduce(
+          (sum: number, module: { lectures?: unknown[] }) =>
+            sum + (Array.isArray(module.lectures) ? module.lectures.length : 0),
+          0,
+        );
+
+        if (total > 0) {
+          courseLessonTotals.set(course.id, total);
+          return total;
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Course lesson count loading error for ${course.id}:`, error);
+  }
+
+  const fallback = Math.max(course.lessons, 1);
+  courseLessonTotals.set(course.id, fallback);
+  return fallback;
 };
 
 const getLocalCourseProgress = (course: Course): number => {
   const completed = getLocalCompletedLessons(course.id);
   return Math.min(
     100,
-    Math.round((completed / Math.max(course.lessons, 1)) * 100),
+    Math.round((completed / getCourseLessonTotal(course)) * 100),
   );
 };
 
@@ -1846,6 +1926,13 @@ function DashboardPage({
   );
 
   const [progressByCourse, setProgressByCourse] = useState<Record<string, number>>({});
+  const [lessonTotalsByCourse, setLessonTotalsByCourse] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    enrolledCourses.forEach((course) => {
+      initial[course.id] = getCourseLessonTotal(course);
+    });
+    return initial;
+  });
   const [loadingProgress, setLoadingProgress] = useState(false);
 
   useEffect(() => {
@@ -1858,10 +1945,14 @@ function DashboardPage({
 
       setLoadingProgress(true);
       const next: Record<string, number> = {};
+      const nextLessonTotals: Record<string, number> = {};
 
       await Promise.all(
         enrolledCourses.map(async (course) => {
           try {
+            const actualLessonTotal = await resolveCourseLessonTotal(course);
+            nextLessonTotals[course.id] = actualLessonTotal;
+
             const response = await fetch(
               `${API_BASE_URL}/api/progress/${encodeURIComponent(course.id)}`,
               {
@@ -1871,34 +1962,37 @@ function DashboardPage({
               },
             );
 
-            if (!response.ok) return;
-            const localPercent = getLocalCourseProgress(course);
-
             if (!response.ok) {
-              next[course.id] = localPercent;
+              const completed = getLocalCompletedLessons(course.id);
+              next[course.id] = Math.min(100, Math.round((completed / actualLessonTotal) * 100));
               return;
             }
 
             const data = await response.json();
             const progress = Array.isArray(data.progress) ? data.progress : [];
-            const completed = progress.filter(
-              (item: { passed?: boolean }) => item.passed === true,
-            ).length;
 
-            const apiPercent = Math.min(
-              100,
-              Math.round((completed / Math.max(course.lessons, 1)) * 100),
-            );
+            for (const item of progress) {
+              if (item?.passed !== true || !item?.completed_at) continue;
+              const lectureId = String(item.lecture_id ?? "").trim();
+              if (!lectureId) continue;
+              const key = `skillforge_lecture_progress_${course.id}_${lectureId}`;
+              localStorage.setItem(`${key}_video`, "true");
+              localStorage.setItem(`${key}_complete`, "true");
+            }
 
-            // Keep the UI in sync immediately with the course player.
-            // If the backend has a higher value, keep that value.
-            next[course.id] = Math.max(localPercent, apiPercent);
+            const completed = getLocalCompletedLessons(course.id);
+            next[course.id] = Math.min(100, Math.round((completed / actualLessonTotal) * 100));
           } catch (error) {
             console.error(`Progress loading error for ${course.id}:`, error);
+            const fallbackTotal = getCourseLessonTotal(course);
+            nextLessonTotals[course.id] = fallbackTotal;
+            const completed = getLocalCompletedLessons(course.id);
+            next[course.id] = Math.min(100, Math.round((completed / fallbackTotal) * 100));
           }
         }),
       );
 
+      setLessonTotalsByCourse(nextLessonTotals);
       setProgressByCourse(next);
       setLoadingProgress(false);
     };
@@ -1918,18 +2012,40 @@ function DashboardPage({
     };
   }, [enrolledCourseIds]);
 
-  const totalProgress = enrolledCourses.length
-    ? Math.round(
-        enrolledCourses.reduce(
-          (sum, course) => sum + (progressByCourse[course.id] ?? 0),
-          0,
-        ) / enrolledCourses.length,
+  // Overall progress is based on total completed lessons across all
+  // enrolled courses, not an average of course percentages. This keeps
+  // Overall Progress mathematically consistent with each course's own
+  // lesson-based progress even when courses have different lesson counts.
+  const totalLessonCount = enrolledCourses.reduce(
+    (sum, course) => sum + (lessonTotalsByCourse[course.id] ?? getCourseLessonTotal(course)),
+    0,
+  );
+
+  const totalCompletedLessonCount = enrolledCourses.reduce(
+    (sum, course) => sum + getLocalCompletedLessons(course.id),
+    0,
+  );
+
+  const totalProgress = totalLessonCount > 0
+    ? Math.min(
+        100,
+        Math.round((totalCompletedLessonCount / totalLessonCount) * 100),
       )
     : 0;
 
   const completedCourses = enrolledCourses.filter(
     (course) => (progressByCourse[course.id] ?? 0) >= 100,
   ).length;
+
+  // Dashboard-only helper: choose the enrolled course with the highest current progress.
+  // This does not modify certificate, payment, or theme logic.
+  const continueCourse = enrolledCourses.length
+    ? [...enrolledCourses]
+        .filter((course) => (progressByCourse[course.id] ?? 0) < 100)
+        .sort(
+          (a, b) => (progressByCourse[b.id] ?? 0) - (progressByCourse[a.id] ?? 0),
+        )[0] ?? null
+    : null;
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support">("dashboard");
 
@@ -2024,6 +2140,19 @@ html.dark .skillforge-dashboard .dashboard-hero {
 html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
   background-color: #0b1220 !important;
   border-color: #334155 !important;
+}
+
+html.dark .skillforge-dashboard .continue-learning-card {
+  background: linear-gradient(135deg, #0b1b2b 0%, #0f172a 55%, #0a2230 100%) !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .skillforge-dashboard .continue-learning-card .continue-learning-progress-track {
+  background-color: #334155 !important;
+}
+
+html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title {
+  color: #f8fafc !important;
 }
 `}</style>
 
@@ -2133,6 +2262,39 @@ html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
             <DashboardStat icon={<Award />} value={String(completedCourses)} label="Certificates" />
           </section>
 
+          {continueCourse && (progressByCourse[continueCourse.id] ?? 0) < 100 && (
+            <section className="continue-learning-card mt-5 rounded-3xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-5 shadow-sm sm:p-6">
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-3xl">
+                    {continueCourse.emoji}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">Continue Learning</p>
+                    <h2 className="continue-learning-title mt-1 truncate text-xl font-black text-[#0b1736]">{continueCourse.title}</h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {loadingProgress ? "Updating progress…" : `${progressByCourse[continueCourse.id] ?? 0}% complete`} · {lessonTotalsByCourse[continueCourse.id] ?? getCourseLessonTotal(continueCourse)} lessons
+                    </p>
+                    <div className="continue-learning-progress-track mt-3 h-2 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${progressByCourse[continueCourse.id] ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onLearn(continueCourse)}
+                  className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                >
+                  <PlayCircle size={17} />
+                  Continue Learning
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="mt-7">
             <div className="flex items-end justify-between">
               <div>
@@ -2186,7 +2348,7 @@ html.dark .skillforge-dashboard .dashboard-hero .dashboard-streak {
                           </p>
                           <h3 className="mt-1 truncate text-lg font-black">{course.title}</h3>
                           <p className="mt-1 text-xs text-slate-500">
-                            {course.lessons} lessons · {course.duration}
+                            {lessonTotalsByCourse[course.id] ?? getCourseLessonTotal(course)} lessons · {course.duration}
                           </p>
                         </div>
                       </div>
@@ -2811,6 +2973,13 @@ function DashboardTabContent({
       return null;
     }
 
+    // A certificate is available only after every lecture quiz in the
+    // course has been passed and the completion flags reach 100%.
+    if (getLocalCourseProgress(course) < 100) {
+      alert("Pass all lecture quizzes to unlock your certificate.");
+      return null;
+    }
+
     try {
       setCertificateLoading(true);
       const response = await fetch(`${API_BASE_URL}/api/payment/certificates/issue`, {
@@ -2863,7 +3032,15 @@ function DashboardTabContent({
         const next: Record<string, CertificateRecord> = {};
 
         for (const item of data.certificates) {
-          if (item?.courseId && item?.certificateId) {
+          if (!item?.courseId || !item?.certificateId) continue;
+
+          const course = enrolledCourses.find(
+            (candidate) => candidate.id === String(item.courseId),
+          );
+
+          // Do not unlock/display an existing certificate until all lecture
+          // quizzes are passed for that course.
+          if (course && getLocalCourseProgress(course) >= 100) {
             next[String(item.courseId)] = item as CertificateRecord;
           }
         }
@@ -3858,6 +4035,7 @@ function SkillForgeVideoPlayer({
   title,
   lectureNumber,
   moduleLabel,
+  resumeStorageKey,
   autoPlay = false,
   onEnded,
 }: {
@@ -3865,6 +4043,7 @@ function SkillForgeVideoPlayer({
   title: string;
   lectureNumber?: number;
   moduleLabel?: string;
+  resumeStorageKey?: string;
   autoPlay?: boolean;
   onEnded?: () => void;
 }) {
@@ -3894,6 +4073,52 @@ function SkillForgeVideoPlayer({
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !resumeStorageKey) return;
+
+    const saved = Number(localStorage.getItem(resumeStorageKey) ?? "0");
+    if (!Number.isFinite(saved) || saved <= 0) return;
+
+    const restorePosition = () => {
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+
+      if (saved >= video.duration - 2) {
+        localStorage.removeItem(resumeStorageKey);
+        return;
+      }
+
+      video.currentTime = Math.min(saved, Math.max(0, video.duration - 1));
+      setCurrentTime(video.currentTime);
+    };
+
+    if (video.readyState >= 1) {
+      restorePosition();
+    } else {
+      video.addEventListener("loadedmetadata", restorePosition, { once: true });
+      return () => video.removeEventListener("loadedmetadata", restorePosition);
+    }
+  }, [src, resumeStorageKey]);
+
+  useEffect(() => {
+    if (!resumeStorageKey) return;
+
+    const savePosition = () => {
+      const video = videoRef.current;
+      if (!video || !Number.isFinite(video.currentTime)) return;
+      localStorage.setItem(resumeStorageKey, String(Math.max(0, video.currentTime)));
+    };
+
+    const interval = window.setInterval(savePosition, 3000);
+    window.addEventListener("beforeunload", savePosition);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("beforeunload", savePosition);
+      savePosition();
+    };
+  }, [resumeStorageKey]);
 
   useEffect(() => {
     const onFullscreenChange = () => setIsFullscreen(document.fullscreenElement === playerRef.current);
@@ -3959,15 +4184,33 @@ function SkillForgeVideoPlayer({
         src={src}
         playsInline
         autoPlay={autoPlay}
-        preload="metadata"
+        preload={autoPlay ? "auto" : "metadata"}
         controls={false}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onTimeUpdate={(event) => {
+          const time = event.currentTarget.currentTime;
+          setCurrentTime(time);
+          if (resumeStorageKey && Number.isFinite(time)) {
+            localStorage.setItem(resumeStorageKey, String(Math.max(0, time)));
+          }
+        }}
         onPlay={() => { setPlaying(true); showControls(); }}
-        onPause={() => { setPlaying(false); setControlsVisible(true); }}
+        onPause={(event) => {
+          setPlaying(false);
+          setControlsVisible(true);
+          if (resumeStorageKey && Number.isFinite(event.currentTarget.currentTime)) {
+            localStorage.setItem(
+              resumeStorageKey,
+              String(Math.max(0, event.currentTarget.currentTime)),
+            );
+          }
+        }}
         onEnded={() => {
           setPlaying(false);
           setControlsVisible(true);
+          if (resumeStorageKey) {
+            localStorage.removeItem(resumeStorageKey);
+          }
           onEnded?.();
         }}
         onVolumeChange={(event) => {
@@ -4224,9 +4467,14 @@ function CoursePlayer({
           .filter((module: CourseModule) => module.lectures.length > 0);
 
         if (!cancelled && dbModules.length > 0) {
+          const actualLessonTotal = dbModules.reduce(
+            (sum, module) => sum + module.lectures.length,
+            0,
+          );
+          if (actualLessonTotal > 0) {
+            courseLessonTotals.set(course.id, actualLessonTotal);
+          }
           setModules(dbModules);
-          setActiveModuleIndex(0);
-          setActiveLectureIndex(0);
         }
       } catch (error) {
         console.error("Course content loading error:", error);
@@ -4250,12 +4498,71 @@ function CoursePlayer({
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const resumeInitializedRef = useRef(false);
+  const resumeKey = `skillforge_resume_${course.id}`;
 
   useEffect(() => {
     const refresh = () => setProgressRefresh((value) => value + 1);
     window.addEventListener("skillforge-progress-updated", refresh);
     return () => window.removeEventListener("skillforge-progress-updated", refresh);
   }, []);
+
+  useEffect(() => {
+    if (contentLoading || !modules.length || resumeInitializedRef.current) return;
+
+    const savedLectureId = localStorage.getItem(resumeKey);
+
+    if (savedLectureId) {
+      const savedModuleIndex = modules.findIndex((module) =>
+        module.lectures.some((item) => item.id === savedLectureId),
+      );
+
+      if (savedModuleIndex >= 0) {
+        const savedLectureIndex = modules[savedModuleIndex].lectures.findIndex(
+          (item) => item.id === savedLectureId,
+        );
+
+        if (savedLectureIndex >= 0) {
+          setActiveModuleIndex(savedModuleIndex);
+          setActiveLectureIndex(savedLectureIndex);
+          resumeInitializedRef.current = true;
+          return;
+        }
+      }
+    }
+
+    // First visit: start at the first lecture that is not yet completed.
+    const firstIncompleteModuleIndex = modules.findIndex((module) =>
+      module.lectures.some(
+        (item) =>
+          localStorage.getItem(
+            `skillforge_lecture_progress_${course.id}_${item.id}_complete`,
+          ) !== "true",
+      ),
+    );
+
+    if (firstIncompleteModuleIndex >= 0) {
+      const firstIncompleteLectureIndex = modules[firstIncompleteModuleIndex].lectures.findIndex(
+        (item) =>
+          localStorage.getItem(
+            `skillforge_lecture_progress_${course.id}_${item.id}_complete`,
+          ) !== "true",
+      );
+
+      setActiveModuleIndex(firstIncompleteModuleIndex);
+      setActiveLectureIndex(Math.max(firstIncompleteLectureIndex, 0));
+      const resumeLecture = modules[firstIncompleteModuleIndex].lectures[Math.max(firstIncompleteLectureIndex, 0)];
+      if (resumeLecture) localStorage.setItem(resumeKey, resumeLecture.id);
+    } else {
+      setActiveModuleIndex(0);
+      setActiveLectureIndex(0);
+      if (modules[0]?.lectures[0]) {
+        localStorage.setItem(resumeKey, modules[0].lectures[0].id);
+      }
+    }
+
+    resumeInitializedRef.current = true;
+  }, [course.id, contentLoading, modules, resumeKey]);
 
   useEffect(() => {
     if (!enrolled || !modules.length) return;
@@ -4334,6 +4641,7 @@ function CoursePlayer({
 
     setActiveModuleIndex(moduleIndex);
     setActiveLectureIndex(lectureIndex);
+    localStorage.setItem(resumeKey, item.id);
     setQuizOpen(false);
   };
 
@@ -4424,6 +4732,8 @@ function CoursePlayer({
       completed: module.lectures.length > 0 && completedLectures === module.lectures.length,
     };
   });
+  // Dashboard and Course Player intentionally use the same progress helper.
+  // A lecture is completed only after its quiz is passed.
   const localCourseProgress = getLocalCourseProgress(course);
   const lectureLocked = !!lecture && !canAccessLecture(lecture);
   void progressRefresh;
@@ -4630,6 +4940,7 @@ html.dark .skillforge-course-player header {
                   title={lecture.title}
                   lectureNumber={activeLectureIndex + 1}
                   moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
+                  resumeStorageKey={`skillforge_video_resume_${course.id}_${lecture.id}`}
                   autoPlay
                   onEnded={markLectureComplete}
                 />
@@ -4726,7 +5037,14 @@ html.dark .skillforge-course-player header {
                 const expanded = activeModuleIndex === moduleIndex;
                 return (
                   <div key={module.id} className="mb-2 overflow-hidden rounded-2xl border border-slate-200">
-                    <button onClick={() => { setActiveModuleIndex(moduleIndex); setActiveLectureIndex(0); }} className={`flex w-full items-center gap-3 p-4 text-left transition ${expanded ? "bg-emerald-50 text-emerald-700" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+                    <button onClick={() => {
+                      const savedLectureId = localStorage.getItem(resumeKey);
+                      const savedIndex = module.lectures.findIndex((item) => item.id === savedLectureId);
+                      const nextLectureIndex = savedIndex >= 0 ? savedIndex : 0;
+                      setActiveModuleIndex(moduleIndex);
+                      setActiveLectureIndex(nextLectureIndex);
+                      if (module.lectures[nextLectureIndex]) localStorage.setItem(resumeKey, module.lectures[nextLectureIndex].id);
+                    }} className={`flex w-full items-center gap-3 p-4 text-left transition ${expanded ? "bg-emerald-50 text-emerald-700" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black text-slate-500">{moduleIndex + 1}</span>
                       <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{module.title.replace(" — ", ": ")}</span><span className="mt-1 block text-[10px] font-medium text-slate-400">{module.duration} · {module.lectures.length} lectures · {moduleCompletion[moduleIndex]?.completed ? "Complete" : `${moduleCompletion[moduleIndex]?.completedLectures ?? 0}/${module.lectures.length} complete`}</span></span>
                       <ChevronRight size={17} className={`shrink-0 transition-transform ${expanded ? "rotate-90 text-emerald-600" : ""}`} />
