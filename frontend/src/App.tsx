@@ -2222,6 +2222,34 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
         </div>
       </header>
 
+      {/* Mobile dashboard navigation */}
+      <div className="mx-auto w-full max-w-[1380px] px-5 pt-4 lg:hidden">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[
+            { label: "Dashboard", icon: <LayoutDashboard size={16} />, tab: "dashboard" as const },
+            { label: "My Courses", icon: <BookOpen size={16} />, tab: "courses" as const },
+            { label: "My Progress", icon: <BarChart3 size={16} />, tab: "progress" as const },
+            { label: "Certificates", icon: <Award size={16} />, tab: "certificates" as const },
+            { label: "Purchases", icon: <ReceiptText size={16} />, tab: "purchases" as const },
+            { label: "Support", icon: <Headphones size={16} />, tab: "support" as const },
+          ].map((item) => (
+            <button
+              key={item.tab}
+              type="button"
+              onClick={() => setActiveTab(item.tab)}
+              className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                activeTab === item.tab
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mx-auto grid max-w-[1380px] gap-6 px-5 py-7 lg:grid-cols-[230px_1fr] lg:px-8">
         <aside className="hidden lg:block">
           <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -3041,25 +3069,69 @@ function DashboardTabContent({
           return;
         }
 
-        // Never trust the existence of a certificate record as proof of completion.
-        // The UI unlocks a certificate only when the current course progress is 100%.
+        // The certificates API stores the database course ID, while the
+        // student UI normally uses the public course ID (for example
+        // "security"). Map both forms so an existing certificate is shown
+        // correctly after a refresh.
         const next: Record<string, CertificateRecord> = {};
 
         for (const item of data.certificates) {
           if (!item?.courseId || !item?.certificateId) continue;
 
+          const certificateCourseId = String(item.courseId);
           const course = enrolledCourses.find(
-            (candidate) => candidate.id === String(item.courseId),
+            (candidate) =>
+              candidate.id === certificateCourseId ||
+              String(candidate.dbId ?? "") === certificateCourseId,
           );
 
           if (course && (progressByCourse[course.id] ?? 0) >= 100) {
-            next[String(item.courseId)] = item as CertificateRecord;
+            next[course.id] = item as CertificateRecord;
           }
         }
 
-        // Do not automatically issue certificates from this tab.
-        // A certificate is created only after every lecture quiz is passed
-        // and the backend completion check succeeds.
+        // If the course is already 100% complete and there is no stored
+        // certificate yet, request issuance now. The backend remains the
+        // final authority and will only issue after every quiz is passed.
+        const completedCoursesList = enrolledCourses.filter(
+          (course) => (progressByCourse[course.id] ?? 0) >= 100,
+        );
+
+        for (const course of completedCoursesList) {
+          if (next[course.id]) continue;
+
+          try {
+            const issueResponse = await fetch(
+              `${API_BASE_URL}/api/payment/certificates/issue`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ courseId: course.id }),
+              },
+            );
+
+            const issueData = await issueResponse.json().catch(() => null);
+
+            if (
+              issueResponse.ok &&
+              issueData?.success &&
+              issueData?.certificate?.certificateId
+            ) {
+              next[course.id] = issueData.certificate as CertificateRecord;
+            } else {
+              console.warn(
+                "Certificate is not ready:",
+                issueData?.message || "Backend completion check failed",
+              );
+            }
+          } catch (error) {
+            console.error("Automatic certificate issue error:", error);
+          }
+        }
+
         if (!cancelled) {
           setCertificateRecords(next);
         }
@@ -3073,7 +3145,7 @@ function DashboardTabContent({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, enrolledCourses, progressByCourse]);
+  }, [activeTab, progressByCourse]);
 
   const certificateId = (course: Course) =>
     certificateRecords[course.id]?.certificateId ?? "Preparing credential…";
@@ -3208,15 +3280,19 @@ function DashboardTabContent({
                     <button
                       type="button"
                       onClick={() => { void openCertificate(course); }}
-                      disabled={certificateLoading || !certificateRecords[course.id]}
+                      disabled={certificateLoading}
                       className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {certificateRecords[course.id] ? "View Certificate" : "Preparing Certificate…"}
+                      {certificateLoading
+                        ? "Generating Certificate…"
+                        : certificateRecords[course.id]
+                          ? "View Certificate"
+                          : "Generate Certificate"}
                     </button>
                     <button
                       type="button"
                       onClick={() => { void printCertificate(course); }}
-                      disabled={certificateLoading || !certificateRecords[course.id]}
+                      disabled={certificateLoading}
                       className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Download PDF
