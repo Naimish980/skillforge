@@ -3502,6 +3502,84 @@ function CourseOverviewPage({
   onBack: () => void;
   onStart: () => void;
 }) {
+  type DynamicCourseOverview = {
+    overviewIntro: string;
+    whatYouLearn: string[];
+    requirements: string[];
+    targetAudience: string;
+  };
+
+  const [dynamicOverview, setDynamicOverview] = useState<DynamicCourseOverview | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDynamicOverview = async () => {
+      try {
+        let dbId = course.dbId;
+
+        if (!dbId) {
+          const catalogResponse = await fetch(`${API_BASE_URL}/api/admin/public-courses`);
+          const catalogData = await catalogResponse.json();
+
+          if (catalogResponse.ok && catalogData?.success && Array.isArray(catalogData.courses)) {
+            const catalogCourse = catalogData.courses.find(
+              (item: { id?: string; dbId?: number }) => String(item.id) === String(course.id),
+            );
+            dbId = Number(catalogCourse?.dbId) || undefined;
+          }
+        }
+
+        if (!dbId) return;
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/admin/public-courses/${dbId}/content`,
+        );
+        const data = await response.json();
+
+        if (!response.ok || !data?.success || !data?.course) return;
+
+        const dbCourse = data.course as {
+          overview_intro?: string | null;
+          what_you_learn?: unknown;
+          requirements?: unknown;
+          target_audience?: string | null;
+        };
+
+        const whatYouLearn = Array.isArray(dbCourse.what_you_learn)
+          ? dbCourse.what_you_learn.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          : [];
+
+        const requirements = Array.isArray(dbCourse.requirements)
+          ? dbCourse.requirements.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          : [];
+
+        const hasOverview =
+          Boolean(dbCourse.overview_intro?.trim()) ||
+          whatYouLearn.length > 0 ||
+          requirements.length > 0 ||
+          Boolean(dbCourse.target_audience?.trim());
+
+        if (!cancelled && hasOverview) {
+          setDynamicOverview({
+            overviewIntro: dbCourse.overview_intro?.trim() || "",
+            whatYouLearn,
+            requirements,
+            targetAudience: dbCourse.target_audience?.trim() || "",
+          });
+        }
+      } catch (error) {
+        console.error("Course overview loading error:", error);
+      }
+    };
+
+    void loadDynamicOverview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [course.dbId, course.id]);
+
   const overviewContent: Record<
     string,
     {
@@ -3712,7 +3790,7 @@ function CourseOverviewPage({
     },
   };
 
-  const content = overviewContent[course.id] ?? {
+  const baseContent = overviewContent[course.id] ?? {
     intro: course.description,
     benefits: ["Structured learning", "Practical concepts", "Quizzes and assessment", "Certificate on completion"],
     skills: course.modules.slice(0, 6),
@@ -3722,6 +3800,24 @@ function CourseOverviewPage({
       description: "This module is part of the course curriculum.",
       topics: "Lessons • practical concepts • assessment",
     })),
+  };
+
+  const content = {
+    ...baseContent,
+    intro: dynamicOverview?.overviewIntro || baseContent.intro,
+    benefits:
+      dynamicOverview?.whatYouLearn.length
+        ? dynamicOverview.whatYouLearn
+        : baseContent.benefits,
+    skills:
+      dynamicOverview?.whatYouLearn.length
+        ? dynamicOverview.whatYouLearn
+        : baseContent.skills,
+    audience:
+      dynamicOverview?.targetAudience
+        ? [dynamicOverview.targetAudience]
+        : baseContent.audience,
+    requirements: dynamicOverview?.requirements ?? [],
   };
 
   return (
@@ -3989,10 +4085,10 @@ function CourseOverviewPage({
           <div className="mx-auto grid max-w-[1380px] gap-6 px-5 py-16 lg:grid-cols-2 lg:px-8">
             <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
-                Benefits
+                What You'll Learn
               </p>
               <h2 className="mt-3 text-2xl font-black text-[#0b1736] sm:text-3xl dark:text-white">
-                Why take this course?
+                What you'll learn in this course
               </h2>
 
               <div className="mt-7 space-y-4">
@@ -4003,6 +4099,22 @@ function CourseOverviewPage({
                   </div>
                 ))}
               </div>
+
+              {content.requirements.length > 0 && (
+                <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-800">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+                    Requirements
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {content.requirements.map((requirement) => (
+                      <div key={requirement} className="flex gap-3">
+                        <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" size={18} />
+                        <p className="text-sm leading-6 text-slate-600 dark:text-slate-400">{requirement}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
