@@ -88,6 +88,8 @@ router.get(
           c.what_you_learn,
           c.requirements,
           c.target_audience,
+          c.skills_covered,
+          c.overview_features,
           c.created_at,
           c.updated_at,
 
@@ -218,6 +220,12 @@ router.get(
         targetAudience: course.target_audience
           ? String(course.target_audience)
           : "",
+        skillsCovered: Array.isArray(course.skills_covered)
+          ? course.skills_covered.map((item: unknown) => String(item))
+          : [],
+        overviewFeatures: Array.isArray(course.overview_features)
+          ? course.overview_features
+          : [],
         modules: Array.isArray(course.modules)
           ? course.modules.map((module: {
               id: number;
@@ -456,6 +464,12 @@ router.get(
           targetAudience: courseResult.rows[0].target_audience
             ? String(courseResult.rows[0].target_audience)
             : "",
+          skillsCovered: Array.isArray(courseResult.rows[0].skills_covered)
+            ? courseResult.rows[0].skills_covered.map((item: unknown) => String(item))
+            : [],
+          overviewFeatures: Array.isArray(courseResult.rows[0].overview_features)
+            ? courseResult.rows[0].overview_features
+            : [],
         },
         modules,
       });
@@ -1654,6 +1668,8 @@ router.get(
           what_you_learn,
           requirements,
           target_audience,
+          skills_covered,
+          overview_features,
           created_at,
           updated_at
         FROM courses
@@ -1803,6 +1819,12 @@ router.get(
           targetAudience: course.target_audience
             ? String(course.target_audience)
             : "",
+          skillsCovered: Array.isArray(course.skills_covered)
+            ? course.skills_covered.map((item: unknown) => String(item))
+            : [],
+          overviewFeatures: Array.isArray(course.overview_features)
+            ? course.overview_features
+            : [],
         },
       });
     } catch (error) {
@@ -1844,6 +1866,8 @@ router.put(
         whatYouLearn,
         requirements,
         targetAudience,
+        skillsCovered,
+        overviewFeatures,
       } = req.body ?? {};
 
       const cleanOverviewIntro =
@@ -1876,6 +1900,24 @@ router.put(
           ? targetAudience.trim()
           : "";
 
+      const cleanSkillsCovered = Array.isArray(skillsCovered)
+        ? skillsCovered
+            .filter((item: unknown): item is string => typeof item === "string")
+            .map((item: string) => item.trim())
+            .filter(Boolean)
+        : [];
+
+      const cleanOverviewFeatures = Array.isArray(overviewFeatures)
+        ? overviewFeatures
+            .filter((item: unknown) => item && typeof item === "object")
+            .map((item: any) => ({
+              icon: typeof item.icon === "string" && item.icon.trim() ? item.icon.trim() : "BookOpen",
+              title: typeof item.title === "string" ? item.title.trim() : "",
+              description: typeof item.description === "string" ? item.description.trim() : "",
+            }))
+            .filter((item: { title: string; description: string }) => item.title && item.description)
+        : [];
+
       const result = await pool.query(
         `
         UPDATE courses
@@ -1884,8 +1926,10 @@ router.put(
           what_you_learn = $2,
           requirements = $3,
           target_audience = $4,
+          skills_covered = $5,
+          overview_features = $6,
           updated_at = NOW()
-        WHERE id = $5
+        WHERE id = $7
         RETURNING
           id,
           title,
@@ -1906,6 +1950,8 @@ router.put(
           cleanWhatYouLearn,
           cleanRequirements,
           cleanTargetAudience,
+          cleanSkillsCovered,
+          JSON.stringify(cleanOverviewFeatures),
           courseId,
         ],
       );
@@ -1955,6 +2001,12 @@ router.put(
           targetAudience: course.target_audience
             ? String(course.target_audience)
             : "",
+          skillsCovered: Array.isArray(course.skills_covered)
+            ? course.skills_covered.map((item: unknown) => String(item))
+            : [],
+          overviewFeatures: Array.isArray(course.overview_features)
+            ? course.overview_features
+            : [],
         },
       });
     } catch (error) {
