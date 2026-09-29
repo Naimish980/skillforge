@@ -378,31 +378,12 @@ const getCourseLessonTotal = (course: Course): number => {
   const cachedTotal = courseLessonTotals.get(course.id);
   if (cachedTotal && cachedTotal > 0) return cachedTotal;
 
-  if (course.id === "security") {
-    const securityLectureCount = securityModules.reduce(
-      (total, module) => total + module.lectures.length,
-      0,
-    );
-    if (securityLectureCount > 0) return securityLectureCount;
-  }
-
   return Math.max(course.lessons, 1);
 };
 
 const resolveCourseLessonTotal = async (course: Course): Promise<number> => {
   const cachedTotal = courseLessonTotals.get(course.id);
   if (cachedTotal && cachedTotal > 0) return cachedTotal;
-
-  if (course.id === "security") {
-    const securityLectureCount = securityModules.reduce(
-      (total, module) => total + module.lectures.length,
-      0,
-    );
-    if (securityLectureCount > 0) {
-      courseLessonTotals.set(course.id, securityLectureCount);
-      return securityLectureCount;
-    }
-  }
 
   try {
     let dbId = course.dbId;
@@ -4644,7 +4625,7 @@ function CoursePlayer({
     setQuizOpen(false);
   };
 
-  const markLectureComplete = () => {
+  const markVideoWatched = () => {
     if (!lecture) return;
     const key = getLectureProgressKey(course.id, lecture.id);
     localStorage.setItem(`${key}_video`, "true");
@@ -4941,7 +4922,7 @@ html.dark .skillforge-course-player header {
                   moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
                   resumeStorageKey={`skillforge_video_resume_${course.id}_${lecture.id}`}
                   autoPlay
-                  onEnded={markLectureComplete}
+                  onEnded={markVideoWatched}
                 />
               )}
             </section>
@@ -4961,8 +4942,8 @@ html.dark .skillforge-course-player header {
                     Unlock Lecture
                   </button>
                 ) : (
-                  <button onClick={markLectureComplete} className={`shrink-0 rounded-xl px-5 py-3 text-sm font-black transition ${videoMarkedComplete ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
-                    {videoMarkedComplete ? "✓ Lecture Completed · Open Quiz" : "Mark as Complete"}
+                  <button onClick={markVideoWatched} className={`shrink-0 rounded-xl px-5 py-3 text-sm font-black transition ${videoMarkedComplete ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+                    {videoMarkedComplete ? "✓ Video Watched · Open Quiz" : "Mark Video Watched"}
                   </button>
                 )}
               </div>
@@ -5053,7 +5034,7 @@ html.dark .skillforge-course-player header {
                         {module.lectures.map((item, lectureIndex) => {
                           const active = item.id === lecture.id;
                           const itemKey = getLectureProgressKey(course.id, item.id);
-                          const completed = localStorage.getItem(`${itemKey}_video`) === "true";
+                          const completed = localStorage.getItem(`${itemKey}_complete`) === "true";
                           return (
                             <button key={item.id} onClick={() => selectLecture(moduleIndex, lectureIndex)} className={`mb-1 flex w-full items-start gap-3 rounded-xl p-3 text-left transition last:mb-0 ${active ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100" : "text-slate-600 hover:bg-white"} ${!canAccessLecture(item) ? "opacity-80" : ""}`}>
                               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-black">
@@ -5078,15 +5059,15 @@ html.dark .skillforge-course-player header {
         </aside>
       </div>
 
-      {/* Quiz appears only after the lecture is completed */}
+      {/* Quiz opens after the video is watched; lecture completion requires a passed quiz. */}
       {quizOpen && (
         <Modal onClose={() => setQuizOpen(false)}>
           <div className="w-full max-w-3xl">
             <div className="mb-5 flex items-start justify-between gap-4 pr-8">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Lecture completed</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Video watched</p>
                 <h2 className="mt-1 text-2xl font-black text-white">Test Your Knowledge</h2>
-                <p className="mt-1 text-sm text-slate-400">Complete the quiz before moving to the next lecture.</p>
+                <p className="mt-1 text-sm text-slate-400">Pass the quiz before this lecture is marked complete or you can move to the next lecture.</p>
               </div>
               <div className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-black text-emerald-400">{lecture.questions.length} Questions</div>
             </div>
@@ -5164,7 +5145,7 @@ function QuizPanel({
         </div>
 
         <p className="mt-3 text-xs leading-5 text-slate-500">
-          Complete the lecture and answer at least {requiredScore} questions
+          Watch the lecture and answer at least {requiredScore} questions
           correctly to pass.
         </p>
       </div>
@@ -5177,8 +5158,8 @@ function QuizPanel({
               Quiz locked
             </p>
             <p className="mt-1 text-xs leading-5 text-amber-800/70">
-              Watch the lecture first, then click “Mark as Complete” below the
-              video to unlock the quiz.
+              Watch the lecture first, then open the quiz below the
+              video to unlock the assessment.
             </p>
           </div>
         </div>
