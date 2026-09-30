@@ -3087,4 +3087,176 @@ router.delete(
   },
 );
 
+
+/* =====================================================
+   SUPPORT SETTINGS
+===================================================== */
+
+const DEFAULT_SUPPORT_SETTINGS = {
+  name: "Naimish Singh",
+  email: "snera980@gmail.com",
+  phone: "+91 8960513302",
+  message:
+    "For course, account or payment support, contact the SkillForge support team.",
+};
+
+router.get(
+  "/public-support-settings",
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await pool.query(`
+        SELECT
+          support_name,
+          support_email,
+          support_phone,
+          support_message
+        FROM site_support_settings
+        WHERE id = 1
+        LIMIT 1
+      `);
+
+      const row = result.rows[0];
+
+      res.status(200).json({
+        success: true,
+        support: {
+          name: row?.support_name ?? DEFAULT_SUPPORT_SETTINGS.name,
+          email: row?.support_email ?? DEFAULT_SUPPORT_SETTINGS.email,
+          phone: row?.support_phone ?? DEFAULT_SUPPORT_SETTINGS.phone,
+          message: row?.support_message ?? DEFAULT_SUPPORT_SETTINGS.message,
+        },
+      });
+    } catch (error) {
+      console.error("Public support settings error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to load support settings",
+      });
+    }
+  },
+);
+
+router.get(
+  "/support-settings",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const result = await pool.query(`
+        SELECT
+          support_name,
+          support_email,
+          support_phone,
+          support_message,
+          updated_at
+        FROM site_support_settings
+        WHERE id = 1
+        LIMIT 1
+      `);
+
+      const row = result.rows[0];
+
+      res.status(200).json({
+        success: true,
+        support: {
+          name: row?.support_name ?? DEFAULT_SUPPORT_SETTINGS.name,
+          email: row?.support_email ?? DEFAULT_SUPPORT_SETTINGS.email,
+          phone: row?.support_phone ?? DEFAULT_SUPPORT_SETTINGS.phone,
+          message: row?.support_message ?? DEFAULT_SUPPORT_SETTINGS.message,
+          updatedAt: row?.updated_at ?? null,
+        },
+      });
+    } catch (error) {
+      console.error("Admin support settings fetch error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to load support settings",
+      });
+    }
+  },
+);
+
+router.put(
+  "/support-settings",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const supportName = String(req.body?.name ?? "").trim();
+      const supportEmail = String(req.body?.email ?? "").trim();
+      const supportPhone = String(req.body?.phone ?? "").trim();
+      const supportMessage = String(req.body?.message ?? "").trim();
+
+      if (!supportName || !supportEmail || !supportPhone || !supportMessage) {
+        res.status(400).json({
+          success: false,
+          message: "All support fields are required",
+        });
+        return;
+      }
+
+      const result = await pool.query(
+        `
+        INSERT INTO site_support_settings (
+          id,
+          support_name,
+          support_email,
+          support_phone,
+          support_message,
+          updated_at
+        )
+        VALUES (1, $1, $2, $3, $4, NOW())
+        ON CONFLICT (id)
+        DO UPDATE SET
+          support_name = EXCLUDED.support_name,
+          support_email = EXCLUDED.support_email,
+          support_phone = EXCLUDED.support_phone,
+          support_message = EXCLUDED.support_message,
+          updated_at = NOW()
+        RETURNING
+          support_name,
+          support_email,
+          support_phone,
+          support_message,
+          updated_at
+        `,
+        [supportName, supportEmail, supportPhone, supportMessage],
+      );
+
+      const row = result.rows[0];
+
+      res.status(200).json({
+        success: true,
+        message: "Support settings updated successfully",
+        support: {
+          name: row.support_name,
+          email: row.support_email,
+          phone: row.support_phone,
+          message: row.support_message,
+          updatedAt: row.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error("Admin support settings update error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to update support settings",
+      });
+    }
+  },
+);
+
 export default router;
