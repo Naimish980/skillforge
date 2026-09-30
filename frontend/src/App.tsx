@@ -2036,7 +2036,7 @@ function AppContent() {
                     <CertificateArtwork
                       record={{
                         certificateId: `SAMPLE-${sample.category.toUpperCase().replace(/\s+/g, "-")}`,
-                        studentName: "Sample Student",
+                        studentName: "Vivek",
                         courseId: "sample",
                         courseTitle: sample.title,
                         issuedAt: "2026-09-30T00:00:00.000Z",
