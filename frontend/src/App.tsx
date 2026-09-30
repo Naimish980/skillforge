@@ -76,6 +76,17 @@ type Offer = {
   end_at: string | null;
 };
 
+type StudentReview = {
+  id: number;
+  studentName: string;
+  reviewText: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  rating: number;
+  displayOrder: number;
+  createdAt: string;
+};
+
 type QuizQuestion = {
   question: string;
   options: string[];
@@ -400,17 +411,8 @@ const resolveCourseLessonTotal = async (course: Course): Promise<number> => {
     }
 
     if (dbId) {
-      const token = localStorage.getItem("skillforge_token");
-
       const response = await fetch(
         `${API_BASE_URL}/api/admin/public-courses/${dbId}/content`,
-        {
-          headers: token
-            ? {
-                Authorization: `Bearer ${token}`,
-              }
-            : {},
-        },
       );
       const data = await response.json().catch(() => null);
 
@@ -876,6 +878,58 @@ function OfferCountdown({ endAt }: { endAt: string | null }) {
   );
 }
 
+function ReviewVideo({ review }: { review: StudentReview }) {
+  const url = review.videoUrl.trim();
+  const instagramMatch = url.match(/instagram\.com\/(?:reel|p)\/([A-Za-z0-9_-]+)/i);
+  const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+
+  if (instagramMatch) {
+    const embedUrl = `https://www.instagram.com/${url.toLowerCase().includes("/p/") ? "p" : "reel"}/${instagramMatch[1]}/embed/`;
+    return (
+      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
+        <iframe
+          src={embedUrl}
+          title={`${review.studentName} student review`}
+          className="absolute inset-0 h-full w-full border-0"
+          loading="lazy"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+        />
+      </div>
+    );
+  }
+
+  if (youtubeMatch) {
+    return (
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
+        <iframe
+          src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
+          title={`${review.studentName} student review`}
+          className="absolute inset-0 h-full w-full border-0"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src={url}
+        poster={review.thumbnailUrl || undefined}
+        controls
+        preload="metadata"
+        playsInline
+      />
+      <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+        Student Review
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const supportSettings = usePublicSupportSettings();
 
@@ -954,6 +1008,9 @@ function AppContent() {
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [selectedOfferCourseIds, setSelectedOfferCourseIds] = useState<string[]>([]);
+  const [studentReviews, setStudentReviews] = useState<StudentReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  void reviewsLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -1067,6 +1124,49 @@ function AppContent() {
 
     void loadActiveOffers();
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStudentReviews = async () => {
+      try {
+        setReviewsLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/admin/public-reviews`);
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success || !Array.isArray(data.reviews)) {
+          if (!cancelled) setStudentReviews([]);
+          return;
+        }
+
+        const reviews = data.reviews
+          .map((review: Partial<StudentReview>) => ({
+            id: Number(review.id),
+            studentName: String(review.studentName || "Student"),
+            reviewText: String(review.reviewText || ""),
+            videoUrl: String(review.videoUrl || ""),
+            thumbnailUrl: review.thumbnailUrl ? String(review.thumbnailUrl) : null,
+            rating: Math.min(5, Math.max(1, Number(review.rating) || 5)),
+            displayOrder: Number(review.displayOrder) || 0,
+            createdAt: String(review.createdAt || ""),
+          }))
+          .filter((review: StudentReview) => review.videoUrl);
+
+        if (!cancelled) setStudentReviews(reviews);
+      } catch (error) {
+        console.error("Student reviews loading error:", error);
+        if (!cancelled) setStudentReviews([]);
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
+      }
+    };
+
+    void loadStudentReviews();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -1908,6 +2008,51 @@ function AppContent() {
           })}</div>
           )}
         </section>
+
+        {(reviewsLoading || studentReviews.length > 0) && (
+          <section id="student-reviews" className="scroll-mt-24 border-y border-slate-100 bg-slate-50/70 py-14 dark:border-white/10 dark:bg-slate-950/30">
+            <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Student Reviews</p>
+                  <h2 className="mt-2 text-3xl font-black text-[#0b1736] dark:text-white">What Our Students Say</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-500">Real experiences from learners who are building their technical skills with SkillForge.</p>
+                </div>
+                <div className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm dark:border-emerald-400/20 dark:bg-slate-900 dark:text-emerald-300">
+                  Real Student Experiences
+                </div>
+              </div>
+
+              {reviewsLoading ? (
+                <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-400">
+                  Loading student reviews...
+                </div>
+              ) : (
+                <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {studentReviews.map((review) => (
+                  <article key={review.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+                    <ReviewVideo review={review} />
+                    <div className="px-1 pb-1 pt-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-lg font-black text-[#0b1736] dark:text-white">{review.studentName}</h3>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">SkillForge Learner</p>
+                        </div>
+                        <div className="flex shrink-0 gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star} className={star <= review.rating ? "text-amber-400" : "text-slate-300"}>★</span>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.reviewText}</p>
+                    </div>
+                  </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
@@ -3639,17 +3784,8 @@ function CourseOverviewPage({
 
         if (!dbId) return;
 
-        const token = localStorage.getItem("skillforge_token");
-
         const response = await fetch(
           `${API_BASE_URL}/api/admin/public-courses/${dbId}/content`,
-          {
-            headers: token
-              ? {
-                  Authorization: `Bearer ${token}`,
-                }
-              : {},
-          },
         );
         const data = await response.json();
 
@@ -4722,17 +4858,8 @@ function CoursePlayer({
           return;
         }
 
-        const token = localStorage.getItem("skillforge_token");
-
         const contentResponse = await fetch(
           `${API_BASE_URL}/api/admin/public-courses/${catalogCourse.dbId}/content`,
-          {
-            headers: token
-              ? {
-                  Authorization: `Bearer ${token}`,
-                }
-              : {},
-          },
         );
         const contentData = await contentResponse.json();
 
