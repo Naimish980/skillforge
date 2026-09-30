@@ -3088,6 +3088,194 @@ router.delete(
 );
 
 
+
+/* =====================================================
+   SOCIAL MEDIA SETTINGS
+===================================================== */
+
+const DEFAULT_SOCIAL_SETTINGS = {
+  instagram: "",
+  linkedin: "",
+  facebook: "",
+  whatsapp: "",
+};
+
+router.get(
+  "/public-social-settings",
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await pool.query(`
+        SELECT instagram, linkedin, facebook, whatsapp
+        FROM site_social_settings
+        WHERE id = 1
+        LIMIT 1
+      `);
+
+      const row = result.rows[0];
+
+      res.status(200).json({
+        success: true,
+        social: {
+          instagram: row?.instagram ?? DEFAULT_SOCIAL_SETTINGS.instagram,
+          linkedin: row?.linkedin ?? DEFAULT_SOCIAL_SETTINGS.linkedin,
+          facebook: row?.facebook ?? DEFAULT_SOCIAL_SETTINGS.facebook,
+          whatsapp: row?.whatsapp ?? DEFAULT_SOCIAL_SETTINGS.whatsapp,
+        },
+      });
+    } catch (error) {
+      console.error("Public social settings error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to load social settings",
+      });
+    }
+  },
+);
+
+router.get(
+  "/social-settings",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS site_social_settings (
+          id INTEGER PRIMARY KEY,
+          instagram TEXT NOT NULL DEFAULT '',
+          linkedin TEXT NOT NULL DEFAULT '',
+          facebook TEXT NOT NULL DEFAULT '',
+          whatsapp TEXT NOT NULL DEFAULT '',
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      const result = await pool.query(`
+        SELECT instagram, linkedin, facebook, whatsapp, updated_at
+        FROM site_social_settings
+        WHERE id = 1
+        LIMIT 1
+      `);
+
+      const row = result.rows[0];
+
+      res.status(200).json({
+        success: true,
+        social: {
+          instagram: row?.instagram ?? DEFAULT_SOCIAL_SETTINGS.instagram,
+          linkedin: row?.linkedin ?? DEFAULT_SOCIAL_SETTINGS.linkedin,
+          facebook: row?.facebook ?? DEFAULT_SOCIAL_SETTINGS.facebook,
+          whatsapp: row?.whatsapp ?? DEFAULT_SOCIAL_SETTINGS.whatsapp,
+          updatedAt: row?.updated_at ?? null,
+        },
+      });
+    } catch (error) {
+      console.error("Admin social settings fetch error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to load social settings",
+      });
+    }
+  },
+);
+
+router.put(
+  "/social-settings",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const instagram = String(req.body?.instagram ?? "").trim();
+      const linkedin = String(req.body?.linkedin ?? "").trim();
+      const facebook = String(req.body?.facebook ?? "").trim();
+      const whatsapp = String(req.body?.whatsapp ?? "").trim();
+
+      const isValidUrl = (value: string) =>
+        value === "" ||
+        /^https?:\/\/\S+$/i.test(value);
+
+      if (
+        !isValidUrl(instagram) ||
+        !isValidUrl(linkedin) ||
+        !isValidUrl(facebook) ||
+        !isValidUrl(whatsapp)
+      ) {
+        res.status(400).json({
+          success: false,
+          message: "Use a valid http:// or https:// URL for social links",
+        });
+        return;
+      }
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS site_social_settings (
+          id INTEGER PRIMARY KEY,
+          instagram TEXT NOT NULL DEFAULT '',
+          linkedin TEXT NOT NULL DEFAULT '',
+          facebook TEXT NOT NULL DEFAULT '',
+          whatsapp TEXT NOT NULL DEFAULT '',
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      const result = await pool.query(
+        `
+        INSERT INTO site_social_settings (
+          id,
+          instagram,
+          linkedin,
+          facebook,
+          whatsapp,
+          updated_at
+        )
+        VALUES (1, $1, $2, $3, $4, NOW())
+        ON CONFLICT (id)
+        DO UPDATE SET
+          instagram = EXCLUDED.instagram,
+          linkedin = EXCLUDED.linkedin,
+          facebook = EXCLUDED.facebook,
+          whatsapp = EXCLUDED.whatsapp,
+          updated_at = NOW()
+        RETURNING instagram, linkedin, facebook, whatsapp, updated_at
+        `,
+        [instagram, linkedin, facebook, whatsapp],
+      );
+
+      const row = result.rows[0];
+
+      res.status(200).json({
+        success: true,
+        message: "Social media settings updated successfully",
+        social: {
+          instagram: row.instagram,
+          linkedin: row.linkedin,
+          facebook: row.facebook,
+          whatsapp: row.whatsapp,
+          updatedAt: row.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error("Admin social settings update error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to update social settings",
+      });
+    }
+  },
+);
+
 /* =====================================================
    SUPPORT SETTINGS
 ===================================================== */
