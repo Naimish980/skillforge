@@ -33,6 +33,10 @@ import {
   X,
   Sun,
   Moon,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize2,
 } from "lucide-react";
 import AdminDashboard from "./pages/AdminDashboard";
 
@@ -878,53 +882,197 @@ function OfferCountdown({ endAt }: { endAt: string | null }) {
   );
 }
 
+const DEFAULT_STUDENT_REVIEW_VIDEO_URL = "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/student-review/WhatsApp%20Video%202026-09-28%20at%202.08.22%20PM.mp4";
+
+function normalizeVideoUrl(url: string): string {
+  const value = url.trim();
+  if (!value) return DEFAULT_STUDENT_REVIEW_VIDEO_URL;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
 function ReviewVideo({ review }: { review: StudentReview }) {
-  const url = review.videoUrl.trim();
-  const instagramMatch = url.match(/instagram\.com\/(?:reel|p)\/([A-Za-z0-9_-]+)/i);
-  const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const videoUrl = normalizeVideoUrl(review.videoUrl);
 
-  if (instagramMatch) {
-    const embedUrl = `https://www.instagram.com/${url.toLowerCase().includes("/p/") ? "p" : "reel"}/${instagramMatch[1]}/embed/`;
-    return (
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
-        <iframe
-          src={embedUrl}
-          title={`${review.studentName} student review`}
-          className="absolute inset-0 h-full w-full border-0"
-          loading="lazy"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-        />
-      </div>
-    );
-  }
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-  if (youtubeMatch) {
-    return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
-        <iframe
-          src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
-          title={`${review.studentName} student review`}
-          className="absolute inset-0 h-full w-full border-0"
-          loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        />
-      </div>
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          video.currentTime = 0;
+          video.muted = true;
+          setIsMuted(true);
+          const promise = video.play();
+          if (promise) {
+            promise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+          }
+        } else {
+          video.pause();
+          setIsPlaying(false);
+        }
+      },
+      { threshold: [0, 0.5, 1] },
     );
-  }
+
+    observer.observe(video);
+
+    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleLoadedMetadata = () => setDuration(video.duration || 0);
+    const handleEnded = () => setIsPlaying(false);
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("ended", handleEnded);
+
+    return () => {
+      observer.disconnect();
+      video.pause();
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("ended", handleEnded);
+    };
+  }, [videoUrl]);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused || video.ended) {
+      if (video.ended) video.currentTime = 0;
+      video.muted = isMuted;
+      void video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const nextMuted = !isMuted;
+    video.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
+  const handleSeek = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const nextTime = Number(event.target.value);
+    video.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  };
+
+  const toggleFullscreen = async () => {
+    const player = document.getElementById(`student-review-player-${review.id}`);
+    if (!player) return;
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+
+    await player.requestFullscreen?.().catch(() => undefined);
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${remainingSeconds}`;
+  };
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
+    <div
+      id={`student-review-player-${review.id}`}
+      className="group relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-[28px] border border-slate-200/80 bg-slate-950 shadow-[0_20px_55px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-black dark:shadow-[0_20px_55px_rgba(0,0,0,0.45)]"
+    >
       <video
-        className="absolute inset-0 h-full w-full object-cover"
-        src={url}
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-contain bg-black"
+        src={videoUrl}
         poster={review.thumbnailUrl || undefined}
-        controls
-        preload="metadata"
+        muted={isMuted}
         playsInline
+        preload="metadata"
+        aria-label={`${review.studentName} student review video`}
+        onClick={togglePlay}
       />
-      <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+
+      <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white backdrop-blur-md">
         Student Review
+      </div>
+
+      {!isPlaying && (
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label="Play student review"
+          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-2xl backdrop-blur-md transition hover:scale-105 hover:bg-black/70"
+        >
+          <Play size={28} fill="currentColor" className="ml-1" />
+        </button>
+      )}
+
+      <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-white/10 bg-black/45 px-3 py-2.5 opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={isPlaying ? "Pause video" : "Play video"}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
+          >
+            {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+          </button>
+
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            step="0.01"
+            value={Math.min(currentTime, duration || 0)}
+            onChange={handleSeek}
+            aria-label="Video progress"
+            className="h-1 w-full cursor-pointer accent-emerald-400"
+          />
+
+          <span className="min-w-[72px] text-right text-[10px] font-semibold text-white/80">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label={isMuted ? "Unmute video" : "Mute video"}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
+          >
+            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void toggleFullscreen()}
+            aria-label="Fullscreen"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
+          >
+            <Maximize2 size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2009,16 +2157,25 @@ function AppContent() {
           )}
         </section>
 
+
+
+        <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
+
+        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
+
+        <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
+
+
         {(reviewsLoading || studentReviews.length > 0) && (
-          <section id="student-reviews" className="scroll-mt-24 border-y border-slate-100 bg-slate-50/70 py-14 dark:border-white/10 dark:bg-slate-950/30">
+          <section id="student-reviews" className="scroll-mt-24 border-y border-slate-200/70 bg-slate-50/55 py-16 dark:border-white/10 dark:bg-slate-950/65">
             <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Student Reviews</p>
                   <h2 className="mt-2 text-3xl font-black text-[#0b1736] dark:text-white">What Our Students Say</h2>
-                  <p className="mt-2 max-w-2xl text-sm text-slate-500">Real experiences from learners who are building their technical skills with SkillForge.</p>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">Real experiences from learners who are building their technical skills with SkillForge.</p>
                 </div>
-                <div className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm dark:border-emerald-400/20 dark:bg-slate-900 dark:text-emerald-300">
+                <div className="rounded-full border border-emerald-200/70 bg-white/70 px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm backdrop-blur-sm dark:border-emerald-400/20 dark:bg-slate-900/65 dark:text-emerald-300">
                   Real Student Experiences
                 </div>
               </div>
@@ -2030,7 +2187,7 @@ function AppContent() {
               ) : (
                 <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {studentReviews.map((review) => (
-                  <article key={review.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+                  <article key={review.id} className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/65 dark:shadow-black/20">
                     <ReviewVideo review={review} />
                     <div className="px-1 pb-1 pt-5">
                       <div className="flex items-center justify-between gap-3">
@@ -2053,13 +2210,6 @@ function AppContent() {
             </div>
           </section>
         )}
-
-        <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
-
-        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
-
-        <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
-
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
 
