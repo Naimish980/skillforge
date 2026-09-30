@@ -884,37 +884,75 @@ function ReviewVideo({ review }: { review: StudentReview }) {
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
 
   if (instagramMatch) {
-    const embedUrl = `https://www.instagram.com/${url.toLowerCase().includes("/p/") ? "p" : "reel"}/${instagramMatch[1]}/embed/`;
+    const instagramUrl = url.split("?")[0];
+
     return (
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
-        <iframe
-          src={embedUrl}
-          title={`${review.studentName} student review`}
-          className="absolute inset-0 h-full w-full border-0"
-          loading="lazy"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-        />
-      </div>
+      <a
+        href={instagramUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Watch ${review.studentName}'s student review on Instagram`}
+        className="group relative block aspect-[9/16] w-full overflow-hidden rounded-2xl bg-[#020617]"
+      >
+        {review.thumbnailUrl ? (
+          <img
+            src={review.thumbnailUrl}
+            alt={`${review.studentName} student review`}
+            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            loading="lazy"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#020617] via-[#0b1736] to-[#111827] px-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white shadow-xl backdrop-blur">
+              <PlayCircle size={32} />
+            </div>
+            <p className="mt-5 text-sm font-black text-white">Student Review</p>
+            <p className="mt-1 text-xs text-slate-400">Watch on Instagram</p>
+          </div>
+        )}
+
+        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-xl border border-white/10 bg-black/65 px-3 py-2 backdrop-blur-md">
+          <span className="text-xs font-black text-white">Watch on Instagram</span>
+          <ArrowRight size={15} className="text-emerald-400 transition-transform group-hover:translate-x-1" />
+        </div>
+      </a>
     );
   }
 
   if (youtubeMatch) {
     return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
-        <iframe
-          src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
-          title={`${review.studentName} student review`}
-          className="absolute inset-0 h-full w-full border-0"
-          loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        />
-      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Watch ${review.studentName}'s student review on YouTube`}
+        className="group relative block aspect-video w-full overflow-hidden rounded-2xl bg-[#020617]"
+      >
+        {review.thumbnailUrl ? (
+          <img
+            src={review.thumbnailUrl}
+            alt={`${review.studentName} student review`}
+            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            loading="lazy"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#020617] via-[#0b1736] to-[#111827]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-white">
+              <PlayCircle size={30} />
+            </div>
+          </div>
+        )}
+
+        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-xl border border-white/10 bg-black/65 px-3 py-2 backdrop-blur-md">
+          <span className="text-xs font-black text-white">Watch on YouTube</span>
+          <ArrowRight size={15} className="text-emerald-400 transition-transform group-hover:translate-x-1" />
+        </div>
+      </a>
     );
   }
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
+    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-[#020617]">
       <video
         className="absolute inset-0 h-full w-full object-cover"
         src={url}
@@ -923,7 +961,7 @@ function ReviewVideo({ review }: { review: StudentReview }) {
         preload="metadata"
         playsInline
       />
-      <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+      <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
         Student Review
       </div>
     </div>
@@ -2009,14 +2047,20 @@ function AppContent() {
           )}
         </section>
 
+        <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
+
+        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
+
+        <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
+
         {(reviewsLoading || studentReviews.length > 0) && (
-          <section id="student-reviews" className="scroll-mt-24 border-y border-slate-100 bg-slate-50/70 py-14 dark:border-white/10 dark:bg-slate-950/30">
+          <section id="student-reviews" className="scroll-mt-24 border-y border-white/10 bg-[#020617] py-14 text-white">
             <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Student Reviews</p>
-                  <h2 className="mt-2 text-3xl font-black text-[#0b1736] dark:text-white">What Our Students Say</h2>
-                  <p className="mt-2 max-w-2xl text-sm text-slate-500">Real experiences from learners who are building their technical skills with SkillForge.</p>
+                  <h2 className="mt-2 text-3xl font-black text-white">What Our Students Say</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-400">Real experiences from learners who are building their technical skills with SkillForge.</p>
                 </div>
                 <div className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm dark:border-emerald-400/20 dark:bg-slate-900 dark:text-emerald-300">
                   Real Student Experiences
@@ -2024,19 +2068,19 @@ function AppContent() {
               </div>
 
               {reviewsLoading ? (
-                <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-400">
+                <div className="mt-8 rounded-2xl border border-white/10 bg-[#0b1736] p-8 text-center text-sm text-slate-400 shadow-sm">
                   Loading student reviews...
                 </div>
               ) : (
                 <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {studentReviews.map((review) => (
-                  <article key={review.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+                  <article key={review.id} className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b1736] p-4 shadow-lg shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/20 hover:shadow-2xl">
                     <ReviewVideo review={review} />
                     <div className="px-1 pb-1 pt-5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="truncate text-lg font-black text-[#0b1736] dark:text-white">{review.studentName}</h3>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">SkillForge Learner</p>
+                          <h3 className="truncate text-lg font-black text-white">{review.studentName}</h3>
+                          <p className="mt-1 text-xs font-semibold text-slate-400">SkillForge Learner</p>
                         </div>
                         <div className="flex shrink-0 gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
                           {[1, 2, 3, 4, 5].map((star) => (
@@ -2044,7 +2088,7 @@ function AppContent() {
                           ))}
                         </div>
                       </div>
-                      <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.reviewText}</p>
+                      <p className="mt-4 text-sm leading-6 text-slate-300">{review.reviewText}</p>
                     </div>
                   </article>
                   ))}
@@ -2053,12 +2097,6 @@ function AppContent() {
             </div>
           </section>
         )}
-
-        <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
-
-        <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
-
-        <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
 
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
