@@ -2027,16 +2027,16 @@ function AppContent() {
 
             <div className="mt-8 grid gap-6 lg:grid-cols-3">
               {[
-                { title: "Networking Fundamentals", category: "Networking", level: "Beginner" },
-                { title: "Linux Administration", category: "Linux", level: "Intermediate" },
-                { title: "AWS Cloud Fundamentals", category: "Cloud Computing", level: "Beginner" },
+                { title: "Networking Fundamentals", category: "Networking", level: "Beginner", studentName: "Vivek Sharma" },
+                { title: "Linux Administration", category: "Linux", level: "Intermediate", studentName: "Aarav Verma" },
+                { title: "AWS Cloud Fundamentals", category: "Cloud Computing", level: "Beginner", studentName: "Riya Singh" },
               ].map((sample) => (
                 <div key={sample.title} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
                   <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950">
                     <CertificateArtwork
                       record={{
                         certificateId: `SAMPLE-${sample.category.toUpperCase().replace(/\s+/g, "-")}`,
-                        studentName: "Vivek",
+                        studentName: sample.studentName,
                         courseId: "sample",
                         courseTitle: sample.title,
                         issuedAt: "2026-09-30T00:00:00.000Z",
@@ -3379,47 +3379,11 @@ function DashboardTabContent({
           }
         }
 
-        // If the course is already 100% complete and there is no stored
-        // certificate yet, request issuance now. The backend remains the
-        // final authority and will only issue after every quiz is passed.
-        const completedCoursesList = enrolledCourses.filter(
-          (course) => (progressByCourse[course.id] ?? 0) >= 100,
-        );
-
-        for (const course of completedCoursesList) {
-          if (next[course.id]) continue;
-
-          try {
-            const issueResponse = await fetch(
-              `${API_BASE_URL}/api/payment/certificates/issue`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ courseId: course.id }),
-              },
-            );
-
-            const issueData = await issueResponse.json().catch(() => null);
-
-            if (
-              issueResponse.ok &&
-              issueData?.success &&
-              issueData?.certificate?.certificateId
-            ) {
-              next[course.id] = issueData.certificate as CertificateRecord;
-            } else {
-              console.warn(
-                "Certificate is not ready:",
-                issueData?.message || "Backend completion check failed",
-              );
-            }
-          } catch (error) {
-            console.error("Automatic certificate issue error:", error);
-          }
-        }
+        // Certificate issuance is intentionally NOT automatic here.
+        // A completed course is shown as ready, and the certificate is
+        // created only when the student clicks "Generate Certificate".
+        // This prevents repeated background issue requests from making
+        // the Certificates tab slow or appearing stuck.
 
         if (!cancelled) {
           setCertificateRecords(next);
