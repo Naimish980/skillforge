@@ -581,9 +581,6 @@ const DEFAULT_SUPPORT_SETTINGS: SupportSettings = {
     "For course, account or payment support, contact the SkillForge support team.",
 };
 
-let latestSupportSettings: SupportSettings =
-  DEFAULT_SUPPORT_SETTINGS;
-
 function usePublicSupportSettings(): SupportSettings {
   const [supportSettings, setSupportSettings] =
     useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
@@ -619,7 +616,6 @@ function usePublicSupportSettings(): SupportSettings {
             ),
           };
 
-          latestSupportSettings = nextSupportSettings;
           setSupportSettings(nextSupportSettings);
         }
       } catch (error) {
@@ -2562,8 +2558,8 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
               </p>
               <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm">
                 <p className="font-bold text-slate-800">{supportSettings.name}</p>
-                <p className="mt-1 text-slate-500">{latestSupportSettings.email}</p>
-                <p className="text-slate-500">{latestSupportSettings.phone}</p>
+                <p className="mt-1 text-slate-500">{supportSettings.email}</p>
+                <p className="text-slate-500">{supportSettings.phone}</p>
               </div>
             </div>
           </section>
@@ -2580,6 +2576,7 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
               onBack={onBack}
               onLearn={onLearn}
               setActiveTab={setActiveTab}
+              supportSettings={supportSettings}
             />
           )}
         </main>
@@ -3085,6 +3082,7 @@ function DashboardTabContent({
   onBack,
   onLearn,
   setActiveTab,
+  supportSettings,
 }: {
   activeTab: "courses" | "progress" | "certificates" | "purchases" | "support";
   enrolledCourses: Course[];
@@ -3096,6 +3094,7 @@ function DashboardTabContent({
   onBack: () => void;
   onLearn: (course: Course) => void;
   setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
+  supportSettings: SupportSettings;
 }) {
   const [certificateCourse, setCertificateCourse] = useState<Course | null>(null);
   const [certificateRecord, setCertificateRecord] = useState<CertificateRecord | null>(null);
@@ -3509,7 +3508,7 @@ function DashboardTabContent({
       )}
 
       {activeTab === "support" && (
-        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href={`mailto:${latestSupportSettings.email}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">{latestSupportSettings.email}</p></a><a href={`tel:${latestSupportSettings.phone.replace(/[^\d+]/g, "")}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">{latestSupportSettings.phone}</p></a></div>
+        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href={`mailto:${supportSettings.email}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">{supportSettings.email}</p></a><a href={`tel:${supportSettings.phone.replace(/[^\d+]/g, "")}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">{supportSettings.phone}</p></a></div>
       )}
     </section>
   );
