@@ -980,7 +980,13 @@ async function getCertificateCompletionStatus(
   const result = await pool.query(
     `
     SELECT
-      COUNT(DISTINCT m.id)::int AS total_modules,
+      COUNT(DISTINCT m.id) FILTER (
+        WHERE EXISTS (
+          SELECT 1
+          FROM lectures module_lecture
+          WHERE module_lecture.module_id = m.id
+        )
+      )::int AS total_modules,
       COUNT(DISTINCT l.id)::int AS total_lectures,
       COUNT(DISTINCT m.id) FILTER (
         WHERE EXISTS (
