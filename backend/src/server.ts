@@ -1,6 +1,8 @@
 ﻿import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { pool } from "./db";
 
 import authRoutes from "./routes/auth";
@@ -13,18 +15,113 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+/* =====================================================
+   SECURITY HEADERS
+===================================================== */
+
+app.use(helmet());
+
+/* =====================================================
+   CORS
+===================================================== */
+
+const allowedOrigins = [
+  "https://skillforge-tau-three.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header
+      // such as server-to-server or health-check requests.
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(
+        new Error("CORS policy: Origin not allowed"),
+      );
+    },
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
+    credentials: false,
+  }),
+);
+
+/* =====================================================
+   BASIC MIDDLEWARE
+===================================================== */
+
 app.use(express.json());
+
+/* =====================================================
+   RATE LIMITING
+===================================================== */
+
+// General API protection
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests. Please try again later.",
+  },
+});
+
+// Authentication protection
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message:
+      "Too many authentication attempts. Please try again later.",
+  },
+});
+
+// Payment API protection
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message:
+      "Too many payment requests. Please try again later.",
+  },
+});
 
 /* =====================================================
    API ROUTES
 ===================================================== */
 
-app.use("/api/auth", authRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use("/api/progress", progressRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/offers", offerRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/payment", paymentLimiter, paymentRoutes);
+
+app.use("/api/progress", generalLimiter, progressRoutes);
+app.use("/api/admin", generalLimiter, adminRoutes);
+app.use("/api/offers", generalLimiter, offerRoutes);
 
 /* =====================================================
    HEALTH CHECK
