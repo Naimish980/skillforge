@@ -33,10 +33,6 @@ import {
   X,
   Sun,
   Moon,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize2,
 } from "lucide-react";
 import AdminDashboard from "./pages/AdminDashboard";
 
@@ -78,17 +74,6 @@ type Offer = {
   show_dashboard: boolean;
   start_at: string | null;
   end_at: string | null;
-};
-
-type StudentReview = {
-  id: number;
-  studentName: string;
-  reviewText: string;
-  videoUrl: string;
-  thumbnailUrl: string | null;
-  rating: number;
-  displayOrder: number;
-  createdAt: string;
 };
 
 type QuizQuestion = {
@@ -580,74 +565,6 @@ let courses: Course[] = [
 ];
 
 const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
-
-type SupportSettings = {
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-};
-
-const DEFAULT_SUPPORT_SETTINGS: SupportSettings = {
-  name: "Naimish Singh",
-  email: "snera980@gmail.com",
-  phone: "+91 8960513302",
-  message:
-    "For course, account or payment support, contact the SkillForge support team.",
-};
-
-function usePublicSupportSettings(): SupportSettings {
-  const [supportSettings, setSupportSettings] =
-    useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadSupportSettings = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/admin/public-support-settings`,
-        );
-        const data = await response.json().catch(() => null);
-
-        if (
-          !cancelled &&
-          response.ok &&
-          data?.success &&
-          data?.support
-        ) {
-          const nextSupportSettings: SupportSettings = {
-            name: String(
-              data.support.name || DEFAULT_SUPPORT_SETTINGS.name,
-            ),
-            email: String(
-              data.support.email || DEFAULT_SUPPORT_SETTINGS.email,
-            ),
-            phone: String(
-              data.support.phone || DEFAULT_SUPPORT_SETTINGS.phone,
-            ),
-            message: String(
-              data.support.message || DEFAULT_SUPPORT_SETTINGS.message,
-            ),
-          };
-
-          setSupportSettings(nextSupportSettings);
-        }
-      } catch (error) {
-        console.error("Support settings loading error:", error);
-      }
-    };
-
-    void loadSupportSettings();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return supportSettings;
-}
-
 const SKILLFORGE_PUBLIC_URL = "https://skillforge-tau-three.vercel.app";
 
 declare global {
@@ -882,221 +799,7 @@ function OfferCountdown({ endAt }: { endAt: string | null }) {
   );
 }
 
-const DEFAULT_STUDENT_REVIEW_VIDEO_URL = "https://pub-edfa7b2fb8204f23bd7d5a9f86bc0ca0.r2.dev/student-review/WhatsApp%20Video%202026-09-28%20at%202.08.22%20PM.mp4";
-
-function normalizeVideoUrl(url: string): string {
-  const value = url.trim();
-  if (!value) return DEFAULT_STUDENT_REVIEW_VIDEO_URL;
-  if (/^https?:\/\//i.test(value)) return value;
-  return `https://${value}`;
-}
-
-function ReviewVideo({ review }: { review: StudentReview }) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const videoUrl = normalizeVideoUrl(review.videoUrl);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    let wasVisible = false;
-
-    const playFromBeginning = () => {
-      video.pause();
-      video.currentTime = 0;
-      video.muted = true;
-      setIsMuted(true);
-
-      const promise = video.play();
-      if (promise) {
-        promise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-      }
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-
-        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
-
-        if (visible && !wasVisible) {
-          // Every new entry into the viewport starts the review from 0:00.
-          wasVisible = true;
-          playFromBeginning();
-        } else if (!visible && wasVisible) {
-          // Reset immediately when it leaves, so the next entry always starts fresh.
-          wasVisible = false;
-          video.pause();
-          video.currentTime = 0;
-          setCurrentTime(0);
-          setIsPlaying(false);
-        }
-      },
-      { threshold: [0, 0.5, 1] },
-    );
-
-    observer.observe(video);
-
-    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
-    const handleLoadedMetadata = () => setDuration(video.duration || 0);
-    const handleEnded = () => setIsPlaying(false);
-
-    video.addEventListener("timeupdate", handleTimeUpdate);
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("ended", handleEnded);
-
-    return () => {
-      observer.disconnect();
-      video.pause();
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("ended", handleEnded);
-    };
-  }, [videoUrl]);
-
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (video.paused || video.ended) {
-      if (video.ended) video.currentTime = 0;
-      video.muted = isMuted;
-      void video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-    } else {
-      video.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const nextMuted = !isMuted;
-    video.muted = nextMuted;
-    setIsMuted(nextMuted);
-  };
-
-  const handleSeek = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const nextTime = Number(event.target.value);
-    video.currentTime = nextTime;
-    setCurrentTime(nextTime);
-  };
-
-  const toggleFullscreen = async () => {
-    const player = document.getElementById(`student-review-player-${review.id}`);
-    if (!player) return;
-
-    if (document.fullscreenElement) {
-      await document.exitFullscreen().catch(() => undefined);
-      return;
-    }
-
-    await player.requestFullscreen?.().catch(() => undefined);
-  };
-
-  const formatTime = (seconds: number) => {
-    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
-    return `${minutes}:${remainingSeconds}`;
-  };
-
-  return (
-    <div
-      id={`student-review-player-${review.id}`}
-      className="group relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-[28px] border border-slate-200/80 bg-slate-950 shadow-[0_20px_55px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-black dark:shadow-[0_20px_55px_rgba(0,0,0,0.45)]"
-    >
-      <video
-        ref={videoRef}
-        className="absolute inset-0 h-full w-full object-contain bg-black"
-        src={videoUrl}
-        poster={review.thumbnailUrl || undefined}
-        muted={isMuted}
-        playsInline
-        preload="metadata"
-        aria-label={`${review.studentName} student review video`}
-        onClick={togglePlay}
-      />
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
-
-      <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white backdrop-blur-md">
-        Student Review
-      </div>
-
-      {!isPlaying && (
-        <button
-          type="button"
-          onClick={togglePlay}
-          aria-label="Play student review"
-          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-2xl backdrop-blur-md transition hover:scale-105 hover:bg-black/70"
-        >
-          <Play size={28} fill="currentColor" className="ml-1" />
-        </button>
-      )}
-
-      <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-white/10 bg-black/45 px-3 py-2.5 opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={togglePlay}
-            aria-label={isPlaying ? "Pause video" : "Play video"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
-          >
-            {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-          </button>
-
-          <input
-            type="range"
-            min="0"
-            max={duration || 0}
-            step="0.01"
-            value={Math.min(currentTime, duration || 0)}
-            onChange={handleSeek}
-            aria-label="Video progress"
-            className="h-1 w-full cursor-pointer accent-emerald-400"
-          />
-
-          <span className="min-w-[72px] text-right text-[10px] font-semibold text-white/80">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
-
-          <button
-            type="button"
-            onClick={toggleMute}
-            aria-label={isMuted ? "Unmute video" : "Mute video"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
-          >
-            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void toggleFullscreen()}
-            aria-label="Fullscreen"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
-          >
-            <Maximize2 size={16} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AppContent() {
-  const supportSettings = usePublicSupportSettings();
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1172,9 +875,6 @@ function AppContent() {
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [selectedOfferCourseIds, setSelectedOfferCourseIds] = useState<string[]>([]);
-  const [studentReviews, setStudentReviews] = useState<StudentReview[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-  void reviewsLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -1288,49 +988,6 @@ function AppContent() {
 
     void loadActiveOffers();
     return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadStudentReviews = async () => {
-      try {
-        setReviewsLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/admin/public-reviews`);
-        const data = await response.json().catch(() => null);
-
-        if (!response.ok || !data?.success || !Array.isArray(data.reviews)) {
-          if (!cancelled) setStudentReviews([]);
-          return;
-        }
-
-        const reviews = data.reviews
-          .map((review: Partial<StudentReview>) => ({
-            id: Number(review.id),
-            studentName: String(review.studentName || "Student"),
-            reviewText: String(review.reviewText || ""),
-            videoUrl: String(review.videoUrl || ""),
-            thumbnailUrl: review.thumbnailUrl ? String(review.thumbnailUrl) : null,
-            rating: Math.min(5, Math.max(1, Number(review.rating) || 5)),
-            displayOrder: Number(review.displayOrder) || 0,
-            createdAt: String(review.createdAt || ""),
-          }))
-          .filter((review: StudentReview) => review.videoUrl);
-
-        if (!cancelled) setStudentReviews(reviews);
-      } catch (error) {
-        console.error("Student reviews loading error:", error);
-        if (!cancelled) setStudentReviews([]);
-      } finally {
-        if (!cancelled) setReviewsLoading(false);
-      }
-    };
-
-    void loadStudentReviews();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   useEffect(() => {
@@ -1916,7 +1573,7 @@ function AppContent() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
                       <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><UserCircle size={23}/></div><div className="min-w-0"><p className="font-bold text-slate-900">{user.name}</p><p className="truncate text-xs text-slate-500">{user.email}</p></div></div>
                       <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600"><div className="flex gap-2"><Mail size={15} className="text-emerald-600"/>{user.email}</div><div className="flex gap-2"><Phone size={15} className="text-emerald-600"/>+91 {user.phone}</div></div>
-                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">{supportSettings.email}</p><p className="text-slate-500">{supportSettings.phone}</p></div>
+                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">snera980@gmail.com</p><p className="text-slate-500">+91 8960513302</p></div>
                       <button onClick={handleLogout} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"><LogOut size={15}/> Logout</button>
                     </div>
                   </div>
@@ -2083,60 +1740,40 @@ function AppContent() {
         <section id="categories" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 py-12 lg:px-8">
           <div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black text-[#0b1736]">Explore Categories</h2><p className="mt-1 text-sm text-slate-500">Choose a learning path and build practical technical skills.</p></div><button onClick={() => {setSelectedCategory("All"); scrollToSection("courses")}} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-            {Array.from(
-              new Set(
-                catalogCourses
-                  .map((course) => course.category?.trim())
-                  .filter(Boolean)
-              )
-            ).map((category) => {
-              const count = catalogCourses.filter(
-                (course) => course.category?.trim() === category
-              ).length;
+              {[
+                { t: "Cloud Computing", c: "Cloud", i: <Cloud /> },
+                { t: "Cyber Security", c: "Cyber Security", i: <Shield /> },
+                { t: "Networking", c: "Networking", i: <Network /> },
+                { t: "Linux", c: "IT & Tech", i: <span className="text-xl">🐧</span> },
+                { t: "IT Support", c: "IT & Tech", i: <BookOpen /> },
+                { t: "DevOps", c: "Cloud", i: <TrendingUp /> },
+              ].map((item) => {
+                const count = courses.filter(
+                  (course) => course.category === item.c,
+                ).length;
 
-              const categoryName = String(category);
-              const name = categoryName.toLowerCase();
-
-              const categoryIcon =
-                name.includes("cloud") || name.includes("aws") ? (
-                  <Cloud />
-                ) : name.includes("cyber") ||
-                  name.includes("security") ||
-                  name.includes("ethical") ? (
-                  <Shield />
-                ) : name.includes("network") || name.includes("hardware") ? (
-                  <Network />
-                ) : name.includes("linux") ? (
-                  <span className="text-xl">🐧</span>
-                ) : name.includes("devops") ||
-                  name.includes("development") ? (
-                  <TrendingUp />
-                ) : (
-                  <BookOpen />
+                return (
+                  <button
+                    key={item.t}
+                    onClick={() => {
+                      setSelectedCategory(item.c);
+                      scrollToSection("courses");
+                    }}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                      {item.i}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[#0b1736]">{item.t}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {count} {count === 1 ? "Course" : "Courses"}
+                      </p>
+                    </div>
+                  </button>
                 );
-
-              return (
-                <button
-                  key={categoryName}
-                  onClick={() => {
-                    setSelectedCategory(categoryName);
-                    scrollToSection("courses");
-                  }}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
-                >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                    {categoryIcon}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-[#0b1736]">{categoryName}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {count} {count === 1 ? "Course" : "Courses"}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+              })}
+            </div>
         </section>
 
         <section id="courses" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
@@ -2173,59 +1810,12 @@ function AppContent() {
           )}
         </section>
 
-
-
         <section id="projects" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]"><div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-7"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Hands-on Projects</p><h2 className="mt-3 text-2xl font-black text-[#0b1736]">Build projects you can actually showcase.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Practice through guided labs, infrastructure exercises, troubleshooting tasks and portfolio-ready projects.</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">AWS Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Linux Labs</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Networking</span><span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">Cyber Security</span></div></div><div id="resources" className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Resources</p><h3 className="mt-3 text-xl font-black text-[#0b1736]">Learn beyond the lectures.</h3><p className="mt-2 text-sm leading-6 text-slate-500">Notes, practice material, interview preparation and career resources.</p><button onClick={() => scrollToSection("about")} className="mt-5 text-sm font-bold text-emerald-600">Explore resources →</button></div></div></section>
 
         <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
 
         <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
 
-
-        {(reviewsLoading || studentReviews.length > 0) && (
-          <section id="student-reviews" className="scroll-mt-24 border-y border-slate-200/70 bg-slate-50/55 py-16 dark:border-white/10 dark:bg-slate-950/65">
-            <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Student Reviews</p>
-                  <h2 className="mt-2 text-3xl font-black text-[#0b1736] dark:text-white">What Our Students Say</h2>
-                  <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">Real experiences from learners who are building their technical skills with SkillForge.</p>
-                </div>
-                <div className="rounded-full border border-emerald-200/70 bg-white/70 px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm backdrop-blur-sm dark:border-emerald-400/20 dark:bg-slate-900/65 dark:text-emerald-300">
-                  Real Student Experiences
-                </div>
-              </div>
-
-              {reviewsLoading ? (
-                <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-400">
-                  Loading student reviews...
-                </div>
-              ) : (
-                <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {studentReviews.map((review) => (
-                  <article key={review.id} className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/65 dark:shadow-black/20">
-                    <ReviewVideo review={review} />
-                    <div className="px-1 pb-1 pt-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-lg font-black text-[#0b1736] dark:text-white">{review.studentName}</h3>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">SkillForge Learner</p>
-                        </div>
-                        <div className="flex shrink-0 gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <span key={star} className={star <= review.rating ? "text-amber-400" : "text-slate-300"}>★</span>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.reviewText}</p>
-                    </div>
-                  </article>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
 
@@ -2335,8 +1925,6 @@ function DashboardPage({
   const enrolledCourses = courses.filter((course) =>
     enrolledCourseIds.includes(course.id),
   );
-
-  const supportSettings = usePublicSupportSettings();
 
   const [progressByCourse, setProgressByCourse] = useState<Record<string, number>>({});
   const [completedLessonsByCourse, setCompletedLessonsByCourse] = useState<Record<string, number>>({});
@@ -2874,12 +2462,12 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
                 </div>
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-500">
-                {supportSettings.message}
+                For course, account or payment support, contact the SkillForge support team.
               </p>
               <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm">
-                <p className="font-bold text-slate-800">{supportSettings.name}</p>
-                <p className="mt-1 text-slate-500">{supportSettings.email}</p>
-                <p className="text-slate-500">{supportSettings.phone}</p>
+                <p className="font-bold text-slate-800">Naimish Singh</p>
+                <p className="mt-1 text-slate-500">snera980@gmail.com</p>
+                <p className="text-slate-500">+91 8960513302</p>
               </div>
             </div>
           </section>
@@ -2896,7 +2484,6 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
               onBack={onBack}
               onLearn={onLearn}
               setActiveTab={setActiveTab}
-              supportSettings={supportSettings}
             />
           )}
         </main>
@@ -3402,7 +2989,6 @@ function DashboardTabContent({
   onBack,
   onLearn,
   setActiveTab,
-  supportSettings,
 }: {
   activeTab: "courses" | "progress" | "certificates" | "purchases" | "support";
   enrolledCourses: Course[];
@@ -3414,7 +3000,6 @@ function DashboardTabContent({
   onBack: () => void;
   onLearn: (course: Course) => void;
   setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
-  supportSettings: SupportSettings;
 }) {
   const [certificateCourse, setCertificateCourse] = useState<Course | null>(null);
   const [certificateRecord, setCertificateRecord] = useState<CertificateRecord | null>(null);
@@ -3828,7 +3413,7 @@ function DashboardTabContent({
       )}
 
       {activeTab === "support" && (
-        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href={`mailto:${supportSettings.email}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">{supportSettings.email}</p></a><a href={`tel:${supportSettings.phone.replace(/[^\d+]/g, "")}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">{supportSettings.phone}</p></a></div>
+        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href="mailto:snera980@gmail.com" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">snera980@gmail.com</p></a><a href="tel:+918960513302" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">+91 8960513302</p></a></div>
       )}
     </section>
   );
@@ -4670,7 +4255,6 @@ function SkillForgeVideoPlayer({
   lectureNumber,
   moduleLabel,
   resumeStorageKey,
-  autoPlay = false,
   onEnded,
 }: {
   src: string;
@@ -4678,7 +4262,6 @@ function SkillForgeVideoPlayer({
   lectureNumber?: number;
   moduleLabel?: string;
   resumeStorageKey?: string;
-  autoPlay?: boolean;
   onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -4817,8 +4400,7 @@ function SkillForgeVideoPlayer({
         className="h-full w-full object-contain bg-black"
         src={src}
         playsInline
-        autoPlay={autoPlay}
-        preload={autoPlay ? "auto" : "metadata"}
+        preload="metadata"
         controls={false}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
         onTimeUpdate={(event) => {
@@ -5575,7 +5157,6 @@ html.dark .skillforge-course-player header {
                   lectureNumber={activeLectureIndex + 1}
                   moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
                   resumeStorageKey={`skillforge_video_resume_${course.id}_${lecture.id}`}
-                  autoPlay
                   onEnded={markVideoWatched}
                 />
               )}
