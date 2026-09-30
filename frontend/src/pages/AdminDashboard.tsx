@@ -13,6 +13,10 @@ import {
   Wallet,
   Tag,
   Headphones,
+  Video,
+  Star,
+  Eye,
+  EyeOff,
   X,
   Moon,
   Sun,
@@ -25,7 +29,28 @@ const API_BASE_URL =
     ? "http://localhost:5000"
     : "https://skillforge-backend-5qln.onrender.com";
 
-type View = "dashboard" | "students" | "courses" | "offers" | "payments";
+type View = "dashboard" | "students" | "courses" | "offers" | "payments" | "reviews";
+type StudentReview = {
+  id:number;
+  student_name:string;
+  review_text:string;
+  video_url:string;
+  thumbnail_url:string|null;
+  rating:number;
+  is_published:boolean;
+  display_order:number;
+  created_at:string;
+  updated_at:string;
+};
+type ReviewForm = {
+  studentName:string;
+  reviewText:string;
+  videoUrl:string;
+  thumbnailUrl:string;
+  rating:string;
+  displayOrder:string;
+  isPublished:boolean;
+};
 type OverviewFeature = { icon: string; title: string; description: string };
 type CourseOverviewForm = { overviewIntro: string; whatYouLearn: string[]; requirements: string[]; targetAudience: string; skillsCovered: string[]; features: OverviewFeature[] };
 
@@ -51,6 +76,7 @@ const emptyModule: ModuleForm = { title: "", description: "", moduleOrder: "1" }
 const emptyLecture: LectureForm = { title: "", description: "", videoUrl: "", lectureOrder: "1", duration: "10", isFree: false };
 const emptyQuiz: QuizForm = { question: "", options: ["", "", "", ""], correctAnswer: "" };
 const emptyOffer: OfferForm = { title:"", description:"", badgeText:"", buttonText:"Get Offer Now", price:"", originalPrice:"", bannerImage:"", courseIds:[], isActive:false, showHome:true, showDashboard:true, startAt:"", endAt:"" };
+const emptyReview: ReviewForm = { studentName:"", reviewText:"", videoUrl:"", thumbnailUrl:"", rating:"5", displayOrder:"0", isPublished:false };
 const emptyOverview: CourseOverviewForm = { overviewIntro:"", whatYouLearn:[""], requirements:[""], targetAudience:"", skillsCovered:[""], features:[
   { icon:"BookOpen", title:"Structured Curriculum", description:"A clear learning path from fundamentals to practical concepts." },
   { icon:"PlayCircle", title:"Practical Learning", description:"Course lectures and demonstrations are available after purchase." },
@@ -123,6 +149,13 @@ export default function AdminDashboard() {
   const [supportSettings, setSupportSettings] = useState<SupportSettings>({ name:"Naimish Singh", email:"snera980@gmail.com", phone:"+91 8960513302", message:"For course, account or payment support, contact the SkillForge support team." });
   const [supportSaving, setSupportSaving] = useState(false);
 
+  const [reviews, setReviews] = useState<StudentReview[]>([]);
+  const [reviewModal, setReviewModal] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  const [reviewForm, setReviewForm] = useState<ReviewForm>(emptyReview);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewSearch, setReviewSearch] = useState("");
+
   const [contentCourse, setContentCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<ModuleItem[]>([]);
   const [lectures, setLectures] = useState<Record<number, LectureItem[]>>({});
@@ -153,6 +186,17 @@ export default function AdminDashboard() {
   const loadCourses = async () => { try { setLoading(true); const d = await api("/api/admin/courses"); setCourses(d.courses || []); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load courses"); } finally { setLoading(false); } };
   const loadOffers = async () => { try { setLoading(true); const d = await api("/api/offers"); setOffers(d.offers || []); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load offers"); } finally { setLoading(false); } };
   const loadPayments = async () => { try { setLoading(true); const params = new URLSearchParams(); if(paymentSearch.trim()) params.set("search", paymentSearch.trim()); if(paymentStatus !== "all") params.set("status", paymentStatus); if(paymentFrom) params.set("from", paymentFrom); if(paymentTo) params.set("to", paymentTo); const d = await api(`/api/admin/payments?${params.toString()}`); setPayments(d.payments || []); setPaymentSummary(d.summary || {total:0,paid:0,pending:0,failed:0,revenue:0}); } catch(e) { setError(e instanceof Error ? e.message : "Unable to load payments"); } finally { setLoading(false); } };
+  const loadReviews = async () => {
+    try {
+      setLoading(true);
+      const d = await api("/api/admin/reviews");
+      setReviews(d.reviews || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load student reviews");
+    } finally {
+      setLoading(false);
+    }
+  };
   const loadSupportSettings = async () => {
     try {
       const d = await api("/api/admin/support-settings");
@@ -211,11 +255,21 @@ export default function AdminDashboard() {
   };
   useEffect(() => { void loadDashboard(); }, []);
   useEffect(() => { document.documentElement.classList.toggle("dark", darkMode); localStorage.setItem("skillforge_admin_theme", darkMode ? "dark" : "light"); }, [darkMode]);
-  useEffect(() => { if (view === "students") void loadStudents(); if (view === "courses") void loadCourses(); if (view === "offers") { void loadOffers(); void loadCourses(); } if (view === "payments") void loadPayments(); }, [view]);
+  useEffect(() => { if (view === "students") void loadStudents(); if (view === "courses") void loadCourses(); if (view === "offers") { void loadOffers(); void loadCourses(); } if (view === "payments") void loadPayments();
+    if (view === "reviews") void loadReviews();
+  }, [view]);
 
   const filteredStudents = useMemo(() => { const q = studentSearch.toLowerCase().trim(); return !q ? students : students.filter(s => [s.name,s.email,s.phone,String(s.id)].some(v => v.toLowerCase().includes(q))); }, [students, studentSearch]);
   const filteredOffers = useMemo(() => { const q=offerSearch.toLowerCase().trim(); return !q ? offers : offers.filter(o=>[o.title,o.description||"",o.badge_text||"",String(o.id)].some(v=>v.toLowerCase().includes(q))); }, [offers, offerSearch]);
   const filteredCourses = useMemo(() => { const q = courseSearch.toLowerCase().trim(); return !q ? courses : courses.filter(c => [c.title,c.description || "",c.category || "",c.level || "",String(c.id)].some(v => v.toLowerCase().includes(q))); }, [courses, courseSearch]);
+  const filteredReviews = useMemo(() => {
+    const q = reviewSearch.toLowerCase().trim();
+    return !q ? reviews : reviews.filter(r =>
+      [r.student_name, r.review_text, r.video_url, String(r.id)]
+        .some(v => v.toLowerCase().includes(q))
+    );
+  }, [reviews, reviewSearch]);
+
   const paymentStatusLabel = (status:string) => status === "paid" ? "Paid" : status === "failed" ? "Failed" : status === "created" ? "Pending" : status;
   const paymentStatusClass = (status:string) => status === "paid" ? "bg-emerald-500/10 text-emerald-400" : status === "failed" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400";
 
@@ -371,14 +425,98 @@ export default function AdminDashboard() {
   const saveQuiz = async () => { if(!quizLectureId || !quizForm.question.trim()) return setError("Quiz question is required"); const opts=quizForm.options.map(x=>x.trim()).filter(Boolean); if(opts.length<2)return setError("Add at least 2 options"); if(!quizForm.correctAnswer || !opts.includes(quizForm.correctAnswer.trim()))return setError("Select a valid correct answer"); try{setQuizSaving(true); const path=editingQuizId?`/api/admin/quizzes/${editingQuizId}`:`/api/admin/lectures/${quizLectureId}/quizzes`; await api(path,{method:editingQuizId?"PUT":"POST",body:JSON.stringify({question:quizForm.question.trim(),options:opts,correctAnswer:quizForm.correctAnswer.trim()})}); setQuizModal(false); await loadQuizzes(quizLectureId); await loadCourses();}catch(e){setError(e instanceof Error?e.message:"Unable to save quiz");}finally{setQuizSaving(false);} };
   const deleteQuiz = async (q:QuizItem) => { if(!window.confirm("Delete this quiz question?"))return; try{await api(`/api/admin/quizzes/${q.id}`,{method:"DELETE"}); await loadQuizzes(q.lecture_id); await loadCourses();}catch(e){setError(e instanceof Error?e.message:"Unable to delete quiz");} };
 
+  const openCreateReview = () => {
+    setEditingReviewId(null);
+    setReviewForm(emptyReview);
+    setReviewModal(true);
+  };
+
+  const openEditReview = (r: StudentReview) => {
+    setEditingReviewId(r.id);
+    setReviewForm({
+      studentName: r.student_name,
+      reviewText: r.review_text,
+      videoUrl: r.video_url,
+      thumbnailUrl: r.thumbnail_url || "",
+      rating: String(r.rating),
+      displayOrder: String(r.display_order),
+      isPublished: r.is_published,
+    });
+    setReviewModal(true);
+  };
+
+  const saveReview = async () => {
+    const rating = Number(reviewForm.rating);
+    const displayOrder = Number(reviewForm.displayOrder);
+
+    if (!reviewForm.studentName.trim()) return setError("Student name is required");
+    if (!reviewForm.reviewText.trim()) return setError("Review text is required");
+    if (!reviewForm.videoUrl.trim()) return setError("Video URL is required");
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return setError("Rating must be between 1 and 5");
+    if (!Number.isInteger(displayOrder) || displayOrder < 0) return setError("Display order must be a non-negative integer");
+
+    try {
+      setReviewSaving(true);
+      setError("");
+      const path = editingReviewId
+        ? `/api/admin/reviews/${editingReviewId}`
+        : "/api/admin/reviews";
+
+      await api(path, {
+        method: editingReviewId ? "PUT" : "POST",
+        body: JSON.stringify({
+          studentName: reviewForm.studentName.trim(),
+          reviewText: reviewForm.reviewText.trim(),
+          videoUrl: reviewForm.videoUrl.trim(),
+          thumbnailUrl: reviewForm.thumbnailUrl.trim() || null,
+          rating,
+          displayOrder,
+          isPublished: reviewForm.isPublished,
+        }),
+      });
+
+      setReviewModal(false);
+      await loadReviews();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to save student review");
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const toggleReviewPublish = async (r: StudentReview) => {
+    try {
+      await api(`/api/admin/reviews/${r.id}/publish`, {
+        method: "PATCH",
+        body: JSON.stringify({ isPublished: !r.is_published }),
+      });
+      await loadReviews();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to update review status");
+    }
+  };
+
+  const deleteReview = async (r: StudentReview) => {
+    if (!window.confirm(`Delete review from "${r.student_name}"?`)) return;
+
+    try {
+      await api(`/api/admin/reviews/${r.id}`, { method: "DELETE" });
+      await loadReviews();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to delete student review");
+    }
+  };
+
   const busy = loading || contentBusy;
-  return <div className={`min-h-screen bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-white ${darkMode ? "dark" : ""}`}><Header dark={darkMode} onToggleTheme={()=>setDarkMode(v=>!v)} onRefresh={()=>{if(view==="dashboard")void loadDashboard();else if(view==="students")void loadStudents();else if(view==="courses") void loadCourses(); else if(view==="offers") void loadOffers(); else void loadPayments();}} busy={busy}/><main className="mx-auto max-w-[1210px] px-5 py-9 lg:px-0">
+  return <div className={`min-h-screen bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-white ${darkMode ? "dark" : ""}`}><Header dark={darkMode} onToggleTheme={()=>setDarkMode(v=>!v)} onRefresh={()=>{if(view==="dashboard")void loadDashboard();else if(view==="students")void loadStudents();else if(view==="courses") void loadCourses(); else if(view==="offers") void loadOffers();
+    else if(view==="payments") void loadPayments();
+    else void loadReviews();}} busy={busy}/><main className="mx-auto max-w-[1210px] px-5 py-9 lg:px-0">
     {error && <div className="mb-6 flex items-start justify-between rounded-2xl border border-red-500/20 bg-red-50 px-5 py-4 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300"><span>{error}</span><button onClick={()=>setError("")}><X size={18}/></button></div>}
     {view==="dashboard" && <><section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-emerald-50/60 to-indigo-50/70 p-7 shadow-sm dark:border-white/10 dark:from-[#10182d] dark:via-[#0d172c] dark:to-[#0b1325] dark:shadow-none">
       <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-400">Admin Access</span>
       <h2 className="mt-4 text-3xl font-black text-slate-950 dark:text-white">Welcome, {admin?.name||"Admin"} 👋</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{admin?.email||"Loading..."}</p>
-    </section><section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4"><Stat title="Total Students" value={stats?.students??0} icon={<Users/>}/><Stat title="Enrollments" value={stats?.enrollments??0} icon={<BookOpen/>}/><Stat title="Successful Payments" value={stats?.successfulPayments??0} icon={<CreditCard/>}/><Stat title="Revenue" value={money(stats?.revenue??0)} icon={<Wallet/>}/></section><section className="mt-10"><h3 className="text-xl font-black">Management</h3><div className="mt-5 grid gap-5 lg:grid-cols-3"><button onClick={()=>setView("students")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-indigo-400/30"><Users className="text-indigo-400"/><h4 className="mt-5 text-lg font-black">Students</h4><p className="mt-2 text-sm text-slate-400">View students and enrollments.</p></button><button onClick={()=>setView("courses")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-cyan-400/30"><BookOpen className="text-cyan-400"/><h4 className="mt-5 text-lg font-black">Courses</h4><p className="mt-2 text-sm text-slate-400">Create and manage the complete course CMS.</p></button><button onClick={()=>setView("offers")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Tag className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Offers</h4><p className="mt-2 text-sm text-slate-400">Create and manage promotional offers.</p></button><button onClick={()=>setView("payments")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-emerald-400/30"><CreditCard className="text-emerald-400"/><h4 className="mt-5 text-lg font-black">Payments</h4><p className="mt-2 text-sm text-slate-400">View Razorpay payment reports, status and revenue.</p><span className="mt-4 inline-block rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-400">Open Reports</span></button><button onClick={()=>void openSupportSettings()} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Headphones className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Support Settings</h4><p className="mt-2 text-sm text-slate-400">Manage the student Need Help contact information.</p><span className="mt-4 inline-block rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400">Manage Support</span></button></div></section></>}
+    </section><section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4"><Stat title="Total Students" value={stats?.students??0} icon={<Users/>}/><Stat title="Enrollments" value={stats?.enrollments??0} icon={<BookOpen/>}/><Stat title="Successful Payments" value={stats?.successfulPayments??0} icon={<CreditCard/>}/><Stat title="Revenue" value={money(stats?.revenue??0)} icon={<Wallet/>}/></section><section className="mt-10"><h3 className="text-xl font-black">Management</h3><div className="mt-5 grid gap-5 lg:grid-cols-3"><button onClick={()=>setView("students")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-indigo-400/30"><Users className="text-indigo-400"/><h4 className="mt-5 text-lg font-black">Students</h4><p className="mt-2 text-sm text-slate-400">View students and enrollments.</p></button><button onClick={()=>setView("courses")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-cyan-400/30"><BookOpen className="text-cyan-400"/><h4 className="mt-5 text-lg font-black">Courses</h4><p className="mt-2 text-sm text-slate-400">Create and manage the complete course CMS.</p></button><button onClick={()=>setView("offers")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Tag className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Offers</h4><p className="mt-2 text-sm text-slate-400">Create and manage promotional offers.</p></button><button onClick={()=>setView("payments")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-emerald-400/30"><CreditCard className="text-emerald-400"/><h4 className="mt-5 text-lg font-black">Payments</h4><p className="mt-2 text-sm text-slate-400">View Razorpay payment reports, status and revenue.</p><span className="mt-4 inline-block rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-400">Open Reports</span></button><button onClick={()=>void openSupportSettings()} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Headphones className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Support Settings</h4><p className="mt-2 text-sm text-slate-400">Manage the student Need Help contact information.</p><span className="mt-4 inline-block rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400">Manage Support</span></button><button onClick={()=>setView("reviews")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-purple-400/30"><Video className="text-purple-400"/><h4 className="mt-5 text-lg font-black">Student Reviews</h4><p className="mt-2 text-sm text-slate-400">Add and manage student review videos for the website.</p><span className="mt-4 inline-block rounded-lg bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-400">Manage Reviews</span></button></div></section></>}
     {view==="payments" && <section>
       <button onClick={()=>setView("dashboard")} className="mb-4 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><ArrowLeft size={17}/> Back</button>
       <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
@@ -408,7 +546,86 @@ export default function AdminDashboard() {
     {view==="students" && <section><button onClick={()=>setView("dashboard")} className="mb-4 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-900 dark:text-white"><ArrowLeft size={17}/> Back</button><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><h2 className="text-3xl font-black">Students</h2><p className="mt-2 text-sm text-slate-500">Registered SkillForge students.</p></div><div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 px-3 py-2.5"><Search size={18} className="text-slate-500"/><input value={studentSearch} onChange={e=>setStudentSearch(e.target.value)} placeholder="Search students..." className="bg-transparent text-sm text-slate-900 outline-none dark:text-slate-900 dark:text-white"/></div></div><div className="mt-7 divide-y divide-slate-200 dark:divide-white/10 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900">{filteredStudents.map(s=><div key={s.id} className="p-5"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><h4 className="font-bold">{s.name}</h4><p className="mt-1 text-sm text-slate-400">{s.email} · {s.phone||"—"}</p><p className="mt-1 text-xs text-slate-600">Joined {date(s.created_at)}</p></div><div className="rounded-xl bg-indigo-500/10 px-4 py-3 text-sm text-indigo-300">{s.enrollment_count} enrollment{s.enrollment_count===1?"":"s"}</div></div></div>)}{!filteredStudents.length&&<div className="p-12 text-center text-slate-500">No students found.</div>}</div></section>}
     {view==="courses" && <section><button onClick={()=>setView("dashboard")} className="mb-4 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-900 dark:text-white"><ArrowLeft size={17}/> Back</button><div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h2 className="text-3xl font-black">Courses</h2><p className="mt-2 text-sm text-slate-500">Manage courses, modules, lectures, videos and quizzes.</p></div><div className="flex flex-col gap-3 sm:flex-row"><div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 px-3 py-2.5"><Search size={18} className="text-slate-500"/><input value={courseSearch} onChange={e=>setCourseSearch(e.target.value)} placeholder="Search courses..." className="w-72 bg-transparent text-sm text-slate-900 outline-none dark:text-slate-900 dark:text-white"/></div><button onClick={openCreateCourse} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-bold"><Plus size={18}/> Add Course</button></div></div><div className="mt-7 space-y-4">{filteredCourses.map(c=><div key={c.id} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-5"><div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{c.title}</h3><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${c.is_published?"bg-emerald-500/10 text-emerald-400":"bg-amber-500/10 text-amber-400"}`}>{c.is_published?"Published":"Draft"}</span></div><p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">{c.description||"No description"}</p><div className="mt-4 flex flex-wrap gap-2"><span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white">{c.category||"IT & Tech"}</span><span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white">{c.level||"Beginner"}</span><span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs line-through text-slate-500 dark:border-white/10 dark:bg-slate-950 dark:text-slate-500">{c.original_price != null ? money(c.original_price) : "—"}</span><span className="rounded-lg bg-indigo-500/10 px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-300">{money(c.price)}</span>{c.original_price != null && c.original_price > c.price && <span className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">{Math.round(((c.original_price - c.price) / c.original_price) * 100)}% OFF · Save {money(c.original_price - c.price)}</span>}</div></div><div className="grid grid-cols-3 gap-3"><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center dark:border-white/10 dark:bg-slate-950"><p className="text-[10px] text-slate-500 dark:text-slate-600">Modules</p><p className="mt-1 font-bold">{c.module_count}</p></div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center dark:border-white/10 dark:bg-slate-950"><p className="text-[10px] text-slate-500 dark:text-slate-600">Lectures</p><p className="mt-1 font-bold">{c.lecture_count}</p></div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center dark:border-white/10 dark:bg-slate-950"><p className="text-[10px] text-slate-500 dark:text-slate-600">Quizzes</p><p className="mt-1 font-bold">{c.quiz_count}</p></div></div></div><div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-200 dark:border-white/10 pt-4"><button onClick={()=>openEditCourse(c)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950 px-3 py-2 text-xs font-bold"><Pencil size={13}/> Edit Course</button><button onClick={()=>void togglePublish(c)} className={`rounded-lg px-3 py-2 text-xs font-bold ${c.is_published?"bg-amber-500/10 text-amber-300":"bg-emerald-500/10 text-emerald-300"}`}>{c.is_published?"Unpublish":"Publish"}</button><button onClick={()=>void openOverview(c)} className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-300">Course Overview</button><button onClick={()=>void loadContent(c)} className="rounded-lg bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-300">Manage Content</button><button onClick={()=>void deleteCourse(c)} className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-300"><Trash2 size={13}/> Delete</button></div></div>)}{!filteredCourses.length&&<div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 dark:border-white/10">No courses found.</div>}</div></section>}
     {view==="offers" && <section><button onClick={()=>setView("dashboard")} className="mb-4 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-900 dark:text-white"><ArrowLeft size={17}/> Back</button><div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h2 className="text-3xl font-black">Offers</h2><p className="mt-2 text-sm text-slate-500">Manage promotional offers from the database.</p></div><div className="flex flex-col gap-3 sm:flex-row"><div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 px-3 py-2.5"><Search size={18} className="text-slate-500"/><input value={offerSearch} onChange={e=>setOfferSearch(e.target.value)} placeholder="Search offers..." className="w-72 bg-transparent text-sm text-slate-900 outline-none dark:text-slate-900 dark:text-white"/></div><button onClick={()=>openCreateOfferTemplate(2)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-black"><Plus size={17}/> Any 2 · ₹899</button><button onClick={()=>openCreateOfferTemplate(3)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-300"><Plus size={17}/> Any 3 · ₹999</button><button onClick={openCreateOffer} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 px-4 py-2.5 text-sm font-bold"><Plus size={17}/> Custom Offer</button></div></div><div className="mt-7 space-y-4">{filteredOffers.map(o=><div key={o.id} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-5"><div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{o.title}</h3><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${o.is_active?"bg-emerald-500/10 text-emerald-400":"bg-slate-800 text-slate-500"}`}>{o.is_active?"Active":"Inactive"}</span>{o.badge_text&&<span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-300">{o.badge_text}</span>}</div><p className="mt-2 text-sm text-slate-400">{o.description||"No description"}</p><div className="mt-4 flex flex-wrap gap-2"><span className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300">{money(o.price)}</span>{o.original_price!=null&&<span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs line-through text-slate-500 dark:border-white/10 dark:bg-slate-950 dark:text-slate-500">{money(o.original_price)}</span>}<span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-white">{o.course_ids?.length||0} courses</span></div></div><div className="flex flex-wrap gap-2"><button onClick={()=>openEditOffer(o)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950 px-3 py-2 text-xs font-bold"><Pencil size={13}/> Edit</button><button onClick={()=>void toggleOffer(o)} className={`rounded-lg px-3 py-2 text-xs font-bold ${o.is_active?"bg-amber-500/10 text-amber-300":"bg-emerald-500/10 text-emerald-300"}`}>{o.is_active?"Deactivate":"Activate"}</button><button onClick={()=>void deleteOffer(o)} className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-300"><Trash2 size={13}/> Delete</button></div></div></div>)}{!filteredOffers.length&&<div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 dark:border-white/10">No offers found. Create your first offer.</div>}</div></section>}
+    {view==="reviews" && <section>
+      <button onClick={()=>setView("dashboard")} className="mb-4 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-900 dark:hover:text-white"><ArrowLeft size={17}/> Back</button>
+      <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <h2 className="text-3xl font-black">Student Reviews</h2>
+          <p className="mt-2 text-sm text-slate-500">Manage student review videos displayed on the SkillForge website.</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 px-3 py-2.5">
+            <Search size={18} className="text-slate-500"/>
+            <input value={reviewSearch} onChange={e=>setReviewSearch(e.target.value)} placeholder="Search reviews..." className="w-72 bg-transparent text-sm text-slate-900 outline-none dark:text-white"/>
+          </div>
+          <button onClick={openCreateReview} className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-bold"><Plus size={18}/> Add Review</button>
+        </div>
+      </div>
+
+      <div className="mt-7 space-y-4">
+        {filteredReviews.map(r=><div key={r.id} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-5">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-black">{r.student_name}</h3>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${r.is_published?"bg-emerald-500/10 text-emerald-400":"bg-amber-500/10 text-amber-400"}`}>{r.is_published?"Published":"Hidden"}</span>
+                <span className="rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-bold text-purple-300">Order {r.display_order}</span>
+              </div>
+              <div className="mt-3 flex items-center gap-1">{[1,2,3,4,5].map(n=><Star key={n} size={15} className={n<=r.rating?"fill-amber-400 text-amber-400":"text-slate-600"}/>)}</div>
+              <p className="mt-3 max-w-3xl text-sm text-slate-400 whitespace-pre-wrap">{r.review_text}</p>
+              <p className="mt-3 max-w-2xl truncate text-xs text-slate-500" title={r.video_url}>Video: {r.video_url}</p>
+              {r.thumbnail_url && <p className="mt-1 max-w-2xl truncate text-xs text-slate-500" title={r.thumbnail_url}>Thumbnail: {r.thumbnail_url}</p>}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>openEditReview(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950 px-3 py-2 text-xs font-bold"><Pencil size={13}/> Edit</button>
+              <button onClick={()=>void toggleReviewPublish(r)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold ${r.is_published?"bg-amber-500/10 text-amber-300":"bg-emerald-500/10 text-emerald-300"}`}>{r.is_published?<><EyeOff size={13}/> Hide</>:<><Eye size={13}/> Publish</>}</button>
+              <button onClick={()=>void deleteReview(r)} className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300"><Trash2 size={13}/> Delete</button>
+            </div>
+          </div>
+        </div>)}
+        {!filteredReviews.length && <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 dark:border-white/10">No student reviews found. Add your first review video.</div>}
+      </div>
+    </section>}
   </main>
+
+  {reviewModal && <Modal onClose={()=>!reviewSaving&&setReviewModal(false)} wide>
+    <div className="p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-black">{editingReviewId?"Edit Student Review":"Add Student Review"}</h3>
+          <p className="mt-1 text-xs text-slate-500">Add a student testimonial video for the website.</p>
+        </div>
+        <button onClick={()=>!reviewSaving&&setReviewModal(false)}><X/></button>
+      </div>
+
+      <div className="mt-6 space-y-5">
+        <Input label="Student Name" value={reviewForm.studentName} onChange={v=>setReviewForm(f=>({...f,studentName:v}))} placeholder="e.g. Rahul Sharma"/>
+        <Textarea label="Review Text" value={reviewForm.reviewText} onChange={v=>setReviewForm(f=>({...f,reviewText:v}))} placeholder="Student testimonial..." />
+        <Input label="Video URL" value={reviewForm.videoUrl} onChange={v=>setReviewForm(f=>({...f,videoUrl:v}))} placeholder="https://..." />
+        <Input label="Thumbnail URL (Optional)" value={reviewForm.thumbnailUrl} onChange={v=>setReviewForm(f=>({...f,thumbnailUrl:v}))} placeholder="https://..." />
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Rating</span>
+            <select value={reviewForm.rating} onChange={e=>setReviewForm(f=>({...f,rating:e.target.value}))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white">
+              <option value="5">5 Stars</option><option value="4">4 Stars</option><option value="3">3 Stars</option><option value="2">2 Stars</option><option value="1">1 Star</option>
+            </select>
+          </label>
+          <Input label="Display Order" type="number" value={reviewForm.displayOrder} onChange={v=>setReviewForm(f=>({...f,displayOrder:v}))} placeholder="0"/>
+        </div>
+
+        <label className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950/50 p-4">
+          <div><p className="font-bold">Publish Review</p><p className="text-xs text-slate-500">Published reviews can be shown on the public website.</p></div>
+          <input type="checkbox" checked={reviewForm.isPublished} onChange={e=>setReviewForm(f=>({...f,isPublished:e.target.checked}))} className="h-5 w-5 accent-purple-500"/>
+        </label>
+
+        <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-white/10 pt-5">
+          <button onClick={()=>setReviewModal(false)} disabled={reviewSaving} className="rounded-xl border border-slate-200 dark:border-white/10 px-5 py-3 text-sm font-bold">Cancel</button>
+          <button onClick={()=>void saveReview()} disabled={reviewSaving} className="rounded-xl bg-purple-500 px-6 py-3 text-sm font-black disabled:opacity-60">{reviewSaving?"Saving...":"Save Review"}</button>
+        </div>
+      </div>
+    </div>
+  </Modal>}
 
   {supportModal && <Modal onClose={()=>!supportSaving&&setSupportModal(false)}>
     <div className="p-6">

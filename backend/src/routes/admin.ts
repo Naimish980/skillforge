@@ -3259,4 +3259,465 @@ router.put(
   },
 );
 
+
+/* =====================================================
+   STUDENT VIDEO REVIEWS
+
+   Admin:
+   GET    /api/admin/reviews
+   POST   /api/admin/reviews
+   PUT    /api/admin/reviews/:reviewId
+   DELETE /api/admin/reviews/:reviewId
+   PATCH  /api/admin/reviews/:reviewId/publish
+
+   Public:
+   GET    /api/admin/public-reviews
+===================================================== */
+
+router.get(
+  "/public-reviews",
+  async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          student_name,
+          review_text,
+          video_url,
+          thumbnail_url,
+          rating,
+          display_order,
+          created_at
+        FROM student_reviews
+        WHERE is_published = true
+        ORDER BY display_order ASC, created_at DESC, id DESC
+        `,
+      );
+
+      return res.status(200).json({
+        success: true,
+        reviews: result.rows.map((review) => ({
+          id: Number(review.id),
+          studentName: String(review.student_name),
+          reviewText: String(review.review_text),
+          videoUrl: String(review.video_url),
+          thumbnailUrl: review.thumbnail_url
+            ? String(review.thumbnail_url)
+            : null,
+          rating: Number(review.rating),
+          displayOrder: Number(review.display_order),
+          createdAt: review.created_at,
+        })),
+      });
+    } catch (error) {
+      console.error("Public student reviews error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load student reviews",
+      });
+    }
+  },
+);
+
+router.get(
+  "/reviews",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          student_name,
+          review_text,
+          video_url,
+          thumbnail_url,
+          rating,
+          is_published,
+          display_order,
+          created_at,
+          updated_at
+        FROM student_reviews
+        ORDER BY display_order ASC, created_at DESC, id DESC
+        `,
+      );
+
+      return res.status(200).json({
+        success: true,
+        reviews: result.rows,
+      });
+    } catch (error) {
+      console.error("Admin student reviews error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load student reviews",
+      });
+    }
+  },
+);
+
+router.post(
+  "/reviews",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const studentName = String(req.body?.studentName ?? "").trim();
+      const reviewText = String(req.body?.reviewText ?? "").trim();
+      const videoUrl = String(req.body?.videoUrl ?? "").trim();
+      const thumbnailUrl = String(req.body?.thumbnailUrl ?? "").trim();
+      const rating = Number(req.body?.rating ?? 5);
+      const displayOrder = Number(req.body?.displayOrder ?? 0);
+      const isPublished =
+        typeof req.body?.isPublished === "boolean"
+          ? req.body.isPublished
+          : false;
+
+      if (!studentName) {
+        return res.status(400).json({
+          success: false,
+          message: "Student name is required",
+        });
+      }
+
+      if (!reviewText) {
+        return res.status(400).json({
+          success: false,
+          message: "Review text is required",
+        });
+      }
+
+      if (!videoUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "Video URL is required",
+        });
+      }
+
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({
+          success: false,
+          message: "Rating must be an integer between 1 and 5",
+        });
+      }
+
+      if (!Number.isInteger(displayOrder) || displayOrder < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Display order must be a non-negative integer",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        INSERT INTO student_reviews (
+          student_name,
+          review_text,
+          video_url,
+          thumbnail_url,
+          rating,
+          is_published,
+          display_order,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING *
+        `,
+        [
+          studentName,
+          reviewText,
+          videoUrl,
+          thumbnailUrl || null,
+          rating,
+          isPublished,
+          displayOrder,
+        ],
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: "Student review created successfully",
+        review: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Create student review error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to create student review",
+      });
+    }
+  },
+);
+
+router.put(
+  "/reviews/:reviewId",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const reviewId = Number(req.params.reviewId);
+
+      if (!Number.isInteger(reviewId) || reviewId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid review ID",
+        });
+      }
+
+      const existingResult = await pool.query(
+        `
+        SELECT *
+        FROM student_reviews
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [reviewId],
+      );
+
+      if (existingResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Student review not found",
+        });
+      }
+
+      const existing = existingResult.rows[0];
+
+      const studentName =
+        req.body?.studentName === undefined
+          ? String(existing.student_name)
+          : String(req.body.studentName).trim();
+
+      const reviewText =
+        req.body?.reviewText === undefined
+          ? String(existing.review_text)
+          : String(req.body.reviewText).trim();
+
+      const videoUrl =
+        req.body?.videoUrl === undefined
+          ? String(existing.video_url)
+          : String(req.body.videoUrl).trim();
+
+      const thumbnailUrl =
+        req.body?.thumbnailUrl === undefined
+          ? existing.thumbnail_url
+            ? String(existing.thumbnail_url)
+            : null
+          : String(req.body.thumbnailUrl).trim() || null;
+
+      const rating =
+        req.body?.rating === undefined
+          ? Number(existing.rating)
+          : Number(req.body.rating);
+
+      const displayOrder =
+        req.body?.displayOrder === undefined
+          ? Number(existing.display_order)
+          : Number(req.body.displayOrder);
+
+      const isPublished =
+        req.body?.isPublished === undefined
+          ? Boolean(existing.is_published)
+          : Boolean(req.body.isPublished);
+
+      if (!studentName || !reviewText || !videoUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "Student name, review text and video URL are required",
+        });
+      }
+
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({
+          success: false,
+          message: "Rating must be an integer between 1 and 5",
+        });
+      }
+
+      if (!Number.isInteger(displayOrder) || displayOrder < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Display order must be a non-negative integer",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE student_reviews
+        SET
+          student_name = $1,
+          review_text = $2,
+          video_url = $3,
+          thumbnail_url = $4,
+          rating = $5,
+          is_published = $6,
+          display_order = $7,
+          updated_at = NOW()
+        WHERE id = $8
+        RETURNING *
+        `,
+        [
+          studentName,
+          reviewText,
+          videoUrl,
+          thumbnailUrl,
+          rating,
+          isPublished,
+          displayOrder,
+          reviewId,
+        ],
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Student review updated successfully",
+        review: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Update student review error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to update student review",
+      });
+    }
+  },
+);
+
+router.patch(
+  "/reviews/:reviewId/publish",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const reviewId = Number(req.params.reviewId);
+
+      if (!Number.isInteger(reviewId) || reviewId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid review ID",
+        });
+      }
+
+      if (typeof req.body?.isPublished !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "isPublished must be true or false",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE student_reviews
+        SET
+          is_published = $1,
+          updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+        `,
+        [req.body.isPublished, reviewId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Student review not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: req.body.isPublished
+          ? "Student review published successfully"
+          : "Student review hidden successfully",
+        review: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Publish student review error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to change review publish status",
+      });
+    }
+  },
+);
+
+router.delete(
+  "/reviews/:reviewId",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const reviewId = Number(req.params.reviewId);
+
+      if (!Number.isInteger(reviewId) || reviewId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid review ID",
+        });
+      }
+
+      const result = await pool.query(
+        `
+        DELETE FROM student_reviews
+        WHERE id = $1
+        RETURNING id, student_name
+        `,
+        [reviewId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Student review not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Student review deleted successfully",
+        reviewId: Number(result.rows[0].id),
+      });
+    } catch (error) {
+      console.error("Delete student review error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to delete student review",
+      });
+    }
+  },
+);
+
 export default router;
