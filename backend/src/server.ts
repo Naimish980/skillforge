@@ -132,6 +132,32 @@ const adminLimiter = rateLimit({
 });
 
 /* =========================
+   PROGRESS / QUIZ LIMITER
+========================= */
+
+// Progress APIs are used by:
+// - Course progress
+// - Lecture completion
+// - Quiz submission
+// - Quiz attempts
+// - Dashboard progress refresh
+//
+// Students may generate multiple requests while
+// learning and attempting quizzes repeatedly.
+const progressLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+
+  message: {
+    success: false,
+    message:
+      "Too many progress requests. Please try again later.",
+  },
+});
+
+/* =========================
    ROUTES
 ========================= */
 
@@ -149,7 +175,7 @@ app.use(
 
 app.use(
   "/api/progress",
-  generalLimiter,
+  progressLimiter,
   progressRoutes,
 );
 
