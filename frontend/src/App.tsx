@@ -1740,40 +1740,60 @@ function AppContent() {
         <section id="categories" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 py-12 lg:px-8">
           <div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black text-[#0b1736]">Explore Categories</h2><p className="mt-1 text-sm text-slate-500">Choose a learning path and build practical technical skills.</p></div><button onClick={() => {setSelectedCategory("All"); scrollToSection("courses")}} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-              {[
-                { t: "Cloud Computing", c: "Cloud", i: <Cloud /> },
-                { t: "Cyber Security", c: "Cyber Security", i: <Shield /> },
-                { t: "Networking", c: "Networking", i: <Network /> },
-                { t: "Linux", c: "IT & Tech", i: <span className="text-xl">🐧</span> },
-                { t: "IT Support", c: "IT & Tech", i: <BookOpen /> },
-                { t: "DevOps", c: "Cloud", i: <TrendingUp /> },
-              ].map((item) => {
-                const count = courses.filter(
-                  (course) => course.category === item.c,
-                ).length;
+            {Array.from(
+              new Set(
+                catalogCourses
+                  .map((course) => course.category?.trim())
+                  .filter(Boolean)
+              )
+            ).map((category) => {
+              const count = catalogCourses.filter(
+                (course) => course.category?.trim() === category
+              ).length;
 
-                return (
-                  <button
-                    key={item.t}
-                    onClick={() => {
-                      setSelectedCategory(item.c);
-                      scrollToSection("courses");
-                    }}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
-                  >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                      {item.i}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[#0b1736]">{item.t}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {count} {count === 1 ? "Course" : "Courses"}
-                      </p>
-                    </div>
-                  </button>
+              const categoryName = String(category);
+              const name = categoryName.toLowerCase();
+
+              const categoryIcon =
+                name.includes("cloud") || name.includes("aws") ? (
+                  <Cloud />
+                ) : name.includes("cyber") ||
+                  name.includes("security") ||
+                  name.includes("ethical") ? (
+                  <Shield />
+                ) : name.includes("network") || name.includes("hardware") ? (
+                  <Network />
+                ) : name.includes("linux") ? (
+                  <span className="text-xl">🐧</span>
+                ) : name.includes("devops") ||
+                  name.includes("development") ? (
+                  <TrendingUp />
+                ) : (
+                  <BookOpen />
                 );
-              })}
-            </div>
+
+              return (
+                <button
+                  key={categoryName}
+                  onClick={() => {
+                    setSelectedCategory(categoryName);
+                    scrollToSection("courses");
+                  }}
+                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    {categoryIcon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#0b1736]">{categoryName}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {count} {count === 1 ? "Course" : "Courses"}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         <section id="courses" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
