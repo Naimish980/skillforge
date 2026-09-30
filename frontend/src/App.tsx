@@ -33,6 +33,7 @@ import {
   X,
   Sun,
   Moon,
+  MessageCircle,
 } from "lucide-react";
 import AdminDashboard from "./pages/AdminDashboard";
 
@@ -597,6 +598,36 @@ const DEFAULT_SOCIAL_SETTINGS: SocialSettings = {
   facebook: "",
   whatsapp: "",
 };
+
+function SocialIcon({
+  type,
+}: {
+  type: "instagram" | "linkedin" | "facebook";
+}) {
+  if (type === "instagram") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.2" cy="6.8" r="1" className="fill-current stroke-none" />
+      </svg>
+    );
+  }
+
+  if (type === "linkedin") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
+        <path d="M6.5 8.5A1.5 1.5 0 1 0 6.5 5.5a1.5 1.5 0 0 0 0 3ZM5 10h3v9H5v-9Zm5 0h2.9v1.23h.04c.4-.75 1.38-1.53 2.84-1.53 3.04 0 3.6 2 3.6 4.6V19h-3v-4.16c0-.99-.02-2.26-1.38-2.26-1.38 0-1.59 1.08-1.59 2.19V19h-3v-9Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
+      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.87.24-1.46 1.5-1.46h1.7V3.96c-.3-.04-1.34-.13-2.54-.13-2.51 0-4.23 1.53-4.23 4.35V10H7.1v3h2.83v8h3.57Z" />
+    </svg>
+  );
+}
 
 function usePublicSocialSettings(): SocialSettings {
   const [socialSettings, setSocialSettings] =
@@ -2109,70 +2140,6 @@ function AppContent() {
           </div>
         </section>
 
-        <section id="social-media" className="scroll-mt-24 border-y border-slate-100 bg-white py-12 dark:border-white/10 dark:bg-slate-950/20">
-          <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-7 shadow-sm dark:border-white/10 dark:bg-slate-900/70 sm:p-9">
-              <div className="text-center">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
-                  Connect With SkillForge
-                </p>
-                <h2 className="mt-2 text-2xl font-black text-[#0b1736] dark:text-white sm:text-3xl">
-                  Follow us on social media
-                </h2>
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  Stay connected with SkillForge for learning updates, new courses and student opportunities.
-                </p>
-              </div>
-
-              <div className="mt-7 flex flex-wrap justify-center gap-3">
-                {socialSettings.instagram && (
-                  <a
-                    href={socialSettings.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl border border-pink-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-pink-300 hover:text-pink-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-pink-400"
-                  >
-                    Instagram
-                  </a>
-                )}
-
-                {socialSettings.linkedin && (
-                  <a
-                    href={socialSettings.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl border border-sky-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-sky-400"
-                  >
-                    LinkedIn
-                  </a>
-                )}
-
-                {socialSettings.facebook && (
-                  <a
-                    href={socialSettings.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-blue-400"
-                  >
-                    Facebook
-                  </a>
-                )}
-
-                {socialSettings.whatsapp && (
-                  <a
-                    href={socialSettings.whatsapp}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-emerald-400"
-                  >
-                    WhatsApp
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section id="student-reviews" className="scroll-mt-24 border-y border-slate-100 bg-slate-50/70 py-14 dark:border-white/10 dark:bg-slate-950/30">
             <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -2216,7 +2183,70 @@ function AppContent() {
             </div>
           </section>
 
-        <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
+        <footer className="border-t border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950">
+          <div className="mx-auto flex max-w-[1380px] flex-col gap-4 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+            <div>
+              <div className="font-black text-slate-900 dark:text-white">Skill<span className="text-emerald-600">Forge</span></div>
+              <p className="mt-1 text-xs">Learn • Practice • Grow</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {socialSettings.instagram && (
+                <a
+                  href={socialSettings.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  title="Instagram"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:-translate-y-0.5 hover:border-pink-300 hover:text-pink-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-pink-400/40 dark:hover:text-pink-400"
+                >
+                  <SocialIcon type="instagram" />
+                </a>
+              )}
+
+              {socialSettings.linkedin && (
+                <a
+                  href={socialSettings.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  title="LinkedIn"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-sky-400/40 dark:hover:text-sky-400"
+                >
+                  <SocialIcon type="linkedin" />
+                </a>
+              )}
+
+              {socialSettings.facebook && (
+                <a
+                  href={socialSettings.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  title="Facebook"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-blue-400/40 dark:hover:text-blue-400"
+                >
+                  <SocialIcon type="facebook" />
+                </a>
+              )}
+
+              {socialSettings.whatsapp && (
+                <a
+                  href={socialSettings.whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="WhatsApp"
+                  title="WhatsApp"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400"
+                >
+                  <MessageCircle size={16} />
+                </a>
+              )}
+            </div>
+
+            <p>© 2026 SkillForge. All rights reserved.</p>
+          </div>
+        </footer>
       </main>
 
       {offerModalOpen && activeOffer && <Modal onClose={closeOfferModal}>
