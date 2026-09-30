@@ -584,6 +584,57 @@ type SupportSettings = {
   message: string;
 };
 
+type SocialSettings = {
+  instagram: string;
+  linkedin: string;
+  facebook: string;
+  whatsapp: string;
+};
+
+const DEFAULT_SOCIAL_SETTINGS: SocialSettings = {
+  instagram: "",
+  linkedin: "",
+  facebook: "",
+  whatsapp: "",
+};
+
+function usePublicSocialSettings(): SocialSettings {
+  const [socialSettings, setSocialSettings] =
+    useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSocialSettings = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/admin/public-social-settings`,
+        );
+        const data = await response.json().catch(() => null);
+
+        if (!cancelled && response.ok && data?.success && data?.social) {
+          setSocialSettings({
+            instagram: String(data.social.instagram || ""),
+            linkedin: String(data.social.linkedin || ""),
+            facebook: String(data.social.facebook || ""),
+            whatsapp: String(data.social.whatsapp || ""),
+          });
+        }
+      } catch (error) {
+        console.error("Social settings loading error:", error);
+      }
+    };
+
+    void loadSocialSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return socialSettings;
+}
+
 const DEFAULT_SUPPORT_SETTINGS: SupportSettings = {
   name: "Naimish Singh",
   email: "snera980@gmail.com",
@@ -900,6 +951,7 @@ function ReviewVideo({ review }: { review: StudentReview }) {
 
 function AppContent() {
   const supportSettings = usePublicSupportSettings();
+  const socialSettings = usePublicSocialSettings();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
@@ -2053,6 +2105,70 @@ function AppContent() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="social-media" className="scroll-mt-24 border-y border-slate-100 bg-white py-12 dark:border-white/10 dark:bg-slate-950/20">
+          <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-7 shadow-sm dark:border-white/10 dark:bg-slate-900/70 sm:p-9">
+              <div className="text-center">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
+                  Connect With SkillForge
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-[#0b1736] dark:text-white sm:text-3xl">
+                  Follow us on social media
+                </h2>
+                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  Stay connected with SkillForge for learning updates, new courses and student opportunities.
+                </p>
+              </div>
+
+              <div className="mt-7 flex flex-wrap justify-center gap-3">
+                {socialSettings.instagram && (
+                  <a
+                    href={socialSettings.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-pink-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-pink-300 hover:text-pink-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-pink-400"
+                  >
+                    Instagram
+                  </a>
+                )}
+
+                {socialSettings.linkedin && (
+                  <a
+                    href={socialSettings.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-sky-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-sky-400"
+                  >
+                    LinkedIn
+                  </a>
+                )}
+
+                {socialSettings.facebook && (
+                  <a
+                    href={socialSettings.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-blue-400"
+                  >
+                    Facebook
+                  </a>
+                )}
+
+                {socialSettings.whatsapp && (
+                  <a
+                    href={socialSettings.whatsapp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-600 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-emerald-400"
+                  >
+                    WhatsApp
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </section>
