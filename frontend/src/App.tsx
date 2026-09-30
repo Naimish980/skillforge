@@ -903,21 +903,37 @@ function ReviewVideo({ review }: { review: StudentReview }) {
     const video = videoRef.current;
     if (!video) return;
 
+    let wasVisible = false;
+
+    const playFromBeginning = () => {
+      video.pause();
+      video.currentTime = 0;
+      video.muted = true;
+      setIsMuted(true);
+
+      const promise = video.play();
+      if (promise) {
+        promise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      }
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (!entry) return;
 
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-          video.currentTime = 0;
-          video.muted = true;
-          setIsMuted(true);
-          const promise = video.play();
-          if (promise) {
-            promise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-          }
-        } else {
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+
+        if (visible && !wasVisible) {
+          // Every new entry into the viewport starts the review from 0:00.
+          wasVisible = true;
+          playFromBeginning();
+        } else if (!visible && wasVisible) {
+          // Reset immediately when it leaves, so the next entry always starts fresh.
+          wasVisible = false;
           video.pause();
+          video.currentTime = 0;
+          setCurrentTime(0);
           setIsPlaying(false);
         }
       },
