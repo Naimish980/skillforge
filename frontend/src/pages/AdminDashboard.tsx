@@ -70,6 +70,7 @@ type QuizForm = { question: string; options: string[]; correctAnswer: string };
 type Offer = { id:number; title:string; description:string|null; badge_text:string|null; button_text:string; price:number; original_price:number|null; banner_image:string|null; course_ids:string[]; is_active:boolean; show_home:boolean; show_dashboard:boolean; start_at:string|null; end_at:string|null; created_at:string; updated_at:string };
 type OfferForm = { title:string; description:string; badgeText:string; buttonText:string; price:string; originalPrice:string; bannerImage:string; courseIds:string[]; isActive:boolean; showHome:boolean; showDashboard:boolean; startAt:string; endAt:string };
 type SupportSettings = { name:string; email:string; phone:string; message:string };
+type SocialSettings = { instagram:string; linkedin:string; facebook:string; whatsapp:string };
 
 const emptyCourse: CourseForm = { title: "", description: "", category: "", level: "Beginner", price: "799", originalPrice: "1699", thumbnail: "", isPublished: false };
 const emptyModule: ModuleForm = { title: "", description: "", moduleOrder: "1" };
@@ -148,6 +149,14 @@ export default function AdminDashboard() {
   const [supportModal, setSupportModal] = useState(false);
   const [supportSettings, setSupportSettings] = useState<SupportSettings>({ name:"Naimish Singh", email:"snera980@gmail.com", phone:"+91 8960513302", message:"For course, account or payment support, contact the SkillForge support team." });
   const [supportSaving, setSupportSaving] = useState(false);
+  const [socialModal, setSocialModal] = useState(false);
+  const [socialSettings, setSocialSettings] = useState<SocialSettings>({
+    instagram: "",
+    linkedin: "",
+    facebook: "",
+    whatsapp: "",
+  });
+  const [socialSaving, setSocialSaving] = useState(false);
 
   const [reviews, setReviews] = useState<StudentReview[]>([]);
   const [reviewModal, setReviewModal] = useState(false);
@@ -180,6 +189,74 @@ export default function AdminDashboard() {
   const [quizLectureId, setQuizLectureId] = useState<number | null>(null);
   const [quizForm, setQuizForm] = useState<QuizForm>(emptyQuiz);
   const [quizSaving, setQuizSaving] = useState(false);
+
+  const loadSocialSettings = async () => {
+    try {
+      const d = await api("/api/admin/social-settings");
+      if (d.social) {
+        setSocialSettings({
+          instagram: d.social.instagram || "",
+          linkedin: d.social.linkedin || "",
+          facebook: d.social.facebook || "",
+          whatsapp: d.social.whatsapp || "",
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load social settings");
+    }
+  };
+
+  const openSocialSettings = async () => {
+    setSocialModal(true);
+    await loadSocialSettings();
+  };
+
+  const saveSocialSettings = async () => {
+    const values = [
+      socialSettings.instagram,
+      socialSettings.linkedin,
+      socialSettings.facebook,
+      socialSettings.whatsapp,
+    ].map(v => v.trim());
+
+    const invalid = values.some(
+      value => value !== "" && !/^https?:\/\/\S+$/i.test(value),
+    );
+
+    if (invalid) {
+      return setError("Use a valid http:// or https:// URL for each social link");
+    }
+
+    try {
+      setSocialSaving(true);
+      setError("");
+
+      const d = await api("/api/admin/social-settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          instagram: socialSettings.instagram.trim(),
+          linkedin: socialSettings.linkedin.trim(),
+          facebook: socialSettings.facebook.trim(),
+          whatsapp: socialSettings.whatsapp.trim(),
+        }),
+      });
+
+      if (d.social) {
+        setSocialSettings({
+          instagram: d.social.instagram || "",
+          linkedin: d.social.linkedin || "",
+          facebook: d.social.facebook || "",
+          whatsapp: d.social.whatsapp || "",
+        });
+      }
+
+      setSocialModal(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to save social settings");
+    } finally {
+      setSocialSaving(false);
+    }
+  };
 
   const loadDashboard = async () => { try { setLoading(true); const d = await api("/api/admin/dashboard"); setAdmin(d.admin); setStats(d.stats); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load dashboard"); } finally { setLoading(false); } };
   const loadStudents = async () => { try { setLoading(true); const d = await api("/api/admin/students"); setStudents(d.students || []); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load students"); } finally { setLoading(false); } };
@@ -516,7 +593,7 @@ export default function AdminDashboard() {
       <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-400">Admin Access</span>
       <h2 className="mt-4 text-3xl font-black text-slate-950 dark:text-white">Welcome, {admin?.name||"Admin"} 👋</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{admin?.email||"Loading..."}</p>
-    </section><section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4"><Stat title="Total Students" value={stats?.students??0} icon={<Users/>}/><Stat title="Enrollments" value={stats?.enrollments??0} icon={<BookOpen/>}/><Stat title="Successful Payments" value={stats?.successfulPayments??0} icon={<CreditCard/>}/><Stat title="Revenue" value={money(stats?.revenue??0)} icon={<Wallet/>}/></section><section className="mt-10"><h3 className="text-xl font-black">Management</h3><div className="mt-5 grid gap-5 lg:grid-cols-3"><button onClick={()=>setView("students")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-indigo-400/30"><Users className="text-indigo-400"/><h4 className="mt-5 text-lg font-black">Students</h4><p className="mt-2 text-sm text-slate-400">View students and enrollments.</p></button><button onClick={()=>setView("courses")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-cyan-400/30"><BookOpen className="text-cyan-400"/><h4 className="mt-5 text-lg font-black">Courses</h4><p className="mt-2 text-sm text-slate-400">Create and manage the complete course CMS.</p></button><button onClick={()=>setView("offers")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Tag className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Offers</h4><p className="mt-2 text-sm text-slate-400">Create and manage promotional offers.</p></button><button onClick={()=>setView("payments")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-emerald-400/30"><CreditCard className="text-emerald-400"/><h4 className="mt-5 text-lg font-black">Payments</h4><p className="mt-2 text-sm text-slate-400">View Razorpay payment reports, status and revenue.</p><span className="mt-4 inline-block rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-400">Open Reports</span></button><button onClick={()=>void openSupportSettings()} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Headphones className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Support Settings</h4><p className="mt-2 text-sm text-slate-400">Manage the student Need Help contact information.</p><span className="mt-4 inline-block rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400">Manage Support</span></button><button onClick={()=>setView("reviews")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-purple-400/30"><Video className="text-purple-400"/><h4 className="mt-5 text-lg font-black">Student Reviews</h4><p className="mt-2 text-sm text-slate-400">Add and manage student review videos for the website.</p><span className="mt-4 inline-block rounded-lg bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-400">Manage Reviews</span></button></div></section></>}
+    </section><section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4"><Stat title="Total Students" value={stats?.students??0} icon={<Users/>}/><Stat title="Enrollments" value={stats?.enrollments??0} icon={<BookOpen/>}/><Stat title="Successful Payments" value={stats?.successfulPayments??0} icon={<CreditCard/>}/><Stat title="Revenue" value={money(stats?.revenue??0)} icon={<Wallet/>}/></section><section className="mt-10"><h3 className="text-xl font-black">Management</h3><div className="mt-5 grid gap-5 lg:grid-cols-3"><button onClick={()=>setView("students")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-indigo-400/30"><Users className="text-indigo-400"/><h4 className="mt-5 text-lg font-black">Students</h4><p className="mt-2 text-sm text-slate-400">View students and enrollments.</p></button><button onClick={()=>setView("courses")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-cyan-400/30"><BookOpen className="text-cyan-400"/><h4 className="mt-5 text-lg font-black">Courses</h4><p className="mt-2 text-sm text-slate-400">Create and manage the complete course CMS.</p></button><button onClick={()=>setView("offers")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Tag className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Offers</h4><p className="mt-2 text-sm text-slate-400">Create and manage promotional offers.</p></button><button onClick={()=>setView("payments")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-emerald-400/30"><CreditCard className="text-emerald-400"/><h4 className="mt-5 text-lg font-black">Payments</h4><p className="mt-2 text-sm text-slate-400">View Razorpay payment reports, status and revenue.</p><span className="mt-4 inline-block rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-400">Open Reports</span></button><button onClick={()=>void openSupportSettings()} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-amber-400/30"><Headphones className="text-amber-400"/><h4 className="mt-5 text-lg font-black">Support Settings</h4><p className="mt-2 text-sm text-slate-400">Manage the student Need Help contact information.</p><span className="mt-4 inline-block rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400">Manage Support</span></button><button onClick={()=>void openSocialSettings()} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-pink-400/30"><div className="flex items-center gap-2"><span className="text-lg">📱</span><span className="text-xs font-bold uppercase tracking-wider text-pink-400">Social</span></div><h4 className="mt-5 text-lg font-black">Social Media</h4><p className="mt-2 text-sm text-slate-400">Manage Instagram, LinkedIn, Facebook and WhatsApp links.</p><span className="mt-4 inline-block rounded-lg bg-pink-500/10 px-3 py-2 text-xs font-bold text-pink-400">Manage Social Links</span></button><button onClick={()=>setView("reviews")} className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900 p-6 text-left hover:border-purple-400/30"><Video className="text-purple-400"/><h4 className="mt-5 text-lg font-black">Student Reviews</h4><p className="mt-2 text-sm text-slate-400">Add and manage student review videos for the website.</p><span className="mt-4 inline-block rounded-lg bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-400">Manage Reviews</span></button></div></section></>}
     {view==="payments" && <section>
       <button onClick={()=>setView("dashboard")} className="mb-4 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><ArrowLeft size={17}/> Back</button>
       <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
@@ -622,6 +699,54 @@ export default function AdminDashboard() {
         <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-white/10 pt-5">
           <button onClick={()=>setReviewModal(false)} disabled={reviewSaving} className="rounded-xl border border-slate-200 dark:border-white/10 px-5 py-3 text-sm font-bold">Cancel</button>
           <button onClick={()=>void saveReview()} disabled={reviewSaving} className="rounded-xl bg-purple-500 px-6 py-3 text-sm font-black disabled:opacity-60">{reviewSaving?"Saving...":"Save Review"}</button>
+        </div>
+      </div>
+    </div>
+  </Modal>}
+
+  {socialModal && <Modal onClose={()=>!socialSaving&&setSocialModal(false)}>
+    <div className="p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-black">Social Media Settings</h3>
+          <p className="mt-1 text-xs text-slate-500">These links will be used by the public SkillForge website.</p>
+        </div>
+        <button onClick={()=>!socialSaving&&setSocialModal(false)}><X/></button>
+      </div>
+
+      <div className="mt-6 space-y-5">
+        <Input
+          label="Instagram URL"
+          value={socialSettings.instagram}
+          onChange={v=>setSocialSettings(f=>({...f,instagram:v}))}
+          placeholder="https://www.instagram.com/yourpage"
+        />
+        <Input
+          label="LinkedIn URL"
+          value={socialSettings.linkedin}
+          onChange={v=>setSocialSettings(f=>({...f,linkedin:v}))}
+          placeholder="https://www.linkedin.com/company/yourpage"
+        />
+        <Input
+          label="Facebook URL"
+          value={socialSettings.facebook}
+          onChange={v=>setSocialSettings(f=>({...f,facebook:v}))}
+          placeholder="https://www.facebook.com/yourpage"
+        />
+        <Input
+          label="WhatsApp URL"
+          value={socialSettings.whatsapp}
+          onChange={v=>setSocialSettings(f=>({...f,whatsapp:v}))}
+          placeholder="https://wa.me/91XXXXXXXXXX"
+        />
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 dark:border-white/10 dark:bg-slate-950">
+          Leave a field empty if you do not want that social icon shown on the public website.
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-white/10 pt-5">
+          <button onClick={()=>setSocialModal(false)} disabled={socialSaving} className="rounded-xl border border-slate-200 dark:border-white/10 px-5 py-3 text-sm font-bold">Cancel</button>
+          <button onClick={()=>void saveSocialSettings()} disabled={socialSaving} className="rounded-xl bg-pink-500 px-6 py-3 text-sm font-black text-white disabled:opacity-60">{socialSaving?"Saving...":"Save Social Settings"}</button>
         </div>
       </div>
     </div>
