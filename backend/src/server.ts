@@ -15,15 +15,15 @@ dotenv.config();
 
 const app = express();
 
-/* =====================================================
+/* =========================
    SECURITY HEADERS
-===================================================== */
+========================= */
 
 app.use(helmet());
 
-/* =====================================================
+/* =========================
    CORS
-===================================================== */
+========================= */
 
 const allowedOrigins = [
   "https://skillforge-tau-three.vercel.app",
@@ -33,7 +33,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests without an Origin header
-      // such as server-to-server or health-check requests.
+      // (health checks, server-to-server requests, etc.)
       if (!origin) {
         callback(null, true);
         return;
@@ -44,10 +44,9 @@ app.use(
         return;
       }
 
-      callback(
-        new Error("CORS policy: Origin not allowed"),
-      );
+      callback(new Error("CORS policy: Origin not allowed"));
     },
+
     methods: [
       "GET",
       "POST",
@@ -56,42 +55,46 @@ app.use(
       "DELETE",
       "OPTIONS",
     ],
+
     allowedHeaders: [
       "Content-Type",
       "Authorization",
     ],
+
     credentials: false,
   }),
 );
 
-/* =====================================================
-   BASIC MIDDLEWARE
-===================================================== */
+/* =========================
+   JSON BODY
+========================= */
 
 app.use(express.json());
 
-/* =====================================================
-   RATE LIMITING
-===================================================== */
+/* =========================
+   RATE LIMITERS
+========================= */
 
-// General API protection
+// General APIs
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 300,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+
   message: {
     success: false,
     message: "Too many requests. Please try again later.",
   },
 });
 
-// Authentication protection
+// Authentication APIs
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+
   message: {
     success: false,
     message:
@@ -99,12 +102,13 @@ const authLimiter = rateLimit({
   },
 });
 
-// Payment API protection
+// Payment APIs
 const paymentLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 60,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+
   message: {
     success: false,
     message:
@@ -112,20 +116,58 @@ const paymentLimiter = rateLimit({
   },
 });
 
-/* =====================================================
-   API ROUTES
-===================================================== */
+// Admin APIs
+// Higher limit because Admin Dashboard loads many APIs together.
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
 
-app.use("/api/auth", authLimiter, authRoutes);
-app.use("/api/payment", paymentLimiter, paymentRoutes);
+  message: {
+    success: false,
+    message:
+      "Too many admin requests. Please try again later.",
+  },
+});
 
-app.use("/api/progress", generalLimiter, progressRoutes);
-app.use("/api/admin", generalLimiter, adminRoutes);
-app.use("/api/offers", generalLimiter, offerRoutes);
+/* =========================
+   ROUTES
+========================= */
 
-/* =====================================================
+app.use(
+  "/api/auth",
+  authLimiter,
+  authRoutes,
+);
+
+app.use(
+  "/api/payment",
+  paymentLimiter,
+  paymentRoutes,
+);
+
+app.use(
+  "/api/progress",
+  generalLimiter,
+  progressRoutes,
+);
+
+app.use(
+  "/api/admin",
+  adminLimiter,
+  adminRoutes,
+);
+
+app.use(
+  "/api/offers",
+  generalLimiter,
+  offerRoutes,
+);
+
+/* =========================
    HEALTH CHECK
-===================================================== */
+========================= */
 
 app.get("/api/health", async (_req, res) => {
   try {
@@ -150,9 +192,9 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-/* =====================================================
+/* =========================
    SERVER
-===================================================== */
+========================= */
 
 const PORT = Number(
   process.env.PORT || 5000,
