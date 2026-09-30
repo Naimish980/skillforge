@@ -1983,21 +1983,76 @@ function AppContent() {
         <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
 
         <section id="msme" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-xl">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Business Recognition</p>
-                <h2 className="mt-2 text-2xl font-black text-[#0b1736] dark:text-white sm:text-3xl">MSME Registration</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">SkillForge business registration and certification information.</p>
+          <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-7 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-950 sm:p-9">
+            <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">Business Recognition</p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300">
+                    <CheckCircle2 size={13}/> MSME Registered
+                  </span>
+                </div>
+                <h2 className="mt-3 text-2xl font-black text-[#0b1736] dark:text-white sm:text-3xl">SkillForge is an MSME Registered Business</h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">Official business registration details are provided for transparency and business recognition. The certificate itself is intentionally kept off the homepage for a cleaner, premium presentation.</p>
               </div>
-              <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-slate-950">
-                <img
-                  src={`${import.meta.env.BASE_URL}msm\u0435-certificate.png`}
-                  alt="SkillForge MSME certificate"
-                  className="h-auto w-full rounded-xl object-contain"
-                  loading="lazy"
-                />
+
+              <div className="grid w-full max-w-xl grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-900/70">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Registration</p>
+                  <p className="mt-1 text-sm font-black text-slate-800 dark:text-white">Udyam Registered</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-900/70">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Enterprise</p>
+                  <p className="mt-1 text-sm font-black text-slate-800 dark:text-white">Micro Enterprise</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-900/70">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Activity</p>
+                  <p className="mt-1 text-sm font-black text-slate-800 dark:text-white">Services</p>
+                </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="certificate-showcase" className="scroll-mt-24 border-y border-slate-100 bg-slate-50/60 py-14 dark:border-white/10 dark:bg-slate-950/30">
+          <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">Certificate Showcase</p>
+                <h2 className="mt-2 text-3xl font-black text-[#0b1736] dark:text-white">Sample SkillForge Certificates</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">A preview of the certificate style students receive after successfully completing a SkillForge course.</p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-400">Sample previews · Not issued credentials</span>
+            </div>
+
+            <div className="mt-8 grid gap-6 lg:grid-cols-3">
+              {[
+                { title: "Networking Fundamentals", category: "Networking", level: "Beginner" },
+                { title: "Linux Administration", category: "Linux", level: "Intermediate" },
+                { title: "AWS Cloud Fundamentals", category: "Cloud Computing", level: "Beginner" },
+              ].map((sample) => (
+                <div key={sample.title} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950">
+                    <CertificateArtwork
+                      record={{
+                        certificateId: `SAMPLE-${sample.category.toUpperCase().replace(/\s+/g, "-")}`,
+                        studentName: "Sample Student",
+                        courseId: "sample",
+                        courseTitle: sample.title,
+                        issuedAt: "2026-09-30T00:00:00.000Z",
+                        courseDescription: "Sample certificate preview from SkillForge.",
+                        courseCategory: sample.category,
+                        courseLevel: sample.level,
+                        moduleTitles: [],
+                      }}
+                    />
+                  </div>
+                  <div className="px-1 pb-1 pt-4">
+                    <p className="text-sm font-black text-[#0b1736] dark:text-white">{sample.title}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Sample certificate design · {sample.level}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
