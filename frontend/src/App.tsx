@@ -3507,6 +3507,9 @@ function CourseOverviewPage({
     whatYouLearn: string[];
     requirements: string[];
     targetAudience: string;
+    skillsCovered: string[];
+    features: { icon: string; title: string; description: string }[];
+    modules: { title: string; description: string; topics: string }[];
   };
 
   const [dynamicOverview, setDynamicOverview] = useState<DynamicCourseOverview | null>(null);
@@ -3540,32 +3543,71 @@ function CourseOverviewPage({
         if (!response.ok || !data?.success || !data?.course) return;
 
         const dbCourse = data.course as {
+          overviewIntro?: string | null;
           overview_intro?: string | null;
+          whatYouLearn?: unknown;
           what_you_learn?: unknown;
           requirements?: unknown;
+          targetAudience?: string | null;
           target_audience?: string | null;
+          skillsCovered?: unknown;
+          skills_covered?: unknown;
+          overviewFeatures?: unknown;
+          overview_features?: unknown;
         };
 
-        const whatYouLearn = Array.isArray(dbCourse.what_you_learn)
-          ? dbCourse.what_you_learn.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-          : [];
+        const cleanStringList = (value: unknown) =>
+          Array.isArray(value)
+            ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map(item => item.trim())
+            : [];
 
-        const requirements = Array.isArray(dbCourse.requirements)
-          ? dbCourse.requirements.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        const whatYouLearn = cleanStringList(dbCourse.whatYouLearn ?? dbCourse.what_you_learn);
+        const requirements = cleanStringList(dbCourse.requirements);
+        const skillsCovered = cleanStringList(dbCourse.skillsCovered ?? dbCourse.skills_covered);
+
+        const rawFeatures = Array.isArray(dbCourse.overviewFeatures)
+          ? dbCourse.overviewFeatures
+          : Array.isArray(dbCourse.overview_features)
+            ? dbCourse.overview_features
+            : [];
+
+        const features = rawFeatures
+          .filter((item): item is { icon?: unknown; title?: unknown; description?: unknown } => Boolean(item) && typeof item === "object")
+          .map(item => ({
+            icon: typeof item.icon === "string" ? item.icon : "BookOpen",
+            title: typeof item.title === "string" ? item.title : "",
+            description: typeof item.description === "string" ? item.description : "",
+          }))
+          .filter(item => item.title && item.description);
+
+        const apiModules = Array.isArray(data.modules)
+          ? data.modules.map((module: { title?: unknown; description?: unknown; lectures?: Array<{ title?: unknown }> }) => ({
+              title: typeof module.title === "string" ? module.title : "Module",
+              description: typeof module.description === "string" && module.description.trim() ? module.description : "This module is part of the course curriculum.",
+              topics: Array.isArray(module.lectures) && module.lectures.length
+                ? module.lectures.slice(0, 6).map(lecture => typeof lecture.title === "string" ? lecture.title : "").filter(Boolean).join(" • ")
+                : "Lessons • practical concepts • assessment",
+            }))
           : [];
 
         const hasOverview =
-          Boolean(dbCourse.overview_intro?.trim()) ||
+          Boolean((dbCourse.overviewIntro ?? dbCourse.overview_intro)?.trim()) ||
           whatYouLearn.length > 0 ||
           requirements.length > 0 ||
-          Boolean(dbCourse.target_audience?.trim());
+          skillsCovered.length > 0 ||
+          features.length > 0 ||
+          Boolean((dbCourse.targetAudience ?? dbCourse.target_audience)?.trim()) ||
+          apiModules.length > 0;
 
         if (!cancelled && hasOverview) {
           setDynamicOverview({
-            overviewIntro: dbCourse.overview_intro?.trim() || "",
+            overviewIntro: (dbCourse.overviewIntro ?? dbCourse.overview_intro)?.trim() || "",
             whatYouLearn,
             requirements,
-            targetAudience: dbCourse.target_audience?.trim() || "",
+            targetAudience: (dbCourse.targetAudience ?? dbCourse.target_audience)?.trim() || "",
+            skillsCovered,
+            features,
+            modules: apiModules,
           });
         }
       } catch (error) {
@@ -3809,15 +3851,25 @@ function CourseOverviewPage({
       dynamicOverview?.whatYouLearn.length
         ? dynamicOverview.whatYouLearn
         : baseContent.benefits,
-    skills:
-      dynamicOverview?.whatYouLearn.length
-        ? dynamicOverview.whatYouLearn
-        : baseContent.skills,
     audience:
       dynamicOverview?.targetAudience
         ? [dynamicOverview.targetAudience]
         : baseContent.audience,
     requirements: dynamicOverview?.requirements ?? [],
+    skills: dynamicOverview?.skillsCovered.length
+      ? dynamicOverview.skillsCovered
+      : baseContent.skills,
+    modules: dynamicOverview?.modules.length
+      ? dynamicOverview.modules
+      : baseContent.modules,
+    features: dynamicOverview?.features.length
+      ? dynamicOverview.features
+      : [
+          { icon: "BookOpen", title: "Structured Curriculum", description: "A clear learning path from fundamentals to practical concepts." },
+          { icon: "PlayCircle", title: "Practical Learning", description: "Course lectures and demonstrations are available after purchase." },
+          { icon: "Award", title: "Quizzes & Certificate", description: "Assess your learning and complete the course requirements." },
+          { icon: "TrendingUp", title: "Career Foundation", description: "Build skills that can support further projects and career learning." },
+        ],
   };
 
   return (
@@ -3977,25 +4029,24 @@ function CourseOverviewPage({
           </div>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              [BookOpen, "Structured Curriculum", "A clear learning path from fundamentals to practical concepts."],
-              [PlayCircle, "Practical Learning", "Course lectures and demonstrations are available after purchase."],
-              [Award, "Quizzes & Certificate", "Assess your learning and complete the course requirements."],
-              [TrendingUp, "Career Foundation", "Build skills that can support further projects and career learning."],
-            ].map(([Icon, title, description]) => {
-              const FeatureIcon = Icon as typeof BookOpen;
+            {content.features.map((feature, index) => {
+              const FeatureIcon = feature.icon === "PlayCircle"
+                ? PlayCircle
+                : feature.icon === "Award"
+                  ? Award
+                  : feature.icon === "TrendingUp"
+                    ? TrendingUp
+                    : BookOpen;
               return (
                 <div
-                  key={title as string}
+                  key={`${feature.title}-${index}`}
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-emerald-800"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
                     <FeatureIcon size={20} />
                   </div>
-                  <h3 className="mt-5 font-bold text-[#0b1736] dark:text-white">{title as string}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    {description as string}
-                  </p>
+                  <h3 className="mt-5 font-bold text-[#0b1736] dark:text-white">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{feature.description}</p>
                 </div>
               );
             })}

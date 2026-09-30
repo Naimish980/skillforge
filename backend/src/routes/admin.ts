@@ -593,6 +593,200 @@ router.get(
   },
 );
 
+
+/* =====================================================
+   ADMIN PAYMENT REPORTING
+   GET /api/admin/payments
+
+   Read-only reporting. This does not modify the existing
+   Razorpay checkout or payment verification flow.
+===================================================== */
+
+router.get(
+  "/payments",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isAdmin = await verifyAdmin(req, res);
+
+      if (!isAdmin) {
+        return;
+      }
+
+      const search = String(req.query.search ?? "").trim();
+      const status = String(req.query.status ?? "all").trim().toLowerCase();
+      const from = String(req.query.from ?? "").trim();
+      const to = String(req.query.to ?? "").trim();
+
+      const conditions: string[] = [];
+      const values: unknown[] = [];
+      let index = 1;
+
+      if (search) {
+        values.push(`%${search}%`);
+        conditions.push(`(
+          u.name ILIKE $${index}
+          OR u.email ILIKE $${index}
+          OR p.razorpay_order_id ILIKE $${index}
+          OR COALESCE(p.razorpay_payment_id, '') ILIKE $${index}
+          OR COALESCE(p.payment_type, '') ILIKE $${index}
+          OR COALESCE(p.course_id, '') ILIKE $${index}
+        )`);
+        index += 1;
+      }
+
+      if (status && status !== "all") {
+        values.push(status);
+        conditions.push(`p.status = $${index}`);
+        index += 1;
+      }
+
+      if (from) {
+        values.push(from);
+        conditions.push(`p.created_at >= $${index}::date`);
+        index += 1;
+      }
+
+      if (to) {
+        values.push(to);
+        conditions.push(`p.created_at < ($${index}::date + INTERVAL '1 day')`);
+        index += 1;
+      }
+
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+      const paymentsResult = await pool.query(
+        `
+        SELECT
+          p.id,
+          p.user_id,
+          p.razorpay_order_id,
+          p.razorpay_payment_id,
+          p.amount,
+          p.currency,
+          p.payment_type,
+          p.course_id,
+          p.course_ids,
+          p.status,
+          p.created_at,
+          p.paid_at,
+          u.name AS student_name,
+          u.email AS student_email,
+          u.phone AS student_phone
+        FROM payment_orders p
+        INNER JOIN users u
+          ON u.id = p.user_id
+        ${where}
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT 500
+        `,
+        values,
+      );
+
+      const countResult = await pool.query(
+        `
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE p.status = 'paid')::int AS paid,
+          COUNT(*) FILTER (WHERE p.status = 'created')::int AS pending,
+          COUNT(*) FILTER (WHERE p.status = 'failed')::int AS failed,
+          COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'paid'), 0)::bigint AS revenue
+        FROM payment_orders p
+        INNER JOIN users u
+          ON u.id = p.user_id
+        ${where}
+        `,
+        values,
+      );
+
+      const courseResult = await pool.query(
+        `
+        SELECT id, title, category
+        FROM courses
+        ORDER BY id ASC
+        `,
+      );
+
+      const knownSlugs: Record<string, string> = {
+        "Linux Administration": "linux",
+        "AWS Cloud Fundamentals": "aws",
+        "Networking Fundamentals": "networking",
+        "Windows Administration": "windows",
+        "Cyber Security Essentials": "security",
+        "System Administration": "sysadmin",
+      };
+
+      const slugify = (title: string, id: number) => {
+        const base = title
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+        return knownSlugs[title] || `${base || "course"}-${id}`;
+      };
+
+      const courseMap = new Map<string, string>();
+      for (const course of courseResult.rows) {
+        const id = Number(course.id);
+        const title = String(course.title);
+        courseMap.set(String(id), title);
+        courseMap.set(slugify(title, id), title);
+      }
+
+      const payments = paymentsResult.rows.map((payment) => {
+        const ids = Array.isArray(payment.course_ids)
+          ? payment.course_ids.map((id: unknown) => String(id))
+          : [];
+        const fallbackId = payment.course_id == null ? null : String(payment.course_id);
+        const courseIds = ids.length ? ids : fallbackId ? [fallbackId] : [];
+        const courseNames = courseIds
+          .map((id: string) => courseMap.get(id))
+          .filter((name: string | undefined): name is string => Boolean(name));
+
+        return {
+          id: Number(payment.id),
+          userId: Number(payment.user_id),
+          studentName: String(payment.student_name || "—"),
+          studentEmail: String(payment.student_email || "—"),
+          studentPhone: payment.student_phone ? String(payment.student_phone) : null,
+          razorpayOrderId: String(payment.razorpay_order_id || "—"),
+          razorpayPaymentId: payment.razorpay_payment_id
+            ? String(payment.razorpay_payment_id)
+            : null,
+          amount: Number(payment.amount || 0) / 100,
+          currency: String(payment.currency || "INR"),
+          paymentType: String(payment.payment_type || "course"),
+          courseIds,
+          courseNames,
+          status: String(payment.status || "created"),
+          createdAt: payment.created_at,
+          paidAt: payment.paid_at || null,
+        };
+      });
+
+      const summary = countResult.rows[0] || {};
+
+      return res.status(200).json({
+        success: true,
+        summary: {
+          total: Number(summary.total || 0),
+          paid: Number(summary.paid || 0),
+          pending: Number(summary.pending || 0),
+          failed: Number(summary.failed || 0),
+          revenue: Number(summary.revenue || 0) / 100,
+        },
+        payments,
+      });
+    } catch (error) {
+      console.error("Admin payment reporting error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load payment reports",
+      });
+    }
+  },
+);
+
 /* =====================================================
    GET ALL STUDENTS
    GET /api/admin/students
