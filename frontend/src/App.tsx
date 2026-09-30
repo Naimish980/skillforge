@@ -76,6 +76,17 @@ type Offer = {
   end_at: string | null;
 };
 
+type StudentReview = {
+  id: number;
+  studentName: string;
+  reviewText: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  rating: number;
+  displayOrder: number;
+  createdAt: string;
+};
+
 type QuizQuestion = {
   question: string;
   options: string[];
@@ -565,6 +576,74 @@ let courses: Course[] = [
 ];
 
 const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+
+type SupportSettings = {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+};
+
+const DEFAULT_SUPPORT_SETTINGS: SupportSettings = {
+  name: "Naimish Singh",
+  email: "snera980@gmail.com",
+  phone: "+91 8960513302",
+  message:
+    "For course, account or payment support, contact the SkillForge support team.",
+};
+
+function usePublicSupportSettings(): SupportSettings {
+  const [supportSettings, setSupportSettings] =
+    useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSupportSettings = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/admin/public-support-settings`,
+        );
+        const data = await response.json().catch(() => null);
+
+        if (
+          !cancelled &&
+          response.ok &&
+          data?.success &&
+          data?.support
+        ) {
+          const nextSupportSettings: SupportSettings = {
+            name: String(
+              data.support.name || DEFAULT_SUPPORT_SETTINGS.name,
+            ),
+            email: String(
+              data.support.email || DEFAULT_SUPPORT_SETTINGS.email,
+            ),
+            phone: String(
+              data.support.phone || DEFAULT_SUPPORT_SETTINGS.phone,
+            ),
+            message: String(
+              data.support.message || DEFAULT_SUPPORT_SETTINGS.message,
+            ),
+          };
+
+          setSupportSettings(nextSupportSettings);
+        }
+      } catch (error) {
+        console.error("Support settings loading error:", error);
+      }
+    };
+
+    void loadSupportSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return supportSettings;
+}
+
 const SKILLFORGE_PUBLIC_URL = "https://skillforge-tau-three.vercel.app";
 
 declare global {
@@ -799,7 +878,29 @@ function OfferCountdown({ endAt }: { endAt: string | null }) {
   );
 }
 
+function ReviewVideo({ review }: { review: StudentReview }) {
+  const url = review.videoUrl.trim();
+
+  return (
+    <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-slate-950">
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src={url}
+        poster={review.thumbnailUrl || undefined}
+        controls
+        preload="metadata"
+        playsInline
+      />
+      <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+        Student Review
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
+  const supportSettings = usePublicSupportSettings();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -875,6 +976,8 @@ function AppContent() {
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [selectedOfferCourseIds, setSelectedOfferCourseIds] = useState<string[]>([]);
+  const [studentReviews, setStudentReviews] = useState<StudentReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -988,6 +1091,49 @@ function AppContent() {
 
     void loadActiveOffers();
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStudentReviews = async () => {
+      try {
+        setReviewsLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/admin/public-reviews`);
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success || !Array.isArray(data.reviews)) {
+          if (!cancelled) setStudentReviews([]);
+          return;
+        }
+
+        const reviews = data.reviews
+          .map((review: Partial<StudentReview>) => ({
+            id: Number(review.id),
+            studentName: String(review.studentName || "Student"),
+            reviewText: String(review.reviewText || ""),
+            videoUrl: String(review.videoUrl || ""),
+            thumbnailUrl: review.thumbnailUrl ? String(review.thumbnailUrl) : null,
+            rating: Math.min(5, Math.max(1, Number(review.rating) || 5)),
+            displayOrder: Number(review.displayOrder) || 0,
+            createdAt: String(review.createdAt || ""),
+          }))
+          .filter((review: StudentReview) => review.videoUrl);
+
+        if (!cancelled) setStudentReviews(reviews);
+      } catch (error) {
+        console.error("Student reviews loading error:", error);
+        if (!cancelled) setStudentReviews([]);
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
+      }
+    };
+
+    void loadStudentReviews();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -1573,7 +1719,7 @@ function AppContent() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
                       <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><UserCircle size={23}/></div><div className="min-w-0"><p className="font-bold text-slate-900">{user.name}</p><p className="truncate text-xs text-slate-500">{user.email}</p></div></div>
                       <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600"><div className="flex gap-2"><Mail size={15} className="text-emerald-600"/>{user.email}</div><div className="flex gap-2"><Phone size={15} className="text-emerald-600"/>+91 {user.phone}</div></div>
-                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">snera980@gmail.com</p><p className="text-slate-500">+91 8960513302</p></div>
+                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">{supportSettings.email}</p><p className="text-slate-500">{supportSettings.phone}</p></div>
                       <button onClick={handleLogout} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"><LogOut size={15}/> Logout</button>
                     </div>
                   </div>
@@ -1740,40 +1886,60 @@ function AppContent() {
         <section id="categories" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 py-12 lg:px-8">
           <div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black text-[#0b1736]">Explore Categories</h2><p className="mt-1 text-sm text-slate-500">Choose a learning path and build practical technical skills.</p></div><button onClick={() => {setSelectedCategory("All"); scrollToSection("courses")}} className="hidden items-center gap-2 text-sm font-bold text-emerald-600 sm:flex">View All <ArrowRight size={16}/></button></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-              {[
-                { t: "Cloud Computing", c: "Cloud", i: <Cloud /> },
-                { t: "Cyber Security", c: "Cyber Security", i: <Shield /> },
-                { t: "Networking", c: "Networking", i: <Network /> },
-                { t: "Linux", c: "IT & Tech", i: <span className="text-xl">🐧</span> },
-                { t: "IT Support", c: "IT & Tech", i: <BookOpen /> },
-                { t: "DevOps", c: "Cloud", i: <TrendingUp /> },
-              ].map((item) => {
-                const count = courses.filter(
-                  (course) => course.category === item.c,
-                ).length;
+            {Array.from(
+              new Set(
+                catalogCourses
+                  .map((course) => course.category?.trim())
+                  .filter(Boolean)
+              )
+            ).map((category) => {
+              const count = catalogCourses.filter(
+                (course) => course.category?.trim() === category
+              ).length;
 
-                return (
-                  <button
-                    key={item.t}
-                    onClick={() => {
-                      setSelectedCategory(item.c);
-                      scrollToSection("courses");
-                    }}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
-                  >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                      {item.i}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[#0b1736]">{item.t}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {count} {count === 1 ? "Course" : "Courses"}
-                      </p>
-                    </div>
-                  </button>
+              const categoryName = String(category);
+              const name = categoryName.toLowerCase();
+
+              const categoryIcon =
+                name.includes("cloud") || name.includes("aws") ? (
+                  <Cloud />
+                ) : name.includes("cyber") ||
+                  name.includes("security") ||
+                  name.includes("ethical") ? (
+                  <Shield />
+                ) : name.includes("network") || name.includes("hardware") ? (
+                  <Network />
+                ) : name.includes("linux") ? (
+                  <span className="text-xl">🐧</span>
+                ) : name.includes("devops") ||
+                  name.includes("development") ? (
+                  <TrendingUp />
+                ) : (
+                  <BookOpen />
                 );
-              })}
-            </div>
+
+              return (
+                <button
+                  key={categoryName}
+                  onClick={() => {
+                    setSelectedCategory(categoryName);
+                    scrollToSection("courses");
+                  }}
+                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    {categoryIcon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#0b1736]">{categoryName}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {count} {count === 1 ? "Course" : "Courses"}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         <section id="courses" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
@@ -1815,6 +1981,69 @@ function AppContent() {
         <section id="pricing" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8"><div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Simple Pricing</p><h2 className="mt-2 text-3xl font-black text-[#0b1736]">Learn without subscriptions.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Course pricing is managed directly from the SkillForge Admin Portal. Each course is purchased individually with lifetime access.</p></div><div className="flex gap-3"><button onClick={() => scrollToSection("courses")} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">Browse Courses</button><span className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700">Lifetime Access</span></div></div></div></section>
 
         <section id="about" className="scroll-mt-24 border-t border-slate-100 bg-white"><div className="mx-auto grid max-w-[1380px] gap-8 px-5 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:px-8"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Why SkillForge?</p><h2 className="mt-3 text-3xl font-black text-[#0b1736]">A learning platform built around practical outcomes.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">Structured learning, hands-on projects, industry-relevant skills and lifetime access — with progress tracking, quizzes and certificates.</p></div><div className="grid gap-3 sm:grid-cols-2"><Why icon={<BookOpen/>} title="Structured Learning" text="Step-by-step learning paths"/><Why icon={<TrendingUp/>} title="Hands-on Projects" text="Real-world practical experience"/><Why icon={<Shield/>} title="Industry Relevant" text="Skills employers need"/><Why icon={<Award/>} title="Lifetime Access" text="Learn at your own pace"/></div></div></section>
+
+        <section id="msme" className="mx-auto max-w-[1380px] scroll-mt-24 px-5 pb-14 lg:px-8">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Business Recognition</p>
+                <h2 className="mt-2 text-2xl font-black text-[#0b1736] dark:text-white sm:text-3xl">MSME Registration</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">SkillForge business registration and certification information.</p>
+              </div>
+              <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-slate-950">
+                <img
+                  src={`${import.meta.env.BASE_URL}msm\u0435-certificate.png`}
+                  alt="SkillForge MSME certificate"
+                  className="h-auto w-full rounded-xl object-contain"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="student-reviews" className="scroll-mt-24 border-y border-slate-100 bg-slate-50/70 py-14 dark:border-white/10 dark:bg-slate-950/30">
+            <div className="mx-auto max-w-[1380px] px-5 lg:px-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Student Reviews</p>
+                  <h2 className="mt-2 text-3xl font-black text-[#0b1736] dark:text-white">What Our Students Say</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-500">Real experiences from learners who are building their technical skills with SkillForge.</p>
+                </div>
+                <div className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm dark:border-emerald-400/20 dark:bg-slate-900 dark:text-emerald-300">
+                  Real Student Experiences
+                </div>
+              </div>
+
+              {reviewsLoading ? (
+                <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-400">
+                  Loading student reviews...
+                </div>
+              ) : (
+                <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {studentReviews.map((review) => (
+                  <article key={review.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+                    <ReviewVideo review={review} />
+                    <div className="px-1 pb-1 pt-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-lg font-black text-[#0b1736] dark:text-white">{review.studentName}</h3>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">SkillForge Learner</p>
+                        </div>
+                        <div className="flex shrink-0 gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star} className={star <= review.rating ? "text-amber-400" : "text-slate-300"}>★</span>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.reviewText}</p>
+                    </div>
+                  </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
 
         <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1380px] flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><div className="font-black text-slate-900">Skill<span className="text-emerald-600">Forge</span></div><p className="mt-1 text-xs">Learn • Practice • Grow</p></div><p>© 2026 SkillForge. All rights reserved.</p></div></footer>
       </main>
@@ -1925,6 +2154,8 @@ function DashboardPage({
   const enrolledCourses = courses.filter((course) =>
     enrolledCourseIds.includes(course.id),
   );
+
+  const supportSettings = usePublicSupportSettings();
 
   const [progressByCourse, setProgressByCourse] = useState<Record<string, number>>({});
   const [completedLessonsByCourse, setCompletedLessonsByCourse] = useState<Record<string, number>>({});
@@ -2462,12 +2693,12 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
                 </div>
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-500">
-                For course, account or payment support, contact the SkillForge support team.
+                {supportSettings.message}
               </p>
               <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm">
-                <p className="font-bold text-slate-800">Naimish Singh</p>
-                <p className="mt-1 text-slate-500">snera980@gmail.com</p>
-                <p className="text-slate-500">+91 8960513302</p>
+                <p className="font-bold text-slate-800">{supportSettings.name}</p>
+                <p className="mt-1 text-slate-500">{supportSettings.email}</p>
+                <p className="text-slate-500">{supportSettings.phone}</p>
               </div>
             </div>
           </section>
@@ -2484,6 +2715,7 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
               onBack={onBack}
               onLearn={onLearn}
               setActiveTab={setActiveTab}
+              supportSettings={supportSettings}
             />
           )}
         </main>
@@ -2989,6 +3221,7 @@ function DashboardTabContent({
   onBack,
   onLearn,
   setActiveTab,
+  supportSettings,
 }: {
   activeTab: "courses" | "progress" | "certificates" | "purchases" | "support";
   enrolledCourses: Course[];
@@ -3000,6 +3233,7 @@ function DashboardTabContent({
   onBack: () => void;
   onLearn: (course: Course) => void;
   setActiveTab: (tab: "dashboard" | "courses" | "progress" | "certificates" | "purchases" | "support") => void;
+  supportSettings: SupportSettings;
 }) {
   const [certificateCourse, setCertificateCourse] = useState<Course | null>(null);
   const [certificateRecord, setCertificateRecord] = useState<CertificateRecord | null>(null);
@@ -3413,7 +3647,7 @@ function DashboardTabContent({
       )}
 
       {activeTab === "support" && (
-        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href="mailto:snera980@gmail.com" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">snera980@gmail.com</p></a><a href="tel:+918960513302" className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">+91 8960513302</p></a></div>
+        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href={`mailto:${supportSettings.email}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">{supportSettings.email}</p></a><a href={`tel:${supportSettings.phone.replace(/[^\d+]/g, "")}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">{supportSettings.phone}</p></a></div>
       )}
     </section>
   );
@@ -4255,6 +4489,7 @@ function SkillForgeVideoPlayer({
   lectureNumber,
   moduleLabel,
   resumeStorageKey,
+  autoPlay = false,
   onEnded,
 }: {
   src: string;
@@ -4262,6 +4497,7 @@ function SkillForgeVideoPlayer({
   lectureNumber?: number;
   moduleLabel?: string;
   resumeStorageKey?: string;
+  autoPlay?: boolean;
   onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -4400,7 +4636,8 @@ function SkillForgeVideoPlayer({
         className="h-full w-full object-contain bg-black"
         src={src}
         playsInline
-        preload="metadata"
+        autoPlay={autoPlay}
+        preload={autoPlay ? "auto" : "metadata"}
         controls={false}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
         onTimeUpdate={(event) => {
@@ -5157,6 +5394,7 @@ html.dark .skillforge-course-player header {
                   lectureNumber={activeLectureIndex + 1}
                   moduleLabel={`MODULE ${activeModuleIndex + 1} • ${activeModule.title.replace(/^Module\s+\d+\s*[—-]\s*/i, "")}`}
                   resumeStorageKey={`skillforge_video_resume_${course.id}_${lecture.id}`}
+                  autoPlay
                   onEnded={markVideoWatched}
                 />
               )}
