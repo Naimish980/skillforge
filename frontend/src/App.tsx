@@ -565,6 +565,78 @@ let courses: Course[] = [
 ];
 
 const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+
+type SupportSettings = {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+};
+
+const DEFAULT_SUPPORT_SETTINGS: SupportSettings = {
+  name: "Naimish Singh",
+  email: "snera980@gmail.com",
+  phone: "+91 8960513302",
+  message:
+    "For course, account or payment support, contact the SkillForge support team.",
+};
+
+let latestSupportSettings: SupportSettings =
+  DEFAULT_SUPPORT_SETTINGS;
+
+function usePublicSupportSettings(): SupportSettings {
+  const [supportSettings, setSupportSettings] =
+    useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSupportSettings = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/admin/public-support-settings`,
+        );
+        const data = await response.json().catch(() => null);
+
+        if (
+          !cancelled &&
+          response.ok &&
+          data?.success &&
+          data?.support
+        ) {
+          const nextSupportSettings: SupportSettings = {
+            name: String(
+              data.support.name || DEFAULT_SUPPORT_SETTINGS.name,
+            ),
+            email: String(
+              data.support.email || DEFAULT_SUPPORT_SETTINGS.email,
+            ),
+            phone: String(
+              data.support.phone || DEFAULT_SUPPORT_SETTINGS.phone,
+            ),
+            message: String(
+              data.support.message || DEFAULT_SUPPORT_SETTINGS.message,
+            ),
+          };
+
+          latestSupportSettings = nextSupportSettings;
+          setSupportSettings(nextSupportSettings);
+        }
+      } catch (error) {
+        console.error("Support settings loading error:", error);
+      }
+    };
+
+    void loadSupportSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return supportSettings;
+}
+
 const SKILLFORGE_PUBLIC_URL = "https://skillforge-tau-three.vercel.app";
 
 declare global {
@@ -799,22 +871,9 @@ function OfferCountdown({ endAt }: { endAt: string | null }) {
   );
 }
 
-type SupportSettings = {
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-};
-
-const DEFAULT_SUPPORT_SETTINGS: SupportSettings = {
-  name: "Naimish Singh",
-  email: "snera980@gmail.com",
-  phone: "+91 8960513302",
-  message:
-    "For course, account or payment support, contact the SkillForge support team.",
-};
-
 function AppContent() {
+  const supportSettings = usePublicSupportSettings();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1588,7 +1647,7 @@ function AppContent() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
                       <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><UserCircle size={23}/></div><div className="min-w-0"><p className="font-bold text-slate-900">{user.name}</p><p className="truncate text-xs text-slate-500">{user.email}</p></div></div>
                       <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600"><div className="flex gap-2"><Mail size={15} className="text-emerald-600"/>{user.email}</div><div className="flex gap-2"><Phone size={15} className="text-emerald-600"/>+91 {user.phone}</div></div>
-                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">{DEFAULT_SUPPORT_SETTINGS.email}</p><p className="text-slate-500">{DEFAULT_SUPPORT_SETTINGS.phone}</p></div>
+                      <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs"><p className="font-bold text-emerald-700">Need Help?</p><p className="mt-1 text-slate-500">{supportSettings.email}</p><p className="text-slate-500">{supportSettings.phone}</p></div>
                       <button onClick={handleLogout} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"><LogOut size={15}/> Logout</button>
                     </div>
                   </div>
@@ -1957,50 +2016,11 @@ function DashboardPage({
   onLearn: (course: Course) => void;
   onLogout: () => void;
 }) {
-  const [supportSettings, setSupportSettings] =
-    useState<SupportSettings>(DEFAULT_SUPPORT_SETTINGS);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadSupportSettings = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/admin/public-support-settings`,
-        );
-        const data = await response.json().catch(() => null);
-
-        if (!cancelled && response.ok && data?.success && data?.support) {
-          setSupportSettings({
-            name: String(
-              data.support.name || DEFAULT_SUPPORT_SETTINGS.name,
-            ),
-            email: String(
-              data.support.email || DEFAULT_SUPPORT_SETTINGS.email,
-            ),
-            phone: String(
-              data.support.phone || DEFAULT_SUPPORT_SETTINGS.phone,
-            ),
-            message: String(
-              data.support.message || DEFAULT_SUPPORT_SETTINGS.message,
-            ),
-          });
-        }
-      } catch (error) {
-        console.error("Support settings loading error:", error);
-      }
-    };
-
-    void loadSupportSettings();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const enrolledCourses = courses.filter((course) =>
     enrolledCourseIds.includes(course.id),
   );
+
+  const supportSettings = usePublicSupportSettings();
 
   const [progressByCourse, setProgressByCourse] = useState<Record<string, number>>({});
   const [completedLessonsByCourse, setCompletedLessonsByCourse] = useState<Record<string, number>>({});
@@ -2538,12 +2558,12 @@ html.dark .skillforge-dashboard .continue-learning-card .continue-learning-title
                 </div>
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-500">
-                For course, account or payment support, contact the SkillForge support team.
+                {supportSettings.message}
               </p>
               <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm">
                 <p className="font-bold text-slate-800">{supportSettings.name}</p>
-                <p className="mt-1 text-slate-500">{DEFAULT_SUPPORT_SETTINGS.email}</p>
-                <p className="text-slate-500">{DEFAULT_SUPPORT_SETTINGS.phone}</p>
+                <p className="mt-1 text-slate-500">{latestSupportSettings.email}</p>
+                <p className="text-slate-500">{latestSupportSettings.phone}</p>
               </div>
             </div>
           </section>
@@ -3489,7 +3509,7 @@ function DashboardTabContent({
       )}
 
       {activeTab === "support" && (
-        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href={`mailto:${DEFAULT_SUPPORT_SETTINGS.email}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">{DEFAULT_SUPPORT_SETTINGS.email}</p></a><a href={`tel:${DEFAULT_SUPPORT_SETTINGS.phone.replace(/[^\d+]/g, "")}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">{DEFAULT_SUPPORT_SETTINGS.phone}</p></a></div>
+        <div className="mt-7 grid gap-5 md:grid-cols-2"><a href={`mailto:${latestSupportSettings.email}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Mail className="text-emerald-600"/><h3 className="mt-3 font-black">Email Support</h3><p className="mt-1 text-sm text-slate-500">{latestSupportSettings.email}</p></a><a href={`tel:${latestSupportSettings.phone.replace(/[^\d+]/g, "")}`} className="rounded-2xl border border-slate-200 p-6 hover:border-emerald-300"><Phone className="text-emerald-600"/><h3 className="mt-3 font-black">Call Support</h3><p className="mt-1 text-sm text-slate-500">{latestSupportSettings.phone}</p></a></div>
       )}
     </section>
   );
