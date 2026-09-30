@@ -400,8 +400,17 @@ const resolveCourseLessonTotal = async (course: Course): Promise<number> => {
     }
 
     if (dbId) {
+      const token = localStorage.getItem("skillforge_token");
+
       const response = await fetch(
         `${API_BASE_URL}/api/admin/public-courses/${dbId}/content`,
+        {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {},
+        },
       );
       const data = await response.json().catch(() => null);
 
@@ -3630,8 +3639,17 @@ function CourseOverviewPage({
 
         if (!dbId) return;
 
+        const token = localStorage.getItem("skillforge_token");
+
         const response = await fetch(
           `${API_BASE_URL}/api/admin/public-courses/${dbId}/content`,
+          {
+            headers: token
+              ? {
+                  Authorization: `Bearer ${token}`,
+                }
+              : {},
+          },
         );
         const data = await response.json();
 
@@ -4704,8 +4722,17 @@ function CoursePlayer({
           return;
         }
 
+        const token = localStorage.getItem("skillforge_token");
+
         const contentResponse = await fetch(
           `${API_BASE_URL}/api/admin/public-courses/${catalogCourse.dbId}/content`,
+          {
+            headers: token
+              ? {
+                  Authorization: `Bearer ${token}`,
+                }
+              : {},
+          },
         );
         const contentData = await contentResponse.json();
 
