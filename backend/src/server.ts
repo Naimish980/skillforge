@@ -26,6 +26,8 @@ app.use(helmet());
 ========================= */
 
 const allowedOrigins = [
+  "https://skillforge.bond",
+  "https://www.skillforge.bond",
   "https://skillforge-tau-three.vercel.app",
 ];
 
