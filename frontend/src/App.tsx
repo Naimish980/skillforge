@@ -575,8 +575,7 @@ let courses: Course[] = [
     ],
   },
 ];
-
-const API_BASE_URL = "https://skillforge-backend-5qln.onrender.com";
+const API_BASE_URL = "https://api.skillforge.bond"
 
 type SupportSettings = {
   name: string;
